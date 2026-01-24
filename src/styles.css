@@ -213,6 +213,24 @@ body {
   transition: all 0.2s ease;
 }
 
+/* 按钮主题统一 */
+.el-button--primary {
+  background: var(--accent-600);
+  border-color: var(--accent-600);
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background: var(--accent-500);
+  border-color: var(--accent-500);
+}
+
+.el-button:not(.el-button--primary):not(.el-button--danger):hover {
+  color: var(--accent-600);
+  border-color: var(--accent-600);
+  background: rgba(30, 41, 59, 0.05);
+}
+
 @media (max-width: 980px) {
   .grid {
     grid-template-columns: 1fr;
@@ -229,20 +247,38 @@ body {
   border-bottom: 1px solid var(--line-200);
 }
 
-/* 节点分组标签 */
+/* 节点分组标签 - 现代风格 */
+.el-tabs--card > .el-tabs__header {
+  border-bottom: 1px solid var(--line-200);
+  background: transparent;
+}
+
 .el-tabs--card > .el-tabs__header .el-tabs__nav {
-  border-radius: 8px 8px 0 0;
+  border: none;
+  border-radius: 0;
 }
 
 .el-tabs--card > .el-tabs__header .el-tabs__item {
   font-size: 13px;
-  padding: 0 14px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  margin-right: 4px;
+  background: transparent;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.el-tabs--card > .el-tabs__header .el-tabs__item:hover {
+  color: var(--accent-600);
+  background: rgba(30, 41, 59, 0.05);
 }
 
 .el-tabs--card > .el-tabs__header .el-tabs__item.is-active {
-  background: #f0f9ff;
-  color: #1e40af;
+  background: var(--accent-600);
+  color: white;
   font-weight: 600;
+  border: none;
 }
 
 /* 表格行点击样式 */
@@ -347,16 +383,16 @@ body {
   color: #7dd3fc;
 }
 
-.config-preview .yaml-value {
-  color: #a5f3fc;
-}
-
 .config-preview .yaml-string {
   color: #86efac;
 }
 
 .config-preview .yaml-number {
   color: #fdba74;
+}
+
+.config-preview .yaml-boolean {
+  color: #c4b5fd;
 }
 
 .config-preview .yaml-comment {
@@ -379,4 +415,57 @@ body {
 
 .footer a:hover {
   text-decoration: underline;
+}
+
+/* 一键导入区域 */
+.import-section {
+  margin-top: 16px;
+}
+
+.import-box {
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.import-box .el-input-group__prepend {
+  background: #1e40af;
+  color: white;
+  border-color: #1e40af;
+  font-weight: 600;
+}
+
+/* 二维码样式 */
+.qr-section {
+  margin-top: 8px;
+}
+
+.qrcode-img {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 120px;
+  height: 120px;
+}
+
+.qr-tips {
+  flex: 1;
+}
+
+.qr-tips-title {
+  font-weight: 600;
+  color: var(--accent-600);
+  margin-bottom: 8px;
+}
+
+.qr-tips-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.8;
+}
+
+.qr-tips-list strong {
+  color: var(--accent-600);
 }

@@ -48,6 +48,32 @@
                     <code>proxy-server.js</code>）。
                   </div>
                 </el-form-item>
+                
+                <el-divider content-position="left">DNS 配置</el-divider>
+                <el-form-item label="DNS 模式">
+                  <el-radio-group v-model="form.dnsMode">
+                    <el-radio value="fake-ip">Fake-IP (推荐)</el-radio>
+                    <el-radio value="redir-host">Redir-Host</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="国内 DNS">
+                  <el-input v-model="form.domesticDns" placeholder="223.5.5.5, 119.29.29.29" />
+                  <div class="helper-text">多个 DNS 用逗号分隔</div>
+                </el-form-item>
+                <el-form-item label="国外 DNS">
+                  <el-input v-model="form.foreignDns" placeholder="https://dns.google/dns-query" />
+                </el-form-item>
+                
+                <el-divider content-position="left">规则集导入</el-divider>
+                <el-form-item label="外部规则集 URL">
+                  <el-select v-model="form.ruleProviders" multiple placeholder="选择预设规则集" style="width: 100%;">
+                    <el-option label="Loyalsoldier - 广告域名" value="reject" />
+                    <el-option label="Loyalsoldier - 代理域名" value="proxy" />
+                    <el-option label="Loyalsoldier - 直连域名" value="direct" />
+                    <el-option label="Loyalsoldier - GFW 域名" value="gfw" />
+                  </el-select>
+                  <div class="helper-text">选择后将自动添加对应的 rule-providers 配置</div>
+                </el-form-item>
               </el-collapse-item>
             </el-collapse>
 
@@ -288,6 +314,40 @@
             <el-button @click="downloadYaml" :disabled="!yamlText">下载 config.yaml</el-button>
             <el-button type="danger" link @click="clearAllConfig" class="clear-config-btn">清除配置</el-button>
           </el-space>
+          
+          <!-- 一键导入区域 -->
+          <div v-if="yamlText" class="import-section">
+            <el-divider content-position="left">一键导入 Clash</el-divider>
+            <div class="import-box">
+              <el-input 
+                v-model="clashImportUrl" 
+                readonly 
+                placeholder="生成配置后显示导入链接"
+              >
+                <template #prepend>clash://</template>
+                <template #append>
+                  <el-button @click="copyClashImportUrl">复制</el-button>
+                </template>
+              </el-input>
+              <div class="qr-section">
+                <div v-if="qrcodeDataUrl" style="display: flex; align-items: flex-start; gap: 16px; margin-top: 12px;">
+                  <img :src="qrcodeDataUrl" alt="扫码导入" class="qrcode-img" />
+                  <div class="qr-tips">
+                    <div class="qr-tips-title">📱 手机扫码导入</div>
+                    <ul class="qr-tips-list">
+                      <li><strong>Clash for Android</strong>：扫码自动导入</li>
+                      <li><strong>Stash (iOS)</strong>：扫码自动导入</li>
+                      <li><strong>Shadowrocket</strong>：复制链接手动添加</li>
+                    </ul>
+                  </div>
+                </div>
+                <div v-else class="helper-text" style="margin-top: 8px;">
+                  配置较大，请使用"下载 config.yaml"后手动导入手机客户端
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <el-divider content-position="left">生成说明</el-divider>
           <ul style="padding-left: 18px; color: #475569; font-size: 13px; line-height: 1.7;">
             <li>默认使用 Fake-IP DNS、国内外分流解析。</li>
@@ -299,7 +359,7 @@
 
         <div class="section-card">
           <div class="section-title">预览 config.yaml</div>
-          <div class="config-preview">{{ yamlText || "等待生成..." }}</div>
+          <div class="config-preview" v-html="highlightedYaml || '等待生成...'"></div>
         </div>
       </div>
 
@@ -328,6 +388,7 @@
 import { computed, reactive, ref, watch, onMounted } from "vue";
 import { Loading, Search } from '@element-plus/icons-vue';
 import yaml from "js-yaml";
+import QRCode from 'qrcode';
 import { defaultRules, fakeIpFilter, ruleTypes, policyGroups } from "./config/defaultConfig.js";
 
 // ==================== 配置持久化 ====================
@@ -390,12 +451,20 @@ const formDefaults = {
   socksPass: "",
   socksAlias: "🇺🇸 美国家宽-出口",
   dialerProxy: "",
+  // DNS 配置
+  dnsMode: "fake-ip",
+  domesticDns: "223.5.5.5, 119.29.29.29",
+  foreignDns: "https://dns.google/dns-query, https://cloudflare-dns.com/dns-query",
+  // 规则集
+  ruleProviders: [],
 };
 
 const form = reactive({ ...formDefaults });
 const formRef = ref();
 const nodes = ref([]);
 const yamlText = ref("");
+const clashImportUrl = ref("");
+const qrcodeDataUrl = ref("");
 const status = reactive({ message: "", type: "info" });
 const customRules = ref([]);
 const ruleBuilder = reactive({
@@ -448,6 +517,34 @@ const nodeGroups = computed(() => {
   });
   return Object.values(groups).sort((a, b) => b.count - a.count);
 });
+
+// YAML 语法高亮
+const highlightYaml = (text) => {
+  if (!text) return '';
+  // HTML 转义
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  
+  // 高亮处理
+  html = html
+    // 注释
+    .replace(/(#.*$)/gm, '<span class="yaml-comment">$1</span>')
+    // 键名（行首的键:）
+    .replace(/^(\s*)([a-zA-Z0-9_-]+)(:)/gm, '$1<span class="yaml-key">$2</span>$3')
+    // 数字
+    .replace(/:\s*(\d+)(\s*)$/gm, ': <span class="yaml-number">$1</span>$2')
+    // 布尔值
+    .replace(/:\s*(true|false)(\s*)$/gm, ': <span class="yaml-boolean">$1</span>$2')
+    // 带引号的字符串
+    .replace(/"([^"]+)"/g, '<span class="yaml-string">"$1"</span>');
+  
+  return html;
+};
+
+// 高亮后的 YAML
+const highlightedYaml = computed(() => highlightYaml(yamlText.value));
 
 // 筛选后的节点
 const filteredNodes = computed(() => {
@@ -1339,6 +1436,68 @@ const generateYaml = () => {
     ...customRules.value,
     ...customRulesFromText,
   ];
+  
+  // 解析用户自定义 DNS
+  const domesticDnsList = form.domesticDns.split(',').map(s => s.trim()).filter(s => s);
+  const foreignDnsList = form.foreignDns.split(',').map(s => s.trim()).filter(s => s);
+  
+  // 规则集配置
+  const ruleProvidersDef = {
+    reject: {
+      type: "http",
+      behavior: "domain",
+      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt",
+      path: "./ruleset/reject.yaml",
+      interval: 86400,
+    },
+    proxy: {
+      type: "http",
+      behavior: "domain", 
+      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
+      path: "./ruleset/proxy.yaml",
+      interval: 86400,
+    },
+    direct: {
+      type: "http",
+      behavior: "domain",
+      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt",
+      path: "./ruleset/direct.yaml",
+      interval: 86400,
+    },
+    gfw: {
+      type: "http",
+      behavior: "domain",
+      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt",
+      path: "./ruleset/gfw.yaml",
+      interval: 86400,
+    },
+  };
+  
+  // 生成 rule-providers
+  const ruleProviders = {};
+  form.ruleProviders.forEach(key => {
+    if (ruleProvidersDef[key]) {
+      ruleProviders[key] = ruleProvidersDef[key];
+    }
+  });
+  
+  // 生成规则集对应的规则
+  const ruleProviderRules = [];
+  if (form.ruleProviders.includes('reject')) {
+    ruleProviderRules.push('RULE-SET,reject,REJECT');
+  }
+  if (form.ruleProviders.includes('proxy')) {
+    ruleProviderRules.push(`RULE-SET,proxy,${otherGroupName}`);
+  }
+  if (form.ruleProviders.includes('direct')) {
+    ruleProviderRules.push('RULE-SET,direct,DIRECT');
+  }
+  if (form.ruleProviders.includes('gfw')) {
+    ruleProviderRules.push(`RULE-SET,gfw,${otherGroupName}`);
+  }
+  
+  // 合并规则（规则集规则放在前面）
+  const finalRules = [...ruleProviderRules, ...combinedRules];
 
   const config = {
     port: 7890,
@@ -1348,9 +1507,9 @@ const generateYaml = () => {
     "log-level": "info",
     dns: {
       enable: true,
-      "enhanced-mode": "fake-ip",
+      "enhanced-mode": form.dnsMode,
       "fake-ip-range": "198.18.0.1/16",
-      "fake-ip-filter": [
+      "fake-ip-filter": form.dnsMode === "fake-ip" ? [
         "*.lan",
         "*.local",
         "localhost",
@@ -1371,9 +1530,9 @@ const generateYaml = () => {
         "*.xboxlive.com",
         "*.battlenet.com.cn",
         "*.logon.battlenet.com.cn",
-      ],
-      nameserver: ["223.5.5.5", "119.29.29.29"],
-      fallback: ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"],
+      ] : undefined,
+      nameserver: domesticDnsList.length > 0 ? domesticDnsList : ["223.5.5.5", "119.29.29.29"],
+      fallback: foreignDnsList.length > 0 ? foreignDnsList : ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"],
       "fallback-filter": {
         geoip: true,
         "geoip-code": "CN",
@@ -1397,7 +1556,8 @@ const generateYaml = () => {
         proxies: [...proxyNames, form.socksAlias, "DIRECT"],
       },
     ],
-    rules: combinedRules,
+    ...(Object.keys(ruleProviders).length > 0 ? { "rule-providers": ruleProviders } : {}),
+    rules: finalRules,
   };
 
   yamlText.value = yaml.dump(config, {
@@ -1405,6 +1565,8 @@ const generateYaml = () => {
     lineWidth: 120,
     quotingType: '"',
   });
+  // 生成 Clash 导入链接
+  generateClashImportUrl();
   status.message = "配置已生成，可复制或下载。";
   status.type = "success";
 };
@@ -1427,5 +1589,43 @@ const downloadYaml = () => {
   link.download = "config.yaml";
   link.click();
   URL.revokeObjectURL(link.href);
+};
+
+// 复制 Clash 导入链接
+const copyClashImportUrl = async () => {
+  try {
+    const fullUrl = `clash://install-config?url=${clashImportUrl.value}`;
+    await navigator.clipboard.writeText(fullUrl);
+    status.message = "Clash 导入链接已复制到剪贴板。";
+    status.type = "success";
+  } catch (error) {
+    status.message = "复制失败，请手动复制。";
+    status.type = "error";
+  }
+};
+
+// 生成配置后创建导入链接
+const generateClashImportUrl = async () => {
+  // 使用 data URI 方案，将配置编码为 base64
+  const base64Config = btoa(unescape(encodeURIComponent(yamlText.value)));
+  clashImportUrl.value = `data:text/yaml;base64,${base64Config}`;
+  
+  // 生成二维码（由于导入链接太长，改用下载链接提示）
+  const fullUrl = `clash://install-config?url=${clashImportUrl.value}`;
+  try {
+    // 二维码内容限制，如果太长就使用简化提示
+    if (fullUrl.length < 2000) {
+      qrcodeDataUrl.value = await QRCode.toDataURL(fullUrl, {
+        width: 150,
+        margin: 2,
+        color: { dark: '#1e293b', light: '#ffffff' }
+      });
+    } else {
+      // 链接太长，生成下载说明二维码
+      qrcodeDataUrl.value = "";
+    }
+  } catch {
+    qrcodeDataUrl.value = "";
+  }
 };
 </script>
