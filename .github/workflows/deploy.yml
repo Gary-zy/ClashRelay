@@ -6,13 +6,11 @@ on:
   pull_request:
     branches: [main, master]
 
-# 设置 GITHUB_TOKEN 权限
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 禁止并发部署
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -38,6 +36,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
