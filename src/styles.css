@@ -218,3 +218,165 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* 节点工具栏 */
+.node-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-200);
+}
+
+/* 节点分组标签 */
+.el-tabs--card > .el-tabs__header .el-tabs__nav {
+  border-radius: 8px 8px 0 0;
+}
+
+.el-tabs--card > .el-tabs__header .el-tabs__item {
+  font-size: 13px;
+  padding: 0 14px;
+}
+
+.el-tabs--card > .el-tabs__header .el-tabs__item.is-active {
+  background: #f0f9ff;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* 表格行点击样式 */
+.el-table .el-table__row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.el-table .el-table__row:hover > td {
+  background: #f0f9ff !important;
+}
+
+.el-table .current-row > td {
+  background: #e0f2fe !important;
+}
+
+/* 清除配置按钮样式 */
+.clear-config-btn {
+  color: #ef4444;
+  font-size: 12px;
+}
+
+/* 移动端适配优化 */
+@media (max-width: 768px) {
+  .ink-bg {
+    padding: 16px 12px 40px;
+  }
+  
+  .hero {
+    flex-direction: column;
+    text-align: center;
+    padding: 12px 8px 20px;
+  }
+  
+  .hero-title {
+    font-size: 24px;
+  }
+  
+  .hero-desc {
+    font-size: 14px;
+  }
+  
+  .section-card {
+    padding: 14px 12px 6px;
+    border-radius: 12px;
+  }
+  
+  .section-title {
+    font-size: 16px;
+  }
+  
+  .node-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .node-toolbar .el-input,
+  .node-toolbar .el-select {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+  
+  .node-toolbar .el-button {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-top: 4px;
+  }
+  
+  .selected-node-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .config-preview {
+    font-size: 11px;
+    padding: 10px;
+    max-height: 300px;
+  }
+  
+  /* 表格列隐藏 */
+  .el-table .el-table-column--selection {
+    width: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 20px;
+  }
+  
+  .grid {
+    gap: 12px;
+  }
+  
+  .el-tabs--card > .el-tabs__header .el-tabs__item {
+    font-size: 12px;
+    padding: 0 10px;
+  }
+}
+
+/* YAML 预览高亮样式 */
+.config-preview .yaml-key {
+  color: #7dd3fc;
+}
+
+.config-preview .yaml-value {
+  color: #a5f3fc;
+}
+
+.config-preview .yaml-string {
+  color: #86efac;
+}
+
+.config-preview .yaml-number {
+  color: #fdba74;
+}
+
+.config-preview .yaml-comment {
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Footer 更新 */
+.footer {
+  margin-top: 28px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.footer a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}

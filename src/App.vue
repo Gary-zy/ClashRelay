@@ -3,7 +3,7 @@
     <div class="container">
       <div class="hero">
         <div>
-          <h1 class="hero-title">Clash 链式代理配置生成器</h1>
+          <h1 class="hero-title">ClashRelay - 链式代理配置生成器</h1>
           <p class="hero-desc">
             输入机场订阅与 Socks5 落地节点，选择跳板节点后，一键生成带 DNS 优化与策略组分流的
             config.yaml。支持订阅解析、快速预览、复制与下载。
@@ -19,7 +19,23 @@
               <el-button type="primary" @click="handleFetch" style="width: 100%;">获取节点</el-button>
             </el-form-item>
             <el-form-item label="机场订阅地址" prop="subscriptionUrl">
-              <el-input v-model="form.subscriptionUrl" placeholder="https://example.com/subscription" />
+              <el-autocomplete
+                v-model="form.subscriptionUrl"
+                :fetch-suggestions="querySubscriptionHistory"
+                placeholder="https://example.com/subscription"
+                style="width: 100%;"
+                clearable
+              >
+                <template #default="{ item }">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.value }}</span>
+                    <el-button type="danger" link size="small" @click.stop="removeHistoryItem(item.value)">删除</el-button>
+                  </div>
+                </template>
+              </el-autocomplete>
+              <div v-if="subscriptionHistory.length > 0" class="helper-text">
+                最近使用的订阅地址会自动保存
+              </div>
             </el-form-item>
             
             <el-collapse style="margin-bottom: 16px;">
@@ -78,9 +94,9 @@
           <div class="section-title">2. 选择跳板节点</div>
           <el-form label-position="top">
             <el-form-item label="跳板节点 (Dialer-Proxy)">
-              <el-select v-model="form.dialerProxy" placeholder="请选择机场节点">
+              <el-select v-model="form.dialerProxy" placeholder="请选择机场节点" filterable>
                 <el-option
-                  v-for="node in nodes"
+                  v-for="node in filteredNodes"
                   :key="node.name"
                   :label="node.name"
                   :value="node.name"
@@ -116,30 +132,57 @@
               <div v-if="selectedNode.sni"><strong>SNI：</strong>{{ selectedNode.sni }}</div>
             </div>
           </div>
-          <div style="margin-bottom: 12px;">
-            <el-button size="small" @click="testAllNodesLatency" :loading="isTesting">
-              {{ isTesting ? '测速中...' : '测试所有节点延迟' }}
+          
+          <!-- 节点操作工具栏 -->
+          <div class="node-toolbar">
+            <el-input 
+              v-model="nodeSearch" 
+              placeholder="搜索节点..." 
+              :prefix-icon="Search"
+              clearable 
+              style="width: 200px;"
+            />
+            <el-select v-model="nodeSortBy" placeholder="排序方式" style="width: 130px; margin-left: 8px;">
+              <el-option label="默认顺序" value="default" />
+              <el-option label="按延迟" value="latency" />
+              <el-option label="按名称" value="name" />
+              <el-option label="按类型" value="type" />
+            </el-select>
+            <el-button size="small" @click="testAllNodesLatency" :loading="isTesting" style="margin-left: 8px;">
+              {{ isTesting ? '测速中...' : '测试延迟' }}
             </el-button>
           </div>
+          
+          <!-- 节点分组标签页 -->
+          <el-tabs v-model="activeNodeGroup" type="card" style="margin-top: 12px;">
+            <el-tab-pane label="全部" name="all">
+              <span slot="label">全部 ({{ filteredNodes.length }})</span>
+            </el-tab-pane>
+            <el-tab-pane 
+              v-for="group in nodeGroups" 
+              :key="group.key" 
+              :name="group.key"
+            >
+              <template #label>
+                {{ group.label }} ({{ group.count }})
+              </template>
+            </el-tab-pane>
+          </el-tabs>
+          
           <el-table
-            :data="nodes"
+            :data="displayNodes"
             size="small"
-            height="600"
+            height="500"
             empty-text="暂无节点，请先获取节点"
             style="width: 100%"
+            @row-click="handleNodeRowClick"
+            highlight-current-row
           >
-            <el-table-column prop="name" label="节点名称" min-width="330" show-overflow-tooltip />
-            <el-table-column prop="type" label="类型" width="75" />
-            <el-table-column prop="server" label="服务器" min-width="110" show-overflow-tooltip />
-            <el-table-column prop="port" label="端口" width="65" />
-            <el-table-column label="凭证" min-width="90" show-overflow-tooltip>
-              <template #default="{ row }">
-                {{ row.uuid ? row.uuid.substring(0, 8) + '...' : (row.password ? row.password.substring(0, 8) + '...' : '—') }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="cipher" label="加密" width="85" show-overflow-tooltip />
-            <el-table-column prop="network" label="传输" width="70" />
-            <el-table-column label="延迟" width="85">
+            <el-table-column prop="name" label="节点名称" min-width="300" show-overflow-tooltip />
+            <el-table-column prop="type" label="类型" width="80" />
+            <el-table-column prop="server" label="服务器" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="port" label="端口" width="70" />
+            <el-table-column label="延迟" width="90">
               <template #default="{ row }">
                 <span v-if="row.latency === -1" style="color: #999;">—</span>
                 <span v-else-if="row.latency === -2" style="color: #f56c6c;">超时</span>
@@ -147,6 +190,13 @@
                   {{ row.latency }}ms
                 </span>
                 <el-icon v-else class="is-loading" style="color: #409eff;"><Loading /></el-icon>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click.stop="form.dialerProxy = row.name">
+                  选择
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -235,6 +285,7 @@
             <el-button type="primary" @click="generateYaml">生成配置</el-button>
             <el-button @click="copyYaml" :disabled="!yamlText">复制配置</el-button>
             <el-button @click="downloadYaml" :disabled="!yamlText">下载 config.yaml</el-button>
+            <el-button type="danger" link @click="clearAllConfig" class="clear-config-btn">清除配置</el-button>
           </el-space>
           <el-divider content-position="left">生成说明</el-divider>
           <ul style="padding-left: 18px; color: #475569; font-size: 13px; line-height: 1.7;">
@@ -251,7 +302,10 @@
         </div>
       </div>
 
-      <div class="footer">RelayBox · Clash 链式代理配置生成器</div>
+      <div class="footer">
+        ClashRelay · Clash 链式代理配置生成器 · 
+        <a href="https://github.com/Gary-zy/ClashRelay" target="_blank">GitHub</a>
+      </div>
     </div>
 
     <!-- 默认规则查看对话框 -->
@@ -270,10 +324,58 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
-import { Loading } from '@element-plus/icons-vue';
+import { computed, reactive, ref, watch, onMounted } from "vue";
+import { Loading, Search } from '@element-plus/icons-vue';
 import yaml from "js-yaml";
 import { defaultRules, fakeIpFilter, ruleTypes, policyGroups } from "./config/defaultConfig.js";
+
+// ==================== 配置持久化 ====================
+const STORAGE_KEY = "clashrelay_config";
+const HISTORY_KEY = "clashrelay_history";
+
+const loadSavedConfig = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveConfig = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      subscriptionUrl: form.subscriptionUrl,
+      proxyUrl: form.proxyUrl,
+      socksServer: form.socksServer,
+      socksPort: form.socksPort,
+      socksUser: form.socksUser,
+      socksPass: form.socksPass,
+      socksAlias: form.socksAlias,
+    }));
+  } catch {}
+};
+
+const loadSubscriptionHistory = () => {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveSubscriptionHistory = (url) => {
+  if (!url) return;
+  try {
+    let history = loadSubscriptionHistory();
+    history = history.filter(h => h !== url);
+    history.unshift(url);
+    history = history.slice(0, 5);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    subscriptionHistory.value = history;
+  } catch {}
+};
 
 const formDefaults = {
   subscriptionUrl: "",
@@ -303,6 +405,145 @@ const ruleBuilder = reactive({
 
 const isTesting = ref(false);
 const showDefaultRules = ref(false);
+
+// ==================== 节点筛选/排序/分组 ====================
+const nodeSearch = ref("");
+const nodeSortBy = ref("default");
+const activeNodeGroup = ref("all");
+const subscriptionHistory = ref([]);
+
+// 地区关键词映射
+const regionMap = {
+  "香港": ["香港", "HK", "Hong Kong", "HongKong", "🇭🇰"],
+  "美国": ["美国", "US", "USA", "United States", "🇺🇸"],
+  "日本": ["日本", "JP", "Japan", "🇯🇵"],
+  "新加坡": ["新加坡", "SG", "Singapore", "🇸🇬"],
+  "台湾": ["台湾", "TW", "Taiwan", "🇹🇼"],
+  "韩国": ["韩国", "KR", "Korea", "🇰🇷"],
+  "德国": ["德国", "DE", "Germany", "🇩🇪"],
+  "法国": ["法国", "FR", "France", "🇫🇷"],
+  "英国": ["英国", "UK", "GB", "Britain", "🇬🇧"],
+  "澳大利亚": ["澳大利亚", "AU", "Australia", "🇦🇺"],
+};
+
+const getNodeRegion = (nodeName) => {
+  for (const [region, keywords] of Object.entries(regionMap)) {
+    if (keywords.some(kw => nodeName.toLowerCase().includes(kw.toLowerCase()))) {
+      return region;
+    }
+  }
+  return "其他";
+};
+
+// 计算节点分组
+const nodeGroups = computed(() => {
+  const groups = {};
+  nodes.value.forEach(node => {
+    const region = getNodeRegion(node.name);
+    if (!groups[region]) {
+      groups[region] = { key: region, label: region, count: 0 };
+    }
+    groups[region].count++;
+  });
+  return Object.values(groups).sort((a, b) => b.count - a.count);
+});
+
+// 筛选后的节点
+const filteredNodes = computed(() => {
+  let result = [...nodes.value];
+  
+  // 搜索筛选
+  if (nodeSearch.value) {
+    const searchLower = nodeSearch.value.toLowerCase();
+    result = result.filter(node => 
+      node.name.toLowerCase().includes(searchLower) ||
+      node.server?.toLowerCase().includes(searchLower) ||
+      node.type?.toLowerCase().includes(searchLower)
+    );
+  }
+  
+  // 排序
+  if (nodeSortBy.value === "latency") {
+    result.sort((a, b) => {
+      const la = a.latency > 0 ? a.latency : 99999;
+      const lb = b.latency > 0 ? b.latency : 99999;
+      return la - lb;
+    });
+  } else if (nodeSortBy.value === "name") {
+    result.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (nodeSortBy.value === "type") {
+    result.sort((a, b) => a.type.localeCompare(b.type));
+  }
+  
+  return result;
+});
+
+// 根据分组过滤显示的节点
+const displayNodes = computed(() => {
+  if (activeNodeGroup.value === "all") {
+    return filteredNodes.value;
+  }
+  return filteredNodes.value.filter(node => 
+    getNodeRegion(node.name) === activeNodeGroup.value
+  );
+});
+
+// 点击行选中节点
+const handleNodeRowClick = (row) => {
+  form.dialerProxy = row.name;
+};
+
+// 初始化
+onMounted(() => {
+  const savedConfig = loadSavedConfig();
+  if (savedConfig) {
+    Object.assign(form, savedConfig);
+  }
+  subscriptionHistory.value = loadSubscriptionHistory();
+});
+
+// 监听表单变化自动保存
+watch(
+  () => ({
+    subscriptionUrl: form.subscriptionUrl,
+    proxyUrl: form.proxyUrl,
+    socksServer: form.socksServer,
+    socksPort: form.socksPort,
+    socksUser: form.socksUser,
+    socksPass: form.socksPass,
+    socksAlias: form.socksAlias,
+  }),
+  () => saveConfig(),
+  { deep: true }
+);
+
+// 订阅历史查询
+const querySubscriptionHistory = (query, cb) => {
+  const results = query
+    ? subscriptionHistory.value.filter(url => url.toLowerCase().includes(query.toLowerCase()))
+    : subscriptionHistory.value;
+  cb(results.map(url => ({ value: url })));
+};
+
+// 删除历史记录项
+const removeHistoryItem = (url) => {
+  subscriptionHistory.value = subscriptionHistory.value.filter(h => h !== url);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(subscriptionHistory.value));
+  } catch {}
+};
+
+// 清除所有配置
+const clearAllConfig = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(HISTORY_KEY);
+  Object.assign(form, formDefaults);
+  subscriptionHistory.value = [];
+  nodes.value = [];
+  yamlText.value = "";
+  status.message = "已清除所有配置。";
+  status.type = "info";
+};
 
 const rules = {
   subscriptionUrl: [{ type: "url", message: "请输入有效的 URL", trigger: "blur" }],
@@ -489,6 +730,8 @@ const handleFetch = async () => {
   if (!form.dialerProxy && parsed[0]) {
     form.dialerProxy = parsed[0].name;
   }
+  // 保存订阅历史
+  saveSubscriptionHistory(form.subscriptionUrl.trim());
   status.message = `成功解析 ${parsed.length} 个节点。`;
   status.type = "success";
 };
