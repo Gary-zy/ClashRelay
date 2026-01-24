@@ -124,6 +124,6 @@ export const ruleTypes = [
 // 策略组选项
 export const policyGroups = [
   { label: "🇺🇸 美国尊享", value: "🇺🇸 美国尊享(AI/Google)" },
-  { label: "🌍 其他外网", value: "🌍 其他外网(默认香港)" },
+  { label: "🌍 其他外网", value: "🌍 其他外网" },
   { label: "DIRECT", value: "DIRECT" },
 ];

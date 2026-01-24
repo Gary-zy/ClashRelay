@@ -529,6 +529,10 @@ const parseProxyLine = (line, index) => {
   if (line.startsWith("vless://")) return parseVless(line, index);
   if (line.startsWith("trojan://")) return parseTrojan(line, index);
   if (line.startsWith("ss://")) return parseSS(line, index);
+  if (line.startsWith("ssr://")) return parseSSR(line, index);
+  if (line.startsWith("hysteria://")) return parseHysteria(line, index);
+  if (line.startsWith("hysteria2://") || line.startsWith("hy2://")) return parseHysteria2(line, index);
+  if (line.startsWith("tuic://")) return parseTUIC(line, index);
   return null;
 };
 
@@ -543,21 +547,67 @@ const parseVmess = (line, index) => {
       port: Number(json.port),
       uuid: json.id,
       alterId: Number(json.aid || 0),
-      cipher: "auto",
+      cipher: json.scy || "auto",
       udp: true,
     };
-    if (json.tls === "tls") node.tls = true;
+    
+    // TLS 配置
+    if (json.tls === "tls") {
+      node.tls = true;
+      if (json.sni) node.servername = json.sni;
+      // skip-cert-verify
+      if (json.allowInsecure === "1" || json.allowInsecure === 1 || json.verify_cert === false) {
+        node["skip-cert-verify"] = true;
+      }
+      // ALPN
+      if (json.alpn) {
+        node.alpn = Array.isArray(json.alpn) ? json.alpn : json.alpn.split(",");
+      }
+      // 指纹
+      if (json.fp) {
+        node["client-fingerprint"] = json.fp;
+      }
+    }
+    
+    // 传输层配置
     if (json.net) node.network = json.net;
+    
+    // WebSocket
     if (json.net === "ws") {
       node["ws-opts"] = {
         path: json.path || "/",
         headers: json.host ? { Host: json.host } : undefined,
       };
+      // 早期数据
+      if (json.ed) {
+        node["ws-opts"]["max-early-data"] = Number(json.ed);
+        node["ws-opts"]["early-data-header-name"] = "Sec-WebSocket-Protocol";
+      }
     }
+    
+    // gRPC
     if (json.net === "grpc") {
-      node["grpc-opts"] = { "grpc-service-name": json.path || "" };
+      node["grpc-opts"] = { 
+        "grpc-service-name": json.path || json.serviceName || "",
+      };
     }
-    if (json.sni) node.sni = json.sni;
+    
+    // HTTP/2
+    if (json.net === "h2") {
+      node["h2-opts"] = {
+        path: json.path || "/",
+        host: json.host ? [json.host] : undefined,
+      };
+    }
+    
+    // HTTP
+    if (json.net === "http") {
+      node["http-opts"] = {
+        path: json.path ? [json.path] : ["/"],
+        headers: json.host ? { Host: [json.host] } : undefined,
+      };
+    }
+    
     return node;
   } catch (error) {
     return null;
@@ -569,6 +619,9 @@ const parseVless = (line, index) => {
     const url = new URL(line);
     const name = decodeURIComponent(url.hash.replace("#", "")) || `vless-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
+    const isReality = params.security === "reality";
+    const isTls = params.security === "tls" || isReality;
+    
     const node = {
       name,
       type: "vless",
@@ -576,20 +629,60 @@ const parseVless = (line, index) => {
       port: Number(url.port),
       uuid: url.username,
       udp: true,
-      tls: params.security === "tls" || params.security === "reality",
+      tls: isTls,
       network: params.type || "tcp",
     };
+    
+    // SNI / servername
     if (params.sni) node.sni = params.sni;
+    if (params.servername) node.servername = params.servername;
+    
+    // Flow (XTLS)
     if (params.flow) node.flow = params.flow;
+    
+    // skip-cert-verify
+    if (params.allowInsecure === "1" || params.allowInsecure === "true") {
+      node["skip-cert-verify"] = true;
+    } else if (isTls) {
+      node["skip-cert-verify"] = false;
+    }
+    
+    // Client fingerprint
+    if (params.fp) {
+      node["client-fingerprint"] = params.fp;
+    }
+    
+    // Reality 配置
+    if (isReality && params.pbk) {
+      node["reality-opts"] = {
+        "public-key": params.pbk,
+      };
+      if (params.sid) {
+        node["reality-opts"]["short-id"] = params.sid;
+      }
+    }
+    
+    // WebSocket 配置
     if (params.type === "ws") {
       node["ws-opts"] = {
         path: params.path || "/",
         headers: params.host ? { Host: params.host } : undefined,
       };
     }
+    
+    // gRPC 配置
     if (params.type === "grpc") {
       node["grpc-opts"] = { "grpc-service-name": params.serviceName || "" };
     }
+    
+    // HTTP/2 配置
+    if (params.type === "h2") {
+      node["h2-opts"] = {
+        path: params.path || "/",
+        host: params.host ? [params.host] : undefined,
+      };
+    }
+    
     return node;
   } catch (error) {
     return null;
@@ -601,16 +694,59 @@ const parseTrojan = (line, index) => {
     const url = new URL(line);
     const name = decodeURIComponent(url.hash.replace("#", "")) || `trojan-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
-    return {
+    
+    const node = {
       name,
       type: "trojan",
       server: url.hostname,
       port: Number(url.port),
-      password: url.username,
-      sni: params.sni || "",
+      password: decodeURIComponent(url.username),
       udp: true,
-      "skip-cert-verify": params.allowInsecure === "1",
     };
+    
+    // SNI
+    if (params.sni) node.sni = params.sni;
+    if (params.peer) node.sni = params.peer; // 兼容旧格式
+    
+    // skip-cert-verify
+    if (params.allowInsecure === "1" || params.allowInsecure === "true") {
+      node["skip-cert-verify"] = true;
+    }
+    
+    // 指纹
+    if (params.fp) {
+      node["client-fingerprint"] = params.fp;
+    }
+    
+    // ALPN
+    if (params.alpn) {
+      node.alpn = decodeURIComponent(params.alpn).split(",");
+    }
+    
+    // 传输层
+    const transport = params.type || "tcp";
+    if (transport !== "tcp") {
+      node.network = transport;
+    }
+    
+    // WebSocket
+    if (transport === "ws") {
+      node.network = "ws";
+      node["ws-opts"] = {
+        path: params.path || "/",
+        headers: params.host ? { Host: params.host } : undefined,
+      };
+    }
+    
+    // gRPC
+    if (transport === "grpc") {
+      node.network = "grpc";
+      node["grpc-opts"] = {
+        "grpc-service-name": params.serviceName || params.path || "",
+      };
+    }
+    
+    return node;
   } catch (error) {
     return null;
   }
@@ -618,8 +754,18 @@ const parseTrojan = (line, index) => {
 
 const parseSS = (line, index) => {
   try {
-    const urlPart = line.replace("ss://", "");
-    const [main, namePart] = urlPart.split("#");
+    // 解析 query 参数 (插件等)
+    let queryParams = {};
+    let mainPart = line.replace("ss://", "");
+    
+    if (mainPart.includes("?")) {
+      const [beforeQuery, query] = mainPart.split("?");
+      const queryWithoutHash = query.split("#")[0];
+      queryParams = Object.fromEntries(new URLSearchParams(queryWithoutHash));
+      mainPart = beforeQuery + (query.includes("#") ? "#" + query.split("#")[1] : "");
+    }
+    
+    const [main, namePart] = mainPart.split("#");
     
     let method, password, server, port;
     
@@ -627,13 +773,19 @@ const parseSS = (line, index) => {
       // 格式1: ss://BASE64(method:password)@server:port#name
       const [userinfoPart, serverPart] = main.split("@");
       const decoded = tryDecodeBase64(userinfoPart) || atob(userinfoPart);
-      [method, password] = decoded.split(":");
+      const colonIdx = decoded.indexOf(":");
+      method = decoded.substring(0, colonIdx);
+      password = decoded.substring(colonIdx + 1);
       [server, port] = serverPart.split(":");
     } else {
       // 格式2: ss://BASE64(method:password@server:port)#name
       const decoded = tryDecodeBase64(main) || atob(main);
-      const [userinfo, serverPart] = decoded.split("@");
-      [method, password] = userinfo.split(":");
+      const atIdx = decoded.lastIndexOf("@");
+      const userinfo = decoded.substring(0, atIdx);
+      const serverPart = decoded.substring(atIdx + 1);
+      const colonIdx = userinfo.indexOf(":");
+      method = userinfo.substring(0, colonIdx);
+      password = userinfo.substring(colonIdx + 1);
       [server, port] = serverPart.split(":");
     }
     
@@ -643,7 +795,7 @@ const parseSS = (line, index) => {
       return null;
     }
     
-    return {
+    const node = {
       name: decodeURIComponent(namePart || "") || `ss-${index + 1}`,
       type: "ss",
       server,
@@ -652,8 +804,239 @@ const parseSS = (line, index) => {
       password,
       udp: true,
     };
+    
+    // 插件支持 (obfs, v2ray-plugin, etc.)
+    if (queryParams.plugin) {
+      const pluginStr = decodeURIComponent(queryParams.plugin);
+      const [pluginName, ...optsParts] = pluginStr.split(";");
+      node.plugin = pluginName;
+      
+      if (optsParts.length > 0) {
+        const pluginOpts = {};
+        optsParts.forEach(part => {
+          const eqIdx = part.indexOf("=");
+          if (eqIdx > 0) {
+            pluginOpts[part.substring(0, eqIdx)] = part.substring(eqIdx + 1);
+          } else {
+            pluginOpts[part] = true;
+          }
+        });
+        node["plugin-opts"] = pluginOpts;
+      }
+    }
+    
+    return node;
   } catch (error) {
     console.warn("SS parsing error:", error);
+    return null;
+  }
+};
+
+// SSR 解析
+const parseSSR = (line, index) => {
+  try {
+    const raw = line.replace("ssr://", "");
+    const decoded = tryDecodeBase64(raw) || atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+    
+    // 格式: server:port:protocol:method:obfs:password_base64/?params
+    const [mainPart, paramsPart] = decoded.split("/?");
+    const parts = mainPart.split(":");
+    
+    if (parts.length < 6) return null;
+    
+    const [server, port, protocol, method, obfs, passwordBase64] = parts;
+    const password = tryDecodeBase64(passwordBase64) || atob(passwordBase64.replace(/-/g, "+").replace(/_/g, "/"));
+    
+    // 解析参数
+    let name = `ssr-${index + 1}`;
+    let obfsParam = "";
+    let protocolParam = "";
+    
+    if (paramsPart) {
+      const params = Object.fromEntries(new URLSearchParams(paramsPart));
+      if (params.remarks) {
+        name = tryDecodeBase64(params.remarks) || atob(params.remarks.replace(/-/g, "+").replace(/_/g, "/"));
+      }
+      if (params.obfsparam) {
+        obfsParam = tryDecodeBase64(params.obfsparam) || atob(params.obfsparam.replace(/-/g, "+").replace(/_/g, "/"));
+      }
+      if (params.protoparam) {
+        protocolParam = tryDecodeBase64(params.protoparam) || atob(params.protoparam.replace(/-/g, "+").replace(/_/g, "/"));
+      }
+    }
+    
+    return {
+      name,
+      type: "ssr",
+      server,
+      port: Number(port),
+      cipher: method,
+      password,
+      protocol,
+      "protocol-param": protocolParam,
+      obfs,
+      "obfs-param": obfsParam,
+      udp: true,
+    };
+  } catch (error) {
+    console.warn("SSR parsing error:", error);
+    return null;
+  }
+};
+
+// Hysteria 解析
+const parseHysteria = (line, index) => {
+  try {
+    const url = new URL(line);
+    const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria-${index + 1}`;
+    const params = Object.fromEntries(url.searchParams.entries());
+    
+    const node = {
+      name,
+      type: "hysteria",
+      server: url.hostname,
+      port: Number(url.port),
+      "auth-str": params.auth || url.username || undefined,
+      up: params.upmbps || params.up || "100",
+      down: params.downmbps || params.down || "100",
+    };
+    
+    // SNI
+    if (params.peer || params.sni) {
+      node.sni = params.peer || params.sni;
+    }
+    
+    // ALPN
+    if (params.alpn) {
+      node.alpn = decodeURIComponent(params.alpn).split(",");
+    }
+    
+    // 混淆
+    if (params.obfs) {
+      node.obfs = params.obfs;
+    }
+    if (params.obfsParam) {
+      node["obfs-password"] = params.obfsParam;
+    }
+    
+    // 跳过证书验证
+    if (params.insecure === "1" || params.allowInsecure === "1") {
+      node["skip-cert-verify"] = true;
+    }
+    
+    // 指纹
+    if (params.fp) {
+      node["fingerprint"] = params.fp;
+    }
+    
+    return node;
+  } catch (error) {
+    console.warn("Hysteria parsing error:", error);
+    return null;
+  }
+};
+
+// Hysteria2 解析
+const parseHysteria2 = (line, index) => {
+  try {
+    // 兼容 hy2:// 和 hysteria2://
+    const normalizedLine = line.replace("hy2://", "hysteria2://");
+    const url = new URL(normalizedLine);
+    const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria2-${index + 1}`;
+    const params = Object.fromEntries(url.searchParams.entries());
+    
+    const node = {
+      name,
+      type: "hysteria2",
+      server: url.hostname,
+      port: Number(url.port) || 443,
+      password: decodeURIComponent(url.username) || params.auth,
+    };
+    
+    // SNI
+    if (params.sni) {
+      node.sni = params.sni;
+    }
+    
+    // 混淆
+    if (params.obfs) {
+      node.obfs = params.obfs;
+      if (params["obfs-password"]) {
+        node["obfs-password"] = params["obfs-password"];
+      }
+    }
+    
+    // 跳过证书验证
+    if (params.insecure === "1" || params.allowInsecure === "1") {
+      node["skip-cert-verify"] = true;
+    }
+    
+    // 指纹
+    if (params.fp || params.pinSHA256) {
+      node["fingerprint"] = params.fp || params.pinSHA256;
+    }
+    
+    // ALPN
+    if (params.alpn) {
+      node.alpn = decodeURIComponent(params.alpn).split(",");
+    }
+    
+    return node;
+  } catch (error) {
+    console.warn("Hysteria2 parsing error:", error);
+    return null;
+  }
+};
+
+// TUIC 解析
+const parseTUIC = (line, index) => {
+  try {
+    const url = new URL(line);
+    const name = decodeURIComponent(url.hash.replace("#", "")) || `tuic-${index + 1}`;
+    const params = Object.fromEntries(url.searchParams.entries());
+    
+    const node = {
+      name,
+      type: "tuic",
+      server: url.hostname,
+      port: Number(url.port) || 443,
+      uuid: url.username,
+      password: decodeURIComponent(url.password) || params.password,
+    };
+    
+    // SNI
+    if (params.sni) {
+      node.sni = params.sni;
+    }
+    
+    // ALPN
+    if (params.alpn) {
+      node.alpn = decodeURIComponent(params.alpn).split(",");
+    }
+    
+    // 拥塞控制
+    if (params.congestion_control || params.congestion) {
+      node["congestion-controller"] = params.congestion_control || params.congestion;
+    }
+    
+    // UDP relay 模式
+    if (params.udp_relay_mode) {
+      node["udp-relay-mode"] = params.udp_relay_mode;
+    }
+    
+    // 跳过证书验证
+    if (params.insecure === "1" || params.allowInsecure === "1" || params.allow_insecure === "1") {
+      node["skip-cert-verify"] = true;
+    }
+    
+    // 禁用 SNI
+    if (params.disable_sni === "1") {
+      node["disable-sni"] = true;
+    }
+    
+    return node;
+  } catch (error) {
+    console.warn("TUIC parsing error:", error);
     return null;
   }
 };
@@ -693,9 +1076,16 @@ const generateYaml = () => {
   // AI专线策略组名称：直接使用别名 + 后缀
   const aiGroupName = `${form.socksAlias.replace(/🇺🇸\s*/, '')}专线`;
   
+  // 其他外网策略组名称
+  const otherGroupName = "🌍 其他外网";
+  
   // 将默认规则中的占位符替换为实际的策略组名称
   const processedDefaultRules = form.includeDefaultRules 
-    ? defaultRules.map(rule => rule.replace(/🇺🇸 美国尊享\(AI\/Google\)/g, aiGroupName))
+    ? defaultRules.map(rule => 
+        rule
+          .replace(/🇺🇸 美国尊享\(AI\/Google\)/g, aiGroupName)
+          .replace(/🌍 其他外网\(默认香港\)/g, otherGroupName)
+      )
     : [];
   
   const combinedRules = [
@@ -756,7 +1146,7 @@ const generateYaml = () => {
         proxies: [form.socksAlias],
       },
       {
-        name: "🌍 其他外网",
+        name: otherGroupName,
         type: "select",
         proxies: [...proxyNames, form.socksAlias, "DIRECT"],
       },
