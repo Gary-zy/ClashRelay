@@ -21,21 +21,18 @@
             <el-form-item label="机场订阅地址" prop="subscriptionUrl">
               <el-input v-model="form.subscriptionUrl" placeholder="https://example.com/subscription" />
             </el-form-item>
-            <el-form-item label="本地代理服务地址（可选）">
-              <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
-              <div class="helper-text">
-                订阅站点未开启 CORS 时，建议启动本地代理并填写地址（项目内提供
-                <code>proxy-server.js</code>）。
-              </div>
-            </el-form-item>
-            <el-form-item label="或粘贴订阅内容（Base64 / Clash YAML）">
-              <el-input
-                v-model="form.subscriptionText"
-                type="textarea"
-                :rows="4"
-                placeholder="粘贴订阅文本，解析失败可手动补充"
-              />
-            </el-form-item>
+            
+            <el-collapse style="margin-bottom: 16px;">
+              <el-collapse-item title="高级选项" name="advanced">
+                <el-form-item label="本地代理服务地址">
+                  <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
+                  <div class="helper-text">
+                    订阅站点未开启 CORS 时，可启动本地代理（项目内提供
+                    <code>proxy-server.js</code>）。
+                  </div>
+                </el-form-item>
+              </el-collapse-item>
+            </el-collapse>
 
             <el-divider content-position="left">Socks5 落地节点</el-divider>
             <el-form-item label="快速解析 Socks5 链接（可选）">
@@ -280,7 +277,6 @@ import { defaultRules, fakeIpFilter, ruleTypes, policyGroups } from "./config/de
 
 const formDefaults = {
   subscriptionUrl: "",
-  subscriptionText: "",
   proxyUrl: "http://localhost:8787",
   includeDefaultRules: true,
   customRulesText: "",
@@ -451,25 +447,31 @@ const testAllNodesLatency = async () => {
 const handleFetch = async () => {
   status.message = "";
   status.type = "info";
-  let text = form.subscriptionText.trim();
-  if (!text && form.subscriptionUrl) {
-    try {
-      const subscriptionUrl = form.subscriptionUrl.trim();
-      const proxyUrl = form.proxyUrl.trim();
-      const base = proxyUrl ? proxyUrl.replace(/\/+$/, "") : "";
-      const fetchUrl = base
-        ? `${base}/fetch?url=${encodeURIComponent(subscriptionUrl)}`
-        : subscriptionUrl;
-      const response = await fetch(fetchUrl);
-      text = await response.text();
-    } catch (error) {
-      status.message = "订阅拉取失败，可能存在 CORS 限制。可粘贴订阅文本，或启动本地代理后再试。";
-      status.type = "warning";
-      return;
-    }
+  
+  if (!form.subscriptionUrl.trim()) {
+    status.message = "请输入订阅地址。";
+    status.type = "warning";
+    return;
   }
+  
+  let text = "";
+  try {
+    const subscriptionUrl = form.subscriptionUrl.trim();
+    const proxyUrl = form.proxyUrl.trim();
+    const base = proxyUrl ? proxyUrl.replace(/\/+$/, "") : "";
+    const fetchUrl = base
+      ? `${base}/fetch?url=${encodeURIComponent(subscriptionUrl)}`
+      : subscriptionUrl;
+    const response = await fetch(fetchUrl);
+    text = await response.text();
+  } catch (error) {
+    status.message = "订阅拉取失败，可能存在 CORS 限制。请展开高级选项配置本地代理后再试。";
+    status.type = "warning";
+    return;
+  }
+  
   if (!text) {
-    status.message = "请提供订阅 URL 或订阅文本。";
+    status.message = "订阅内容为空。";
     status.type = "warning";
     return;
   }
