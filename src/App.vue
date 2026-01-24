@@ -15,27 +15,28 @@
         <div class="section-card">
           <div class="section-title">1. 输入订阅与落地节点</div>
           <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-            <el-form-item>
-              <el-button type="primary" @click="handleFetch" style="width: 100%;">获取节点</el-button>
-            </el-form-item>
             <el-form-item label="机场订阅地址" prop="subscriptionUrl">
               <el-autocomplete
                 v-model="form.subscriptionUrl"
                 :fetch-suggestions="querySubscriptionHistory"
+                :trigger-on-focus="true"
                 placeholder="https://example.com/subscription"
                 style="width: 100%;"
                 clearable
               >
                 <template #default="{ item }">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.value }}</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; max-width: 280px;">{{ item.value }}</span>
                     <el-button type="danger" link size="small" @click.stop="removeHistoryItem(item.value)">删除</el-button>
                   </div>
                 </template>
               </el-autocomplete>
-              <div v-if="subscriptionHistory.length > 0" class="helper-text">
-                最近使用的订阅地址会自动保存
+              <div class="helper-text">
+                点击输入框可查看历史记录（获取成功后自动保存）
               </div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleFetch" style="width: 100%;">获取节点</el-button>
             </el-form-item>
             
             <el-collapse style="margin-bottom: 16px;">
@@ -148,7 +149,7 @@
               <el-option label="按名称" value="name" />
               <el-option label="按类型" value="type" />
             </el-select>
-            <el-button size="small" @click="testAllNodesLatency" :loading="isTesting" style="margin-left: 8px;">
+            <el-button type="primary" size="small" @click="testAllNodesLatency" :loading="isTesting" style="margin-left: 8px;">
               {{ isTesting ? '测速中...' : '测试延迟' }}
             </el-button>
           </div>
