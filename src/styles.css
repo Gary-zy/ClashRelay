@@ -1,0 +1,220 @@
+:root {
+  --ink-900: #1a1a1a;
+  --ink-700: #303030;
+  --paper-100: #fdfbf7;
+  --paper-200: #f5f2ea;
+  --mist-300: #e6e1d6;
+  --accent-600: #0f172a;
+  --accent-500: #1e293b;
+  --line-200: #e2dccf;
+  --el-color-primary: #1f2a44;
+  --el-border-color: #e2dccf;
+  --el-border-color-light: #ede7db;
+  --el-fill-color-blank: #fffdf9;
+  --el-font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  color: var(--ink-900);
+  background: radial-gradient(circle at top left, #f7f1e6 0%, #fdfbf7 55%, #f4efe3 100%);
+}
+
+.ink-bg {
+  position: relative;
+  min-height: 100vh;
+  padding: 32px 20px 56px;
+  overflow: hidden;
+}
+
+.ink-bg::before,
+.ink-bg::after {
+  content: "";
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20, 24, 35, 0.18), rgba(20, 24, 35, 0));
+  filter: blur(2px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.ink-bg::before {
+  top: -220px;
+  right: -120px;
+}
+
+.ink-bg::after {
+  bottom: -260px;
+  left: -160px;
+}
+
+.container {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  z-index: 1;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 12px 28px;
+}
+
+.hero-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 30px;
+  letter-spacing: 0.5px;
+  margin: 0 0 10px;
+}
+
+.hero-desc {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-700);
+  line-height: 1.6;
+}
+
+.hero-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--line-200);
+  border-radius: 14px;
+  padding: 14px 18px;
+  min-width: 260px;
+  box-shadow: 0 12px 30px rgba(26, 26, 26, 0.08);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  gap: 18px;
+}
+
+.section-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line-200);
+  border-radius: 16px;
+  padding: 18px 18px 8px;
+  box-shadow: 0 10px 24px rgba(26, 26, 26, 0.06);
+}
+
+.section-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 18px;
+  margin: 0 0 12px;
+  color: var(--accent-600);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--accent-600);
+  background: rgba(20, 24, 35, 0.06);
+  border: 1px solid var(--line-200);
+}
+
+.config-preview {
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  background: #111317;
+  color: #e9edf2;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #1e293b;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre;
+}
+
+.footer {
+  margin-top: 28px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.helper-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.selected-node {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-200);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.selected-node-title {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.selected-node-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.el-form-item__label {
+  color: var(--ink-700);
+}
+
+.rule-list {
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--line-200);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Element Plus select 选中项高亮 - 增强版 */
+.el-select-dropdown__item.selected {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #1f2a44 0%, #2d3a5f 100%) !important;
+  border-left: 4px solid #409eff;
+  padding-left: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover {
+  background-color: #ecf5ff !important;
+  color: #1f2a44 !important;
+}
+
+/* Select 输入框的选中值样式 */
+.el-select .el-input__inner {
+  font-weight: 600;
+}
+
+.el-select-dropdown__item {
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
