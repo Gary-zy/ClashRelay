@@ -205,10 +205,7 @@
             @row-click="handleNodeRowClick"
             highlight-current-row
           >
-            <el-table-column prop="name" label="节点名称" min-width="300" show-overflow-tooltip />
-            <el-table-column prop="type" label="类型" width="80" />
-            <el-table-column prop="server" label="服务器" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="port" label="端口" width="70" />
+            <el-table-column prop="name" label="节点名称" min-width="280" show-overflow-tooltip />
             <el-table-column label="延迟" width="90">
               <template #default="{ row }">
                 <span v-if="row.latency === -1" style="color: #999;">—</span>
@@ -226,6 +223,9 @@
                 </el-button>
               </template>
             </el-table-column>
+            <el-table-column prop="type" label="类型" width="80" />
+            <el-table-column prop="server" label="服务器" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="port" label="端口" width="70" />
           </el-table>
         </div>
       </div>
@@ -319,30 +319,31 @@
           <div v-if="yamlText" class="import-section">
             <el-divider content-position="left">一键导入 Clash</el-divider>
             <div class="import-box">
-              <el-input 
-                v-model="clashImportUrl" 
-                readonly 
-                placeholder="生成配置后显示导入链接"
-              >
-                <template #prepend>clash://</template>
-                <template #append>
-                  <el-button @click="copyClashImportUrl">复制</el-button>
-                </template>
-              </el-input>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <el-input 
+                  v-model="clashImportUrl" 
+                  readonly 
+                  placeholder="生成配置后显示导入链接"
+                >
+                  <template #prepend>clash://</template>
+                </el-input>
+                <el-button type="primary" @click="openClashImportUrl">立即导入</el-button>
+                <el-button @click="copyClashImportUrl">复制链接</el-button>
+              </div>
+              
               <div class="qr-section">
-                <div v-if="qrcodeDataUrl" style="display: flex; align-items: flex-start; gap: 16px; margin-top: 12px;">
+                <div v-if="qrcodeDataUrl" style="display: flex; align-items: flex-start; gap: 16px;">
                   <img :src="qrcodeDataUrl" alt="扫码导入" class="qrcode-img" />
                   <div class="qr-tips">
                     <div class="qr-tips-title">📱 手机扫码导入</div>
                     <ul class="qr-tips-list">
-                      <li><strong>Clash for Android</strong>：扫码自动导入</li>
-                      <li><strong>Stash (iOS)</strong>：扫码自动导入</li>
-                      <li><strong>Shadowrocket</strong>：复制链接手动添加</li>
+                      <li><strong>Clash for Android</strong> / <strong>Stash</strong>：直接扫码</li>
+                      <li><strong>桌面端</strong>：点击上方“立即导入”按钮</li>
                     </ul>
                   </div>
                 </div>
-                <div v-else class="helper-text" style="margin-top: 8px;">
-                  配置较大，请使用"下载 config.yaml"后手动导入手机客户端
+                <div v-else class="helper-text">
+                  配置较大，请使用“下载 config.yaml”后手动导入手机客户端。桌面端仍可试用“立即导入”。
                 </div>
               </div>
             </div>
@@ -1591,10 +1592,19 @@ const downloadYaml = () => {
   URL.revokeObjectURL(link.href);
 };
 
+// 直接通过协议唤起 Clash 客户端
+const openClashImportUrl = () => {
+  if (!clashImportUrl.value) return;
+  const fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
+  window.location.href = fullUrl;
+  status.message = "正在尝试唤起 Clash 客户端...";
+  status.type = "info";
+};
+
 // 复制 Clash 导入链接
 const copyClashImportUrl = async () => {
   try {
-    const fullUrl = `clash://install-config?url=${clashImportUrl.value}`;
+    const fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
     await navigator.clipboard.writeText(fullUrl);
     status.message = "Clash 导入链接已复制到剪贴板。";
     status.type = "success";
@@ -1606,14 +1616,36 @@ const copyClashImportUrl = async () => {
 
 // 生成配置后创建导入链接
 const generateClashImportUrl = async () => {
-  // 使用 data URI 方案，将配置编码为 base64
-  const base64Config = btoa(unescape(encodeURIComponent(yamlText.value)));
-  clashImportUrl.value = `data:text/yaml;base64,${base64Config}`;
+  const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
+  const uploadUrl = `${proxyUrl}/config/upload`;
   
-  // 生成二维码（由于导入链接太长，改用下载链接提示）
-  const fullUrl = `clash://install-config?url=${clashImportUrl.value}`;
   try {
-    // 二维码内容限制，如果太长就使用简化提示
+    // 尝试上传到本地代理服务器
+    const res = await fetch(uploadUrl, {
+      method: "POST",
+      body: yamlText.value,
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      clashImportUrl.value = data.url; // http://localhost:8787/config/xxxx
+      status.message = "配置已托管至本地服务，一键导入准备就绪（有效期10分钟）。";
+      status.type = "success";
+    } else {
+      throw new Error("Upload failed");
+    }
+  } catch (error) {
+    // 降级方案：使用 Data URI
+    console.warn("Local proxy upload failed, falling back to Data URI", error);
+    const base64Config = btoa(unescape(encodeURIComponent(yamlText.value)));
+    clashImportUrl.value = `data:text/yaml;base64,${base64Config}`;
+    status.message = "本地服务未连接，使用 Data URI 模式（部分客户端可能不支持）。";
+    status.type = "warning";
+  }
+
+  // 生成二维码（仅当 URL 较短时）
+  const fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
+  try {
     if (fullUrl.length < 2000) {
       qrcodeDataUrl.value = await QRCode.toDataURL(fullUrl, {
         width: 150,
@@ -1621,7 +1653,6 @@ const generateClashImportUrl = async () => {
         color: { dark: '#1e293b', light: '#ffffff' }
       });
     } else {
-      // 链接太长，生成下载说明二维码
       qrcodeDataUrl.value = "";
     }
   } catch {
