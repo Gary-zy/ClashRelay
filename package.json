@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "diff": "^8.0.3",
     "element-plus": "latest",
     "js-yaml": "latest",
     "qrcode": "^1.5.4",

@@ -1,5 +1,6 @@
 import http from "http";
 import https from "https";
+import net from "net";
 
 const PORT = Number(process.env.PORT) || 8787;
 
@@ -43,8 +44,9 @@ const requestWithRedirect = (targetUrl, res, redirectCount = 0) => {
     upstream.pipe(res);
   });
 
-  req.on("error", () => {
-    send(res, 502, "Upstream request failed");
+  req.on("error", (err) => {
+    console.error("Upstream request failed:", targetUrl, err.message);
+    send(res, 502, `Upstream request failed: ${err.message}`);
   });
 };
 
@@ -79,7 +81,9 @@ const server = http.createServer((req, res) => {
       // Auto cleanup after 10 minutes
       setTimeout(() => configStore.delete(id), 10 * 60 * 1000);
       
-      send(res, 200, JSON.stringify({ id, url: `http://${req.headers.host}/config/${id}` }), "application/json");
+      // 使用 127.0.0.1 确保 Clash 客户端能正确访问
+      const configUrl = `http://127.0.0.1:${PORT}/config/${id}`;
+      send(res, 200, JSON.stringify({ id, url: configUrl }), "application/json");
     });
     return;
   }
@@ -93,6 +97,66 @@ const server = http.createServer((req, res) => {
     } else {
       send(res, 404, "Config not found or expired");
     }
+    return;
+  }
+
+  // Ping test (POST) - 测试节点延迟
+  // 通过 TCP 连接测试节点可达性，并估算延迟
+  // 注意：这是 TCP 握手时间的估算，真实代理延迟会更高
+  if (url.pathname === "/ping" && req.method === "POST") {
+    let body = "";
+    req.on("data", chunk => { body += chunk; });
+    req.on("end", () => {
+      try {
+        const { server: targetServer, port } = JSON.parse(body);
+        if (!targetServer || !port) {
+          send(res, 400, JSON.stringify({ error: "Missing server or port" }), "application/json");
+          return;
+        }
+        
+        // 使用 TCP 连接测试
+        const socket = new net.Socket();
+        const startTime = Date.now();
+        let responded = false;
+        
+        socket.setTimeout(5000);
+        
+        socket.connect(Number(port), targetServer, () => {
+          if (responded) return;
+          responded = true;
+          const tcpTime = Date.now() - startTime;
+          socket.destroy();
+          
+          // TCP 握手时间 = 1 RTT
+          // 代理延迟估算 = TCP 时间 × 3（连接 + 请求 + 响应的往返）
+          // 加上一个基准延迟来模拟协议开销
+          const estimatedLatency = Math.round(tcpTime * 3 + 20);
+          
+          send(res, 200, JSON.stringify({ 
+            latency: estimatedLatency, 
+            tcpTime: tcpTime,
+            status: "ok" 
+          }), "application/json");
+        });
+        
+        socket.on("error", () => {
+          if (responded) return;
+          responded = true;
+          socket.destroy();
+          send(res, 200, JSON.stringify({ latency: -2, status: "unreachable" }), "application/json");
+        });
+        
+        socket.on("timeout", () => {
+          if (responded) return;
+          responded = true;
+          socket.destroy();
+          send(res, 200, JSON.stringify({ latency: -2, status: "timeout" }), "application/json");
+        });
+        
+      } catch (error) {
+        send(res, 400, JSON.stringify({ error: "Invalid request body" }), "application/json");
+      }
+    });
     return;
   }
 

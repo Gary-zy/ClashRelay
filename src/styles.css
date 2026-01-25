@@ -469,3 +469,47 @@ body {
 .qr-tips-list strong {
   color: var(--accent-600);
 }
+
+/* 配置对比样式 */
+.diff-container {
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.diff-added {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border-left: 3px solid #22c55e;
+  padding-left: 8px;
+}
+
+.diff-removed {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-left: 3px solid #ef4444;
+  padding-left: 8px;
+  text-decoration: line-through;
+}
+
+.diff-unchanged {
+  color: #9ca3af;
+}
+
+/* 节点健康状态样式 */
+.health-healthy {
+  color: #67c23a;
+}
+
+.health-unhealthy {
+  color: #f56c6c;
+}
+
+.health-unknown {
+  color: #909399;
+}
