@@ -406,7 +406,6 @@
             <el-button type="primary" @click="generateYaml">生成配置</el-button>
             <el-button @click="copyYaml" :disabled="!yamlText">复制配置</el-button>
             <el-button @click="downloadYaml" :disabled="!yamlText">下载 config.yaml</el-button>
-            <el-button @click="exportShadowrocket" :disabled="nodes.length === 0 && !form.socksServer">导出 Shadowrocket</el-button>
             <el-button @click="showConfigDiff" :disabled="!yamlText || !previousYaml">对比变更</el-button>
             <el-divider direction="vertical" />
             <el-button @click="saveTemplate" size="small">保存模板</el-button>
@@ -1430,13 +1429,6 @@ const tryDecodeBase64 = (value) => {
   }
 };
 
-const encodeBase64 = (value) => btoa(unescape(encodeURIComponent(value)));
-
-const setParamIf = (params, key, value) => {
-  if (value !== undefined && value !== null && value !== "") {
-    params.set(key, value);
-  }
-};
 
 const parseProxyLine = (line, index) => {
   if (line.startsWith("vmess://")) return parseVmess(line, index);
@@ -1961,174 +1953,6 @@ const parseTUIC = (line, index) => {
   }
 };
 
-const buildShadowrocketLandingNode = () => {
-  if (landingNode.value && landingNode.value.type) {
-    return {
-      ...landingNode.value,
-      name: form.socksAlias || landingNode.value.name || "landing-node",
-    };
-  }
-  if (form.socksServer && form.socksPort) {
-    return {
-      name: form.socksAlias || "socks5-landing",
-      type: "socks5",
-      server: form.socksServer.trim(),
-      port: Number(form.socksPort),
-      username: form.socksUser || undefined,
-      password: form.socksPass || undefined,
-      udp: true,
-    };
-  }
-  return null;
-};
-
-const nodeToShadowrocketUri = (node) => {
-  if (!node || !node.type) return "";
-  const name = node.name ? `#${encodeURIComponent(node.name)}` : "";
-
-  if (node.type === "socks5" || node.type === "http") {
-    const scheme = node.type === "socks5" ? "socks5" : "http";
-    const user = node.username ? encodeURIComponent(node.username) : "";
-    const pass = node.password ? `:${encodeURIComponent(node.password)}` : "";
-    const auth = user ? `${user}${pass}@` : "";
-    if (!node.server || !node.port) return "";
-    return `${scheme}://${auth}${node.server}:${node.port}${name}`;
-  }
-
-  if (node.type === "ss") {
-    if (!node.cipher || !node.password || !node.server || !node.port) return "";
-    const base = encodeBase64(`${node.cipher}:${node.password}@${node.server}:${node.port}`);
-    let uri = `ss://${base}`;
-    if (node.plugin) {
-      const opts = node["plugin-opts"] || {};
-      const optsParts = Object.entries(opts).map(([key, value]) =>
-        value === true ? key : `${key}=${value}`
-      );
-      const pluginPart = [node.plugin, ...optsParts].join(";");
-      uri += `?plugin=${encodeURIComponent(pluginPart)}`;
-    }
-    return `${uri}${name}`;
-  }
-
-  if (node.type === "ssr") {
-    if (!node.server || !node.port || !node.protocol || !node.cipher || !node.obfs || !node.password) {
-      return "";
-    }
-    const passwordBase64 = encodeBase64(node.password);
-    const params = new URLSearchParams();
-    if (node.name) params.set("remarks", encodeBase64(node.name));
-    if (node["obfs-param"]) params.set("obfsparam", encodeBase64(node["obfs-param"]));
-    if (node["protocol-param"]) params.set("protoparam", encodeBase64(node["protocol-param"]));
-    const main = `${node.server}:${node.port}:${node.protocol}:${node.cipher}:${node.obfs}:${passwordBase64}/?${params.toString()}`;
-    return `ssr://${encodeBase64(main)}`;
-  }
-
-  if (node.type === "vmess") {
-    if (!node.server || !node.port || !node.uuid) return "";
-    const vmessConfig = {
-      v: "2",
-      ps: node.name || "",
-      add: node.server,
-      port: String(node.port),
-      id: node.uuid,
-      aid: String(node.alterId ?? 0),
-      scy: node.cipher || "auto",
-      net: node.network || "tcp",
-      type: "none",
-      host: "",
-      path: "",
-      tls: node.tls ? "tls" : "",
-      sni: node.servername || node.sni || "",
-      alpn: Array.isArray(node.alpn) ? node.alpn.join(",") : "",
-      fp: node["client-fingerprint"] || "",
-    };
-
-    if (node["ws-opts"]) {
-      vmessConfig.net = "ws";
-      vmessConfig.path = node["ws-opts"].path || "/";
-      vmessConfig.host = node["ws-opts"].headers?.Host || "";
-    } else if (node["grpc-opts"]) {
-      vmessConfig.net = "grpc";
-      vmessConfig.path = node["grpc-opts"]["grpc-service-name"] || "";
-    } else if (node["h2-opts"]) {
-      vmessConfig.net = "h2";
-      vmessConfig.path = node["h2-opts"].path || "/";
-      const host = node["h2-opts"].host;
-      vmessConfig.host = Array.isArray(host) ? host.join(",") : host || "";
-    } else if (node["http-opts"]) {
-      vmessConfig.net = "http";
-      const host = node["http-opts"].headers?.Host;
-      vmessConfig.host = Array.isArray(host) ? host.join(",") : host || "";
-      const path = node["http-opts"].path;
-      vmessConfig.path = Array.isArray(path) ? path[0] : path || "/";
-    }
-
-    return `vmess://${encodeBase64(JSON.stringify(vmessConfig))}`;
-  }
-
-  if (node.type === "vless") {
-    if (!node.server || !node.port || !node.uuid) return "";
-    const url = new URL(`vless://${node.uuid}@${node.server}:${node.port}`);
-    const params = url.searchParams;
-    setParamIf(params, "type", node.network);
-    if (node.tls) {
-      setParamIf(params, "security", node["reality-opts"] ? "reality" : "tls");
-    }
-    setParamIf(params, "sni", node.sni);
-    setParamIf(params, "servername", node.servername);
-    setParamIf(params, "flow", node.flow);
-    if (node["skip-cert-verify"]) params.set("allowInsecure", "1");
-    setParamIf(params, "fp", node["client-fingerprint"]);
-    if (node["reality-opts"]) {
-      setParamIf(params, "pbk", node["reality-opts"]["public-key"]);
-      setParamIf(params, "sid", node["reality-opts"]["short-id"]);
-    }
-    if (node["ws-opts"]) {
-      params.set("type", "ws");
-      setParamIf(params, "path", node["ws-opts"].path);
-      setParamIf(params, "host", node["ws-opts"].headers?.Host);
-    }
-    if (node["grpc-opts"]) {
-      params.set("type", "grpc");
-      setParamIf(params, "serviceName", node["grpc-opts"]["grpc-service-name"]);
-    }
-    if (node["h2-opts"]) {
-      params.set("type", "h2");
-      setParamIf(params, "path", node["h2-opts"].path);
-      const host = node["h2-opts"].host;
-      setParamIf(params, "host", Array.isArray(host) ? host.join(",") : host);
-    }
-    url.hash = encodeURIComponent(node.name || "");
-    return url.toString();
-  }
-
-  if (node.type === "trojan") {
-    if (!node.server || !node.port || !node.password) return "";
-    const url = new URL(`trojan://${encodeURIComponent(node.password)}@${node.server}:${node.port}`);
-    const params = url.searchParams;
-    setParamIf(params, "sni", node.sni);
-    if (node["skip-cert-verify"]) params.set("allowInsecure", "1");
-    setParamIf(params, "fp", node["client-fingerprint"]);
-    if (Array.isArray(node.alpn)) {
-      setParamIf(params, "alpn", node.alpn.join(","));
-    }
-    if (node.network) params.set("type", node.network);
-    if (node["ws-opts"]) {
-      params.set("type", "ws");
-      setParamIf(params, "path", node["ws-opts"].path);
-      setParamIf(params, "host", node["ws-opts"].headers?.Host);
-    }
-    if (node["grpc-opts"]) {
-      params.set("type", "grpc");
-      setParamIf(params, "serviceName", node["grpc-opts"]["grpc-service-name"]);
-    }
-    url.hash = encodeURIComponent(node.name || "");
-    return url.toString();
-  }
-
-  return "";
-};
-
 const parseRules = (text) =>
   text
     .split(/\r?\n/)
@@ -2385,52 +2209,6 @@ const downloadYaml = () => {
   link.download = "config.yaml";
   link.click();
   URL.revokeObjectURL(link.href);
-};
-
-const exportShadowrocket = () => {
-  const candidates = [...nodes.value];
-  const landing = buildShadowrocketLandingNode();
-  if (landing) candidates.push(landing);
-
-  if (candidates.length === 0) {
-    status.message = "没有可导出的节点，请先获取订阅或填写落地节点。";
-    status.type = "warning";
-    return;
-  }
-
-  const skipped = {};
-  const lines = candidates
-    .map((node) => {
-      const uri = nodeToShadowrocketUri(node);
-      if (!uri) {
-        skipped[node.type] = (skipped[node.type] || 0) + 1;
-      }
-      return uri;
-    })
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    status.message = "没有可导出的节点（可能类型不受支持）。";
-    status.type = "warning";
-    return;
-  }
-
-  const content = lines.join("\n");
-  const base64Content = encodeBase64(content);
-  const blob = new Blob([base64Content], { type: "text/plain;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "shadowrocket.txt";
-  link.click();
-  URL.revokeObjectURL(link.href);
-
-  const skippedInfo = Object.keys(skipped).length
-    ? `，已跳过 ${Object.entries(skipped)
-        .map(([type, count]) => `${type} ${count} 个`)
-        .join("、")}`
-    : "";
-  status.message = `Shadowrocket 订阅已导出${skippedInfo}`;
-  status.type = Object.keys(skipped).length ? "warning" : "success";
 };
 
 // 直接通过协议唤起 Clash 客户端
