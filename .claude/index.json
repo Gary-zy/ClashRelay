@@ -1,0 +1,54 @@
+{
+  "lastScan": "2026-01-26T23:16:28+08:00",
+  "version": "2.1.19.70d",
+  "entrypoint": "cli",
+  "projectRoot": "/Users/zhangyang/Code/github/RelayBox",
+  "modules": [
+    {
+      "name": "root",
+      "path": "/Users/zhangyang/Code/github/RelayBox",
+      "hasClaueMd": true,
+      "type": "root",
+      "description": "Clash 链式代理配置生成器"
+    },
+    {
+      "name": "src",
+      "path": "/Users/zhangyang/Code/github/RelayBox/src",
+      "hasClaueMd": true,
+      "type": "frontend",
+      "description": "Vue 3 前端应用"
+    }
+  ],
+  "coverage": {
+    "totalFiles": 11,
+    "scannedFiles": 11,
+    "percentage": "100%",
+    "ignoredPatterns": ["node_modules/**", "dist/**", "*.log", "*.lock"]
+  },
+  "scanStatus": {
+    "truncated": false,
+    "reason": null
+  },
+  "entryPoints": {
+    "frontend": "/src/main.js",
+    "proxyServer": "/proxy-server.js"
+  },
+  "interfaces": {
+    "proxyServer": {
+      "/fetch": "订阅获取代理",
+      "/config/upload": "配置托管上传",
+      "/config/{id}": "配置获取",
+      "/ping": "节点延迟测试",
+      "/health": "健康检查"
+    }
+  },
+  "tests": {
+    "hasTests": false,
+    "testFiles": []
+  },
+  "gaps": [],
+  "ignoreStats": {
+    "node_modules": "目录被忽略（已配置在 .gitignore）",
+    "dist": "构建输出目录被忽略（已配置在 .gitignore）"
+  }
+}

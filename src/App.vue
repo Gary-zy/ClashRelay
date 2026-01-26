@@ -117,18 +117,30 @@
             <el-form-item label="快速解析节点链接（可选）">
               <el-row :gutter="12" style="width: 100%;">
                 <el-col :span="20">
-                  <el-input v-model="form.landingNodeUrl" placeholder="支持 socks5:// ss:// vmess:// vless:// trojan:// http://" />
+                  <el-input v-model="form.landingNodeUrl" placeholder="支持 ss:// ssr:// vmess:// vless:// trojan:// hysteria:// hysteria2:// tuic://" />
                 </el-col>
                 <el-col :span="4">
                   <el-button type="primary" @click="parseLandingNodeUrl" style="width: 100%;">解析</el-button>
                 </el-col>
               </el-row>
               <div class="helper-text">
-                支持多种协议链接：socks5、ss(Shadowsocks)、vmess、vless、trojan、http。
+                支持多种协议链接：ss(Shadowsocks)、ssr、vmess、vless、trojan、hysteria、hysteria2、tuic、socks5、http。
               </div>
             </el-form-item>
-            <el-form-item v-if="landingNode" label="节点类型">
-              <el-tag :type="getLandingNodeTagType(landingNode.type)">{{ landingNode.type.toUpperCase() }}</el-tag>
+            <el-form-item label="节点类型">
+              <el-select v-model="form.landingNodeType" placeholder="选择协议类型" style="width: 200px;">
+                <el-option label="SOCKS5" value="socks5" />
+                <el-option label="HTTP" value="http" />
+                <el-option label="Shadowsocks (SS)" value="ss" />
+                <el-option label="ShadowsocksR (SSR)" value="ssr" />
+                <el-option label="Trojan" value="trojan" />
+                <el-option label="VMess" value="vmess" />
+                <el-option label="VLESS" value="vless" />
+                <el-option label="Hysteria" value="hysteria" />
+                <el-option label="Hysteria2" value="hysteria2" />
+                <el-option label="TUIC" value="tuic" />
+              </el-select>
+              <el-tag v-if="landingNode && landingNode.type !== form.landingNodeType" type="warning" style="margin-left: 8px;">解析类型: {{ landingNode.type.toUpperCase() }}</el-tag>
             </el-form-item>
             <el-form-item label="Server (IP / Domain)" prop="socksServer">
               <el-input v-model="form.socksServer" placeholder="1.2.3.4 或 example.com" />
@@ -538,6 +550,7 @@ const formDefaults = {
   includeDefaultRules: true,
   customRulesText: "",
   landingNodeUrl: "",  // 原 socks5Url，现支持多协议
+  landingNodeType: "socks5",  // 落地节点协议类型
   socksServer: "",
   socksPort: "",
   socksUser: "",
@@ -1183,13 +1196,16 @@ const parseLandingNodeUrl = () => {
     }
 
     if (!node) {
-      status.message = "链接格式不正确，支持格式：socks5:// http:// ss:// vmess:// vless:// trojan://";
+      status.message = "链接格式不正确，支持格式：ss:// ssr:// vmess:// vless:// trojan:// hysteria:// hysteria2:// tuic:// socks5:// http://";
       status.type = "error";
       return;
     }
 
     // 保存完整节点对象
     landingNode.value = node;
+    
+    // 更新节点类型选择器
+    form.landingNodeType = node.type;
     
     // 填充表单（兼容旧逻辑）
     form.socksServer = node.server;
@@ -1489,7 +1505,7 @@ const parseVmess = (line, index) => {
       // 早期数据
       if (json.ed) {
         node["ws-opts"]["max-early-data"] = Number(json.ed);
-        node["ws-opts"]["early-data-header-name"] = "Sec-WebSocket-Protocol";
+        node["ws-opts"]["early-data-header-name"] = json.eh || "Sec-WebSocket-Protocol";
       }
     }
     
@@ -1498,6 +1514,9 @@ const parseVmess = (line, index) => {
       node["grpc-opts"] = { 
         "grpc-service-name": json.path || json.serviceName || "",
       };
+      if (json.mode) {
+        node["grpc-opts"]["grpc-mode"] = json.mode;
+      }
     }
     
     // HTTP/2
@@ -1506,7 +1525,7 @@ const parseVmess = (line, index) => {
         path: json.path || "/",
       };
       if (json.host) {
-        node["h2-opts"].host = [json.host];
+        node["h2-opts"].host = Array.isArray(json.host) ? json.host : [json.host];
       }
     }
     
@@ -1516,8 +1535,35 @@ const parseVmess = (line, index) => {
         path: json.path ? [json.path] : ["/"],
       };
       if (json.host) {
+        node["http-opts"].headers = { Host: Array.isArray(json.host) ? json.host : [json.host] };
+      }
+    }
+    
+    // TCP HTTP 伪装
+    if (json.net === "tcp" && json.type === "http") {
+      node["http-opts"] = {
+        path: json.path ? [json.path] : ["/"],
+      };
+      if (json.host) {
         node["http-opts"].headers = { Host: [json.host] };
       }
+    }
+    
+    // mKCP / KCP
+    if (json.net === "kcp") {
+      node.network = "kcp";
+      node["kcp-opts"] = {};
+      if (json.type) node["kcp-opts"]["header"] = { type: json.type };
+      if (json.seed) node["kcp-opts"]["seed"] = json.seed;
+    }
+    
+    // QUIC
+    if (json.net === "quic") {
+      node.network = "quic";
+      node["quic-opts"] = {};
+      if (json.type) node["quic-opts"]["header"] = json.type;
+      if (json.host) node["quic-opts"]["security"] = json.host;
+      if (json.path) node["quic-opts"]["key"] = json.path;
     }
     
     return node;
@@ -1553,7 +1599,7 @@ const parseVless = (line, index) => {
     if (params.flow) node.flow = params.flow;
     
     // skip-cert-verify
-    if (params.allowInsecure === "1" || params.allowInsecure === "true") {
+    if (params.allowInsecure === "1" || params.allowInsecure === "true" || params.insecure === "1") {
       node["skip-cert-verify"] = true;
     } else if (isTls) {
       node["skip-cert-verify"] = false;
@@ -1564,6 +1610,11 @@ const parseVless = (line, index) => {
       node["client-fingerprint"] = params.fp;
     }
     
+    // ALPN
+    if (params.alpn) {
+      node.alpn = decodeURIComponent(params.alpn).split(",");
+    }
+    
     // Reality 配置
     if (isReality && params.pbk) {
       node["reality-opts"] = {
@@ -1572,26 +1623,68 @@ const parseVless = (line, index) => {
       if (params.sid) {
         node["reality-opts"]["short-id"] = params.sid;
       }
+      // spiderX
+      if (params.spx) {
+        node["reality-opts"]["spider-x"] = decodeURIComponent(params.spx);
+      }
     }
     
     // WebSocket 配置
     if (params.type === "ws") {
       node["ws-opts"] = {
-        path: params.path || "/",
+        path: decodeURIComponent(params.path || "/"),
         headers: params.host ? { Host: params.host } : undefined,
       };
+      // 早期数据
+      if (params.ed) {
+        node["ws-opts"]["max-early-data"] = Number(params.ed);
+        node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
+      }
     }
     
     // gRPC 配置
     if (params.type === "grpc") {
-      node["grpc-opts"] = { "grpc-service-name": params.serviceName || "" };
+      node["grpc-opts"] = { 
+        "grpc-service-name": params.serviceName || params.path || "",
+      };
+      if (params.mode) {
+        node["grpc-opts"]["grpc-mode"] = params.mode;
+      }
     }
     
     // HTTP/2 配置
     if (params.type === "h2") {
       node["h2-opts"] = {
-        path: params.path || "/",
+        path: decodeURIComponent(params.path || "/"),
         host: params.host ? [params.host] : undefined,
+      };
+    }
+    
+    // TCP HTTP 伪装
+    if (params.type === "tcp" && params.headerType === "http") {
+      node["http-opts"] = {
+        path: params.path ? [decodeURIComponent(params.path)] : ["/"],
+      };
+      if (params.host) {
+        node["http-opts"]["headers"] = { Host: [params.host] };
+      }
+    }
+    
+    // httpupgrade
+    if (params.type === "httpupgrade") {
+      node.network = "httpupgrade";
+      node["httpupgrade-opts"] = {
+        path: decodeURIComponent(params.path || "/"),
+        host: params.host || undefined,
+      };
+    }
+    
+    // splithttp
+    if (params.type === "splithttp") {
+      node.network = "splithttp";
+      node["splithttp-opts"] = {
+        path: decodeURIComponent(params.path || "/"),
+        host: params.host || undefined,
       };
     }
     
@@ -1607,6 +1700,9 @@ const parseTrojan = (line, index) => {
     const name = decodeURIComponent(url.hash.replace("#", "")) || `trojan-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
     
+    const isReality = params.security === "reality";
+    const isTls = params.security !== "none" && params.security !== "xtls" || isReality;
+    
     const node = {
       name,
       type: "trojan",
@@ -1616,12 +1712,17 @@ const parseTrojan = (line, index) => {
       udp: true,
     };
     
+    // TLS
+    if (isTls && !isReality) {
+      node.tls = true;
+    }
+    
     // SNI
     if (params.sni) node.sni = params.sni;
     if (params.peer) node.sni = params.peer; // 兼容旧格式
     
     // skip-cert-verify
-    if (params.allowInsecure === "1" || params.allowInsecure === "true") {
+    if (params.allowInsecure === "1" || params.allowInsecure === "true" || params.insecure === "1") {
       node["skip-cert-verify"] = true;
     }
     
@@ -1635,6 +1736,19 @@ const parseTrojan = (line, index) => {
       node.alpn = decodeURIComponent(params.alpn).split(",");
     }
     
+    // Reality 配置
+    if (isReality && params.pbk) {
+      node["reality-opts"] = {
+        "public-key": params.pbk,
+      };
+      if (params.sid) {
+        node["reality-opts"]["short-id"] = params.sid;
+      }
+      if (params.spx) {
+        node["reality-opts"]["spider-x"] = decodeURIComponent(params.spx);
+      }
+    }
+    
     // 传输层
     const transport = params.type || "tcp";
     if (transport !== "tcp") {
@@ -1645,9 +1759,14 @@ const parseTrojan = (line, index) => {
     if (transport === "ws") {
       node.network = "ws";
       node["ws-opts"] = {
-        path: params.path || "/",
+        path: decodeURIComponent(params.path || "/"),
         headers: params.host ? { Host: params.host } : undefined,
       };
+      // 早期数据
+      if (params.ed) {
+        node["ws-opts"]["max-early-data"] = Number(params.ed);
+        node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
+      }
     }
     
     // gRPC
@@ -1655,6 +1774,18 @@ const parseTrojan = (line, index) => {
       node.network = "grpc";
       node["grpc-opts"] = {
         "grpc-service-name": params.serviceName || params.path || "",
+      };
+      if (params.mode) {
+        node["grpc-opts"]["grpc-mode"] = params.mode;
+      }
+    }
+    
+    // HTTP/2
+    if (transport === "h2") {
+      node.network = "h2";
+      node["h2-opts"] = {
+        path: decodeURIComponent(params.path || "/"),
+        host: params.host ? [params.host] : undefined,
       };
     }
     
@@ -1982,14 +2113,16 @@ const generateYaml = () => {
 
   // 构建落地节点 - 支持多协议
   let landingProxy;
-  if (landingNode.value && landingNode.value.type) {
-    // 使用已解析的完整节点对象
+  const nodeType = form.landingNodeType || "socks5";
+  
+  if (landingNode.value && landingNode.value.type === nodeType) {
+    // 使用已解析的完整节点对象（类型匹配时）
     landingProxy = {
       ...landingNode.value,
       name: form.socksAlias,  // 使用用户设置的别名
       "dialer-proxy": dialerProxyName,
     };
-    // 对于 socks5/http 类型，确保有 server 和 port
+    // 确保有 server 和 port
     if (!landingProxy.server) {
       landingProxy.server = form.socksServer.trim();
     }
@@ -1997,20 +2130,76 @@ const generateYaml = () => {
       landingProxy.port = Number(form.socksPort);
     }
   } else {
-    // 回退到默认 socks5 格式（兼容旧逻辑）
+    // 根据用户选择的节点类型构建配置
     landingProxy = {
       name: form.socksAlias,
-      type: "socks5",
+      type: nodeType,
       server: form.socksServer.trim(),
       port: Number(form.socksPort),
-      username: form.socksUser || undefined,
-      password: form.socksPass || undefined,
-      udp: true,
       "dialer-proxy": dialerProxyName,
     };
+    
+    // 根据不同协议添加对应字段
+    if (nodeType === "socks5" || nodeType === "http") {
+      if (form.socksUser) landingProxy.username = form.socksUser;
+      if (form.socksPass) landingProxy.password = form.socksPass;
+      if (nodeType === "socks5") landingProxy.udp = true;
+    } else if (nodeType === "ss") {
+      // Shadowsocks: password 字段作为密码，默认加密方式
+      landingProxy.password = form.socksPass || "";
+      landingProxy.cipher = "aes-256-gcm";  // 默认加密方式
+    } else if (nodeType === "ssr") {
+      // ShadowsocksR: password 字段作为密码
+      landingProxy.password = form.socksPass || "";
+      landingProxy.cipher = "aes256-cfb";  // SSR 默认加密方式
+      landingProxy.protocol = "origin";
+      landingProxy.obfs = "plain";
+      landingProxy.udp = true;
+    } else if (nodeType === "trojan") {
+      // Trojan: password 字段作为密码
+      landingProxy.password = form.socksPass || "";
+      landingProxy.udp = true;
+    } else if (nodeType === "vmess") {
+      // VMess: password 作为 uuid
+      landingProxy.uuid = form.socksPass || "";
+      landingProxy.alterId = 0;
+      landingProxy.cipher = "auto";
+      landingProxy.udp = true;
+    } else if (nodeType === "vless") {
+      // VLESS: password 作为 uuid
+      landingProxy.uuid = form.socksPass || "";
+      landingProxy.udp = true;
+    } else if (nodeType === "hysteria") {
+      // Hysteria: password 作为 auth
+      landingProxy.auth_str = form.socksPass || "";
+      landingProxy.up = "100 Mbps";  // 默认上行
+      landingProxy.down = "200 Mbps";  // 默认下行
+      landingProxy["skip-cert-verify"] = true;
+    } else if (nodeType === "hysteria2") {
+      // Hysteria2: password 作为密码
+      landingProxy.password = form.socksPass || "";
+      landingProxy["skip-cert-verify"] = true;
+    } else if (nodeType === "tuic") {
+      // TUIC: username 作为 uuid, password 作为密码
+      landingProxy.uuid = form.socksUser || "";
+      landingProxy.password = form.socksPass || "";
+      landingProxy["skip-cert-verify"] = true;
+      landingProxy["congestion-controller"] = "bbr";
+    }
   }
 
-  const proxies = [...nodes.value, landingProxy];
+  // 清理节点对象，移除内部使用的字段（如 latency），只保留 Clash 配置需要的字段
+  const cleanProxy = (node) => {
+    if (!node) return node;
+    const cleaned = { ...node };
+    // 移除内部字段
+    delete cleaned.latency;
+    delete cleaned.lastCheck;
+    delete cleaned.status;
+    return cleaned;
+  };
+
+  const proxies = [...nodes.value.map(cleanProxy), cleanProxy(landingProxy)];
   const proxyNames = nodes.value.map((node) => node.name);
   const customRulesFromText = parseRules(form.customRulesText || "");
   
@@ -2118,7 +2307,36 @@ const generateYaml = () => {
     proxyGroups.push(dialerGroup);
   }
   
-  // 策略组配置
+  // 策略组配置 - 增强版，与原始订阅保持一致
+  // 1. 自动选择策略组（url-test）- 自动测速选择最快节点
+  const autoSelectGroup = {
+    name: "♻️ 自动选择",
+    type: "url-test",
+    proxies: [...proxyNames],
+    url: "http://www.gstatic.com/generate_204",
+    interval: 300,
+    tolerance: 50,
+  };
+  
+  // 2. 故障转移策略组（fallback）- 按顺序尝试
+  const fallbackGroup = {
+    name: "🛡️ 故障转移",
+    type: "fallback",
+    proxies: [...proxyNames],
+    url: "http://www.gstatic.com/generate_204",
+    interval: 180,
+  };
+  
+  // 3. 负载均衡策略组（load-balance）
+  const loadBalanceGroup = {
+    name: "⚖️ 负载均衡",
+    type: "load-balance",
+    proxies: [...proxyNames],
+    url: "http://www.gstatic.com/generate_204",
+    interval: 300,
+    strategy: "consistent-hashing",
+  };
+  
   proxyGroups.push(
     {
       name: aiGroupName,
@@ -2128,19 +2346,29 @@ const generateYaml = () => {
     {
       name: otherGroupName,
       type: "select",
-      proxies: [...proxyNames, form.socksAlias, "DIRECT"],
+      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, form.socksAlias, "DIRECT"],
     },
+    autoSelectGroup,
+    fallbackGroup,
+    loadBalanceGroup,
   );
 
   const config = {
-    port: 7890,
-    "socks-port": 7891,
+    // 全局配置 - 与原始订阅保持一致
+    "mixed-port": 7890,
     "allow-lan": true,
+    "bind-address": "*",
     mode: "rule",
     "log-level": "info",
+    "external-controller": "127.0.0.1:9090",
+    
+    // DNS 配置 - 增强版
     dns: {
       enable: true,
+      ipv6: false,
+      "use-hosts": true,
       "enhanced-mode": form.dnsMode,
+      "default-nameserver": ["223.5.5.5", "119.29.29.29"],
       "fake-ip-range": "198.18.0.1/16",
       "fake-ip-filter": form.dnsMode === "fake-ip" ? [
         "*.lan",
@@ -2164,11 +2392,17 @@ const generateYaml = () => {
         "*.battlenet.com.cn",
         "*.logon.battlenet.com.cn",
       ] : undefined,
-      nameserver: domesticDnsList.length > 0 ? domesticDnsList : ["223.5.5.5", "119.29.29.29"],
-      fallback: foreignDnsList.length > 0 ? foreignDnsList : ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"],
+      nameserver: domesticDnsList.length > 0 ? domesticDnsList : ["https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"],
+      fallback: foreignDnsList.length > 0 ? foreignDnsList : [
+        "https://doh.dns.sb/dns-query",
+        "https://dns.cloudflare.com/dns-query",
+        "https://dns.twnic.tw/dns-query",
+        "tls://8.8.4.4:853",
+      ],
       "fallback-filter": {
         geoip: true,
         "geoip-code": "CN",
+        ipcidr: ["240.0.0.0/4", "0.0.0.0/32"],
       },
     },
     proxies,
