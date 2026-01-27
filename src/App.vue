@@ -1484,7 +1484,8 @@ const tryDecodeBase64 = (value) => {
   try {
     const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
     const pad = "=".repeat((4 - (normalized.length % 4)) % 4);
-    const decoded = atob(normalized + pad);
+    const bytes = Uint8Array.from(atob(normalized + pad), c => c.charCodeAt(0));
+    const decoded = new TextDecoder('utf-8').decode(bytes);
     if (decoded.includes("://") || decoded.includes("proxies:")) {
       return decoded;
     }
