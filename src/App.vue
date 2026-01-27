@@ -92,10 +92,19 @@
                 <el-divider content-position="left">规则集导入</el-divider>
                 <el-form-item label="外部规则集 URL">
                   <el-select v-model="form.ruleProviders" multiple placeholder="选择预设规则集" style="width: 100%;">
-                    <el-option label="Loyalsoldier - 广告域名" value="reject" />
-                    <el-option label="Loyalsoldier - 代理域名" value="proxy" />
-                    <el-option label="Loyalsoldier - 直连域名" value="direct" />
-                    <el-option label="Loyalsoldier - GFW 域名" value="gfw" />
+                    <el-option-group label="广告拦截">
+                      <el-option label="广告拦截精简版 (blackmatrix7)" value="ad-lite" />
+                      <el-option label="Loyalsoldier - 广告域名" value="reject" />
+                    </el-option-group>
+                    <el-option-group label="直连规则">
+                      <el-option label="局域网直连 (ACL4SSR)" value="lan" />
+                      <el-option label="解除屏蔽 (ACL4SSR)" value="unban" />
+                      <el-option label="Loyalsoldier - 直连域名" value="direct" />
+                    </el-option-group>
+                    <el-option-group label="代理规则">
+                      <el-option label="Loyalsoldier - 代理域名" value="proxy" />
+                      <el-option label="Loyalsoldier - GFW 域名" value="gfw" />
+                    </el-option-group>
                   </el-select>
                   <div class="helper-text">选择后将自动添加对应的 rule-providers 配置</div>
                 </el-form-item>
@@ -763,7 +772,13 @@ onMounted(() => {
   try {
     const savedRules = localStorage.getItem(RULES_KEY);
     if (savedRules) {
-      customRules.value = JSON.parse(savedRules);
+      const rules = JSON.parse(savedRules);
+      // 数据迁移：将旧的策略组名称升级为新的占位符格式
+      customRules.value = rules.map(rule => {
+        return rule
+          // 替换所有包含"专线"后缀的旧格式（如：美国家宽-出口专线、日本节点专线等）
+          .replace(/,([^,]+)专线$/g, ',{{LANDING}}');
+      });
     }
   } catch {}
 });
@@ -1138,8 +1153,9 @@ const defaultRulesDisplay = computed(() =>
 // 动态策略组选项 - 基于用户输入的别名生成
 const policyGroups = computed(() => {
   const alias = form.socksAlias?.trim() || "落地节点";
+  const landingGroupName = `🎯 ${alias}`;  // 策略组名需要带前缀，与 generateYaml 中一致
   return [
-    { label: `🎯 ${alias}`, value: alias, description: "落地节点专用线路" },
+    { label: landingGroupName, value: landingGroupName, description: "落地节点专用线路" },
     { label: "🌐 代理出口", value: "🌐 代理出口", description: "通用代理出口" },
     { label: "DIRECT", value: "DIRECT", description: "直连" },
   ];
@@ -1510,8 +1526,11 @@ const parseVmess = (line, index) => {
     if (json.tls === "tls") {
       node.tls = true;
       if (json.sni) node.servername = json.sni;
-      // skip-cert-verify
-      if (json.allowInsecure === "1" || json.allowInsecure === 1 || json.verify_cert === false) {
+      // skip-cert-verify: 默认为 true（大多数机场使用伪装 servername 需要跳过证书验证）
+      // 只有明确指定 allowInsecure=0 或 verify_cert=true 时才设为 false
+      if (json.allowInsecure === "0" || json.allowInsecure === 0 || json.verify_cert === true) {
+        node["skip-cert-verify"] = false;
+      } else {
         node["skip-cert-verify"] = true;
       }
       // ALPN
@@ -1631,11 +1650,14 @@ const parseVless = (line, index) => {
     // Flow (XTLS)
     if (params.flow) node.flow = params.flow;
     
-    // skip-cert-verify
-    if (params.allowInsecure === "1" || params.allowInsecure === "true" || params.insecure === "1") {
-      node["skip-cert-verify"] = true;
-    } else if (isTls) {
-      node["skip-cert-verify"] = false;
+    // skip-cert-verify: TLS 启用时默认为 true（大多数机场需要跳过证书验证）
+    // 只有明确指定 allowInsecure=0 时才设为 false
+    if (isTls) {
+      if (params.allowInsecure === "0" || params.insecure === "0") {
+        node["skip-cert-verify"] = false;
+      } else {
+        node["skip-cert-verify"] = true;
+      }
     }
     
     // Client fingerprint
@@ -1754,9 +1776,14 @@ const parseTrojan = (line, index) => {
     if (params.sni) node.sni = params.sni;
     if (params.peer) node.sni = params.peer; // 兼容旧格式
     
-    // skip-cert-verify
-    if (params.allowInsecure === "1" || params.allowInsecure === "true" || params.insecure === "1") {
-      node["skip-cert-verify"] = true;
+    // skip-cert-verify: TLS 启用时默认为 true（大多数机场需要跳过证书验证）
+    // 只有明确指定 allowInsecure=0 时才设为 false
+    if (node.tls || isReality) {
+      if (params.allowInsecure === "0" || params.insecure === "0") {
+        node["skip-cert-verify"] = false;
+      } else {
+        node["skip-cert-verify"] = true;
+      }
     }
     
     // 指纹
@@ -1995,8 +2022,11 @@ const parseHysteria = (line, index) => {
       node["obfs-password"] = params.obfsParam;
     }
     
-    // 跳过证书验证
-    if (params.insecure === "1" || params.allowInsecure === "1") {
+    // 跳过证书验证: 默认为 true（大多数机场需要）
+    // 只有明确指定 insecure=0 时才设为 false
+    if (params.insecure === "0" || params.allowInsecure === "0") {
+      node["skip-cert-verify"] = false;
+    } else {
       node["skip-cert-verify"] = true;
     }
     
@@ -2042,8 +2072,11 @@ const parseHysteria2 = (line, index) => {
       }
     }
     
-    // 跳过证书验证
-    if (params.insecure === "1" || params.allowInsecure === "1") {
+    // 跳过证书验证: 默认为 true（大多数机场需要）
+    // 只有明确指定 insecure=0 时才设为 false
+    if (params.insecure === "0" || params.allowInsecure === "0") {
+      node["skip-cert-verify"] = false;
+    } else {
       node["skip-cert-verify"] = true;
     }
     
@@ -2100,8 +2133,11 @@ const parseTUIC = (line, index) => {
       node["udp-relay-mode"] = params.udp_relay_mode;
     }
     
-    // 跳过证书验证
-    if (params.insecure === "1" || params.allowInsecure === "1" || params.allow_insecure === "1") {
+    // 跳过证书验证: 默认为 true（大多数机场需要）
+    // 只有明确指定 insecure=0 时才设为 false
+    if (params.insecure === "0" || params.allowInsecure === "0" || params.allow_insecure === "0") {
+      node["skip-cert-verify"] = false;
+    } else {
       node["skip-cert-verify"] = true;
     }
     
@@ -2242,8 +2278,9 @@ const generateYaml = () => {
   const customRulesFromText = parseRules(form.customRulesText || "");
   
   // ==================== 策略组名称定义 ====================
-  // 落地节点策略组：直接使用用户输入的别名
-  const landingGroupName = form.socksAlias.trim();
+  // 落地节点策略组：添加前缀以区分代理节点名和策略组名，避免 Clash 循环引用错误
+  const landingProxyName = form.socksAlias.trim();  // 代理节点名
+  const landingGroupName = `🎯 ${landingProxyName}`;  // 策略组名（添加前缀区分）
   // 通用代理策略组
   const proxyGroupName = "🌐 代理出口";
 
@@ -2272,6 +2309,14 @@ const generateYaml = () => {
   
   // 规则集配置
   const ruleProvidersDef = {
+    // 广告拦截
+    "ad-lite": {
+      type: "http",
+      behavior: "classical",
+      url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/AdvertisingLite/AdvertisingLite.yaml",
+      path: "./ruleset/ad-lite.yaml",
+      interval: 86400,
+    },
     reject: {
       type: "http",
       behavior: "domain",
@@ -2279,11 +2324,19 @@ const generateYaml = () => {
       path: "./ruleset/reject.yaml",
       interval: 86400,
     },
-    proxy: {
+    // 直连规则
+    lan: {
       type: "http",
-      behavior: "domain", 
-      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
-      path: "./ruleset/proxy.yaml",
+      behavior: "classical",
+      url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/LocalAreaNetwork.list",
+      path: "./ruleset/lan.yaml",
+      interval: 86400,
+    },
+    unban: {
+      type: "http",
+      behavior: "classical",
+      url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list",
+      path: "./ruleset/unban.yaml",
       interval: 86400,
     },
     direct: {
@@ -2291,6 +2344,14 @@ const generateYaml = () => {
       behavior: "domain",
       url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt",
       path: "./ruleset/direct.yaml",
+      interval: 86400,
+    },
+    // 代理规则
+    proxy: {
+      type: "http",
+      behavior: "domain", 
+      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
+      path: "./ruleset/proxy.yaml",
       interval: 86400,
     },
     gfw: {
@@ -2310,16 +2371,31 @@ const generateYaml = () => {
     }
   });
   
-  // 生成规则集对应的规则
+  // 生成规则集对应的规则（按优先级排序：广告拦截 > 直连 > 代理）
   const ruleProviderRules = [];
+  
+  // 1. 广告拦截规则（最高优先级）
+  if (form.ruleProviders.includes('ad-lite')) {
+    ruleProviderRules.push('RULE-SET,ad-lite,REJECT');
+  }
   if (form.ruleProviders.includes('reject')) {
     ruleProviderRules.push('RULE-SET,reject,REJECT');
   }
-  if (form.ruleProviders.includes('proxy')) {
-    ruleProviderRules.push(`RULE-SET,proxy,${proxyGroupName}`);
+  
+  // 2. 直连规则
+  if (form.ruleProviders.includes('lan')) {
+    ruleProviderRules.push('RULE-SET,lan,DIRECT');
+  }
+  if (form.ruleProviders.includes('unban')) {
+    ruleProviderRules.push('RULE-SET,unban,DIRECT');
   }
   if (form.ruleProviders.includes('direct')) {
     ruleProviderRules.push('RULE-SET,direct,DIRECT');
+  }
+  
+  // 3. 代理规则
+  if (form.ruleProviders.includes('proxy')) {
+    ruleProviderRules.push(`RULE-SET,proxy,${proxyGroupName}`);
   }
   if (form.ruleProviders.includes('gfw')) {
     ruleProviderRules.push(`RULE-SET,gfw,${proxyGroupName}`);
@@ -2380,12 +2456,12 @@ const generateYaml = () => {
     {
       name: landingGroupName,
       type: "select",
-      proxies: [form.socksAlias.trim()],
+      proxies: [landingProxyName],  // 使用代理节点名，不是策略组名
     },
     {
       name: proxyGroupName,
       type: "select",
-      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, form.socksAlias.trim(), "DIRECT"],
+      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, landingProxyName, "DIRECT"],
     },
     autoSelectGroup,
     fallbackGroup,
