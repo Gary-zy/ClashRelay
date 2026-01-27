@@ -370,9 +370,6 @@
                         :label="pg.label" 
                         :value="pg.value" 
                       />
-                      <el-option-group v-if="form.socksAlias" label="Socks5 落地节点">
-                        <el-option :label="form.socksAlias" :value="form.socksAlias" />
-                      </el-option-group>
                       <el-option-group v-if="nodes.length > 0" label="机场节点">
                         <el-option
                           v-for="node in nodes"
@@ -407,7 +404,7 @@
                 v-model="form.customRulesText"
                 type="textarea"
                 :rows="3"
-                placeholder="例如：DOMAIN-SUFFIX,example.com,🌍 其他外网"
+                placeholder="例如：DOMAIN-SUFFIX,example.com,� 代理出口"
               />
               <div class="helper-text">
                 支持 Clash 规则格式；空行与以 #/\/\/ 开头的注释会被忽略。
@@ -432,7 +429,7 @@
           <ul style="padding-left: 18px; color: #475569; font-size: 13px; line-height: 1.7;">
             <li>默认使用 Fake-IP DNS、国内外分流解析。</li>
             <li>AI/Google 组优先走 Socks5 落地节点。</li>
-            <li>其他外网组包含 Socks5 + 机场节点 + DIRECT。</li>
+            <li>代理出口组包含落地节点 + 机场节点 + DIRECT。</li>
             <li>Socks5 节点自动注入 dialer-proxy。</li>
           </ul>
         </div>
@@ -486,7 +483,7 @@ import { Loading, Search, Upload, Star, StarFilled, Check, CircleCheck, CircleCl
 import yaml from "js-yaml";
 import QRCode from 'qrcode';
 import { diffLines } from 'diff';
-import { defaultRules, fakeIpFilter, ruleTypes, policyGroups } from "./config/defaultConfig.js";
+import { defaultRules, fakeIpFilter, ruleTypes, POLICY_PLACEHOLDERS } from "./config/defaultConfig.js";
 import { ruleTemplates } from "./config/ruleTemplates.js";
 
 // ==================== 配置持久化 ====================
@@ -583,7 +580,7 @@ const customRules = ref([]);
 const ruleBuilder = reactive({
   type: "DOMAIN-SUFFIX",
   value: "",
-  policy: "🇺🇸 美国尊享(AI/Google)",
+  policy: "",  // 默认为空，用户需要手动选择
 });
 
 const isTesting = ref(false);
@@ -1138,6 +1135,16 @@ const defaultRulesDisplay = computed(() =>
   defaultRules.map((rule) => ({ rule }))
 );
 
+// 动态策略组选项 - 基于用户输入的别名生成
+const policyGroups = computed(() => {
+  const alias = form.socksAlias?.trim() || "落地节点";
+  return [
+    { label: `🎯 ${alias}`, value: alias, description: "落地节点专用线路" },
+    { label: "🌐 代理出口", value: "🌐 代理出口", description: "通用代理出口" },
+    { label: "DIRECT", value: "DIRECT", description: "直连" },
+  ];
+});
+
 const resetForm = () => {
   Object.assign(form, formDefaults);
   nodes.value = [];
@@ -1159,36 +1166,62 @@ const parseLandingNodeUrl = () => {
   try {
     let node = null;
     
-    // 1. 先尝试 socks5:// 格式
-    if (url.startsWith("socks5://")) {
-      const match = url.match(/^socks5:\/\/(?:([^:]+):([^@]+)@)?([^:]+):(\d+)$/);
-      if (match) {
-        const [, username, password, host, port] = match;
-        node = {
-          name: form.socksAlias || "socks5-landing",
-          type: "socks5",
-          server: host,
-          port: Number(port),
-          username: username || undefined,
-          password: password || undefined,
-          udp: true,
-        };
+    // 1. 先尝试 socks5:// 或 socks5h:// 格式
+    if (url.startsWith("socks5://") || url.startsWith("socks5h://")) {
+      // 使用正则提取各部分，支持非数字端口以便给出明确错误
+      const match = url.match(/^socks5h?:\/\/(?:([^:]+):([^@]+)@)?([^:]+):(.+)$/);
+      if (!match) {
+        status.message = "socks5 链接格式不正确，正确格式：socks5://user:pass@host:port";
+        status.type = "error";
+        return;
       }
+      
+      const [, username, password, host, portStr] = match;
+      const port = parseInt(portStr, 10);
+      
+      if (isNaN(port) || portStr !== String(port)) {
+        status.message = `端口 "${portStr}" 不是有效数字，请把 :${portStr} 替换成真实端口号（如 :12333）`;
+        status.type = "error";
+        return;
+      }
+      
+      node = {
+        name: form.socksAlias || "socks5-landing",
+        type: "socks5",
+        server: host,
+        port: port,
+        username: username ? decodeURIComponent(username) : undefined,
+        password: password ? decodeURIComponent(password) : undefined,
+        udp: true,
+      };
     }
-    // 2. 尝试 http:// 格式
-    else if (url.startsWith("http://") && !url.includes("://", 7)) {
-      const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(\d+)/);
-      if (match) {
-        const [, username, password, host, port] = match;
-        node = {
-          name: form.socksAlias || "http-landing",
-          type: "http",
-          server: host,
-          port: Number(port),
-          username: username || undefined,
-          password: password || undefined,
-        };
+    // 2. 尝试 http:// 格式（代理协议，不是普通网页）
+    else if (url.startsWith("http://") && url.includes("@")) {
+      // 使用正则提取各部分，支持非数字端口以便给出明确错误
+      const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(.+)$/);
+      if (!match) {
+        status.message = "http 链接格式不正确，正确格式：http://user:pass@host:port";
+        status.type = "error";
+        return;
       }
+      
+      const [, username, password, host, portStr] = match;
+      const port = parseInt(portStr, 10);
+      
+      if (isNaN(port) || portStr !== String(port)) {
+        status.message = `端口 "${portStr}" 不是有效数字，请把 :${portStr} 替换成真实端口号（如 :12333）`;
+        status.type = "error";
+        return;
+      }
+      
+      node = {
+        name: form.socksAlias || "http-landing",
+        type: "http",
+        server: host,
+        port: port,
+        username: username ? decodeURIComponent(username) : undefined,
+        password: password ? decodeURIComponent(password) : undefined,
+      };
     }
     // 3. 使用已有的解析函数解析其他协议
     else {
@@ -2119,7 +2152,7 @@ const generateYaml = () => {
     // 使用已解析的完整节点对象（类型匹配时）
     landingProxy = {
       ...landingNode.value,
-      name: form.socksAlias,  // 使用用户设置的别名
+      name: form.socksAlias.trim(),  // 使用 trim 后的别名
       "dialer-proxy": dialerProxyName,
     };
     // 确保有 server 和 port
@@ -2132,7 +2165,7 @@ const generateYaml = () => {
   } else {
     // 根据用户选择的节点类型构建配置
     landingProxy = {
-      name: form.socksAlias,
+      name: form.socksAlias.trim(),
       type: nodeType,
       server: form.socksServer.trim(),
       port: Number(form.socksPort),
@@ -2203,17 +2236,18 @@ const generateYaml = () => {
   const proxyNames = nodes.value.map((node) => node.name);
   const customRulesFromText = parseRules(form.customRulesText || "");
   
-  // AI专线策略组名称：直接使用别名 + 后缀
-  const aiGroupName = `${form.socksAlias.replace(/🇺🇸\s*/, '')}专线`;
-  
-  // 其他外网策略组名称
-  const otherGroupName = "🌍 其他外网";
-  
-  // 策略组名称替换函数
-  const replaceProxyGroupNames = (rule) => rule
-    .replace(/🇺🇸 美国尊享\(AI\/Google\)/g, aiGroupName)
-    .replace(/🌍 其他外网\(默认香港\)/g, otherGroupName)
-    .replace(/🌍 其他外网(?!\()/g, otherGroupName); // 处理没有括号的情况
+  // ==================== 策略组名称定义 ====================
+  // 落地节点策略组：直接使用用户输入的别名
+  const landingGroupName = form.socksAlias.trim();
+  // 通用代理策略组
+  const proxyGroupName = "🌐 代理出口";
+
+  // 规则占位符替换函数
+  const replaceProxyGroupNames = (rule) => {
+    return rule
+      .replace(/\{\{LANDING\}\}/g, landingGroupName)
+      .replace(/\{\{PROXY\}\}/g, proxyGroupName);
+  };
   
   // 将默认规则中的占位符替换为实际的策略组名称
   const processedDefaultRules = form.includeDefaultRules 
@@ -2277,13 +2311,13 @@ const generateYaml = () => {
     ruleProviderRules.push('RULE-SET,reject,REJECT');
   }
   if (form.ruleProviders.includes('proxy')) {
-    ruleProviderRules.push(`RULE-SET,proxy,${otherGroupName}`);
+    ruleProviderRules.push(`RULE-SET,proxy,${proxyGroupName}`);
   }
   if (form.ruleProviders.includes('direct')) {
     ruleProviderRules.push('RULE-SET,direct,DIRECT');
   }
   if (form.ruleProviders.includes('gfw')) {
-    ruleProviderRules.push(`RULE-SET,gfw,${otherGroupName}`);
+    ruleProviderRules.push(`RULE-SET,gfw,${proxyGroupName}`);
   }
   
   // 合并规则（规则集规则放在前面）
@@ -2339,14 +2373,14 @@ const generateYaml = () => {
   
   proxyGroups.push(
     {
-      name: aiGroupName,
+      name: landingGroupName,
       type: "select",
-      proxies: [form.socksAlias],
+      proxies: [form.socksAlias.trim()],
     },
     {
-      name: otherGroupName,
+      name: proxyGroupName,
       type: "select",
-      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, form.socksAlias, "DIRECT"],
+      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, form.socksAlias.trim(), "DIRECT"],
     },
     autoSelectGroup,
     fallbackGroup,

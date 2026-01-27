@@ -1,9 +1,6 @@
 // 默认 Clash 规则配置
-// 可在此文件中添加、修改或删除规则
-
-// AI 和 Google 相关服务使用美国尊享线路
-// GitHub 等开发者服务使用其他外网
-// 国内域名和 IP 直连
+// 使用占位符 {{LANDING}} 表示落地节点专线，{{PROXY}} 表示通用代理出口
+// 生成配置时会自动替换为用户设置的策略组名称
 
 export const defaultRules = [
   // ==================== 内网直连 ====================
@@ -13,69 +10,69 @@ export const defaultRules = [
   "IP-CIDR,127.0.0.0/8,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
 
-  // ==================== AI 服务 (美国家宽) ====================
+  // ==================== AI 服务 (走落地节点) ====================
   // Claude / Anthropic
-  "DOMAIN-KEYWORD,antigravity,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,anthropic.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,claude.ai,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-KEYWORD,anthropic,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-KEYWORD,claude,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-KEYWORD,antigravity,{{LANDING}}",
+  "DOMAIN-SUFFIX,anthropic.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,claude.ai,{{LANDING}}",
+  "DOMAIN-KEYWORD,anthropic,{{LANDING}}",
+  "DOMAIN-KEYWORD,claude,{{LANDING}}",
 
   // Cursor
-  "DOMAIN-SUFFIX,cursor.sh,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,cursor.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,anysphere.co,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,todesktop.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,auth0.com,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,cursor.sh,{{LANDING}}",
+  "DOMAIN-SUFFIX,cursor.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,anysphere.co,{{LANDING}}",
+  "DOMAIN-SUFFIX,todesktop.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,auth0.com,{{LANDING}}",
 
   // OpenAI / ChatGPT
-  "DOMAIN-SUFFIX,openai.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,chatgpt.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,oaistatic.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,oaiusercontent.com,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,openai.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,chatgpt.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,oaistatic.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,oaiusercontent.com,{{LANDING}}",
 
   // 其他 AI 服务
-  "DOMAIN-SUFFIX,perplexity.ai,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,x.ai,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,grok.x.ai,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,huggingface.co,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,perplexity.ai,{{LANDING}}",
+  "DOMAIN-SUFFIX,x.ai,{{LANDING}}",
+  "DOMAIN-SUFFIX,grok.x.ai,{{LANDING}}",
+  "DOMAIN-SUFFIX,huggingface.co,{{LANDING}}",
 
   // GitHub Copilot
-  "DOMAIN-SUFFIX,copilot.microsoft.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,copilot.githubusercontent.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-KEYWORD,copilot,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,copilot.microsoft.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,copilot.githubusercontent.com,{{LANDING}}",
+  "DOMAIN-KEYWORD,copilot,{{LANDING}}",
 
-  // ==================== GitHub (其他外网) ====================
-  "DOMAIN-SUFFIX,github.com,🌍 其他外网(默认香港)",
-  "DOMAIN-SUFFIX,githubusercontent.com,🌍 其他外网(默认香港)",
+  // ==================== GitHub (走代理出口) ====================
+  "DOMAIN-SUFFIX,github.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,githubusercontent.com,{{PROXY}}",
 
-  // ==================== Google 服务 (美国家宽) ====================
-  "DOMAIN-SUFFIX,google.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,googleapis.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,gstatic.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,googleusercontent.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,gvt1.com,🇺🇸 美国尊享(AI/Google)",
+  // ==================== Google 服务 (走落地节点) ====================
+  "DOMAIN-SUFFIX,google.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,googleapis.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,gstatic.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,googleusercontent.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,gvt1.com,{{LANDING}}",
 
   // Google AI
-  "DOMAIN-KEYWORD,gemini,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,bard.google.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,deepmind.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,ai.google.dev,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-KEYWORD,gemini,{{LANDING}}",
+  "DOMAIN-SUFFIX,bard.google.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,deepmind.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,ai.google.dev,{{LANDING}}",
 
   // YouTube
-  "DOMAIN-SUFFIX,youtube.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,googlevideo.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,ytimg.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,ggpht.com,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,youtube.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,googlevideo.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,ytimg.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,ggpht.com,{{LANDING}}",
 
   // Google 其他服务
-  "DOMAIN-SUFFIX,android.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,firebaseio.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,appspot.com,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,go.dev,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,golang.org,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-SUFFIX,recaptcha.net,🇺🇸 美国尊享(AI/Google)",
-  "DOMAIN-KEYWORD,google,🇺🇸 美国尊享(AI/Google)",
+  "DOMAIN-SUFFIX,android.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,firebaseio.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,appspot.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,go.dev,{{LANDING}}",
+  "DOMAIN-SUFFIX,golang.org,{{LANDING}}",
+  "DOMAIN-SUFFIX,recaptcha.net,{{LANDING}}",
+  "DOMAIN-KEYWORD,google,{{LANDING}}",
 
   // ==================== 国内直连 ====================
   "DOMAIN-SUFFIX,cn,DIRECT",
@@ -84,7 +81,7 @@ export const defaultRules = [
   "GEOSITE,CN,DIRECT",
 
   // ==================== 默认规则 ====================
-  "MATCH,🌍 其他外网(默认香港)",
+  "MATCH,{{PROXY}}",
 ];
 
 // DNS 配置中的 fake-ip-filter
@@ -121,9 +118,10 @@ export const ruleTypes = [
   { label: "MATCH", value: "MATCH", description: "默认匹配（放最后）" },
 ];
 
-// 策略组选项
-export const policyGroups = [
-  { label: "🇺🇸 美国尊享", value: "🇺🇸 美国尊享(AI/Google)" },
-  { label: "🌍 其他外网", value: "🌍 其他外网" },
-  { label: "DIRECT", value: "DIRECT" },
-];
+// 策略组占位符 - 实际名称在 App.vue 中动态生成
+// {{LANDING}} = 落地节点专线策略组（基于用户输入的别名）
+// {{PROXY}} = 通用代理出口策略组
+export const POLICY_PLACEHOLDERS = {
+  LANDING: "{{LANDING}}",
+  PROXY: "{{PROXY}}",
+};
