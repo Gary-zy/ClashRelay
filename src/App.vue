@@ -155,7 +155,7 @@
               <el-input v-model="form.socksPass" placeholder="可选" show-password />
             </el-form-item>
             <el-form-item label="别名 (Alias)" prop="socksAlias">
-              <el-input v-model="form.socksAlias" placeholder="🇺🇸 美国家宽-出口" />
+              <el-input v-model="form.socksAlias" placeholder="例如：US-Home 或 落地节点" />
             </el-form-item>
             <el-alert
               v-if="status.message"
@@ -552,7 +552,7 @@ const formDefaults = {
   socksPort: "",
   socksUser: "",
   socksPass: "",
-  socksAlias: "🇺🇸 美国家宽-出口",
+  socksAlias: "落地节点",
   // 跳板节点配置（支持多选）
   dialerProxyGroup: [],
   dialerProxyType: "url-test",  // url-test | select | fallback
@@ -983,7 +983,7 @@ const handleConfigImport = (file) => {
         form.socksPort = String(socks5Node.port || '');
         form.socksUser = socks5Node.username || '';
         form.socksPass = socks5Node.password || '';
-        form.socksAlias = socks5Node.name || '🇺🇸 美国家宽-出口';
+        form.socksAlias = socks5Node.name || '落地节点';
       }
       
       // 填充 DNS 配置
@@ -2131,6 +2131,11 @@ const generateYaml = () => {
   }
   if (!form.socksServer || !form.socksPort) {
     status.message = "请填写落地节点信息，或使用链接解析功能。";
+    status.type = "warning";
+    return;
+  }
+  if (!form.socksAlias || !form.socksAlias.trim()) {
+    status.message = "请填写落地节点别名。";
     status.type = "warning";
     return;
   }
