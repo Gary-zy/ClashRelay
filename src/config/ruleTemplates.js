@@ -128,6 +128,19 @@ export const ruleTemplates = {
       "DOMAIN-SUFFIX,tiktok.com,{{PROXY}}",
     ],
   },
+  trae: {
+    name: "Trae AI 开发",
+    icon: "🤖",
+    description: "Trae IDE 专属规则，解决连接超时问题",
+    rules: [
+      "DOMAIN-SUFFIX,trae.ai,DIRECT",
+      "DOMAIN-SUFFIX,traeapi.us,{{PROXY}}",
+      "DOMAIN-SUFFIX,bytedance.net,{{PROXY}}",
+      "DOMAIN-SUFFIX,mchost.guru,{{PROXY}}",
+      "DOMAIN-SUFFIX,volces.com,{{PROXY}}",
+      "DOMAIN-SUFFIX,gstatic.com,{{PROXY}}",
+    ],
+  },
 };
 
 export default ruleTemplates;

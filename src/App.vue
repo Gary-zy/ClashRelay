@@ -12,495 +12,103 @@
       </div>
 
       <div class="grid">
-        <div class="section-card">
-          <div class="section-title">1. 输入订阅与落地节点</div>
-          <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-            <!-- 配置导入区域 -->
-            <el-collapse style="margin-bottom: 16px;">
-              <el-collapse-item title="导入已有配置（可选）" name="import">
-                <el-upload
-                  drag
-                  accept=".yaml,.yml"
-                  :auto-upload="false"
-                  :on-change="handleConfigImport"
-                  :show-file-list="false"
-                  style="width: 100%;"
-                >
-                  <el-icon size="40" style="color: #64748b;"><Upload /></el-icon>
-                  <div class="el-upload__text" style="margin-top: 8px;">
-                    拖拽 Clash 配置文件到此处，或<em>点击上传</em>
-                  </div>
-                  <template #tip>
-                    <div class="helper-text">
-                      支持 .yaml/.yml 格式，将自动提取节点列表、规则和 Socks5 配置
-                    </div>
-                  </template>
-                </el-upload>
-              </el-collapse-item>
-            </el-collapse>
-            
-            <el-form-item label="机场订阅地址" prop="subscriptionUrl">
+        <ConfigForm
+          :form="form"
+          :rules="rules"
+          :status="status"
+          :is-fetching="isFetching"
+          :landing-node="landingNode"
+          :handle-fetch="handleFetch"
+          :handle-config-import="handleConfigImport"
+          :query-subscription-history="querySubscriptionHistory"
+          :remove-history-item="removeHistoryItem"
+          :parse-landing-node-url="parseLandingNodeUrl"
+          :format-time="formatTime"
+        />
 
-              <el-autocomplete
-                v-model="form.subscriptionUrl"
-                :fetch-suggestions="querySubscriptionHistory"
-                :trigger-on-focus="true"
-                placeholder="https://example.com/subscription"
-                style="width: 100%;"
-                clearable
-              >
-                <template #default="{ item }">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="overflow: hidden; text-overflow: ellipsis; max-width: 280px;">{{ item.value }}</span>
-                    <el-button type="danger" link size="small" @click.stop="removeHistoryItem(item.value)">删除</el-button>
-                  </div>
-                </template>
-              </el-autocomplete>
-              <div class="helper-text">
-                点击输入框可查看历史记录（获取成功后自动保存）
-              </div>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleFetch" :loading="isFetching" :disabled="isFetching" style="width: 100%;">{{ isFetching ? '正在获取...' : '获取节点' }}</el-button>
-            </el-form-item>
-            
-            <el-collapse style="margin-bottom: 16px;">
-              <el-collapse-item title="高级选项" name="advanced">
-                <el-form-item label="本地代理服务地址">
-                  <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
-                  <div class="helper-text">
-                    订阅站点未开启 CORS 时，可启动本地代理（项目内提供
-                    <code>proxy-server.js</code>）。
-                  </div>
-                </el-form-item>
-                
-                <el-divider content-position="left">DNS 配置</el-divider>
-                <el-form-item label="DNS 模式">
-                  <el-radio-group v-model="form.dnsMode">
-                    <el-radio value="fake-ip">Fake-IP (推荐)</el-radio>
-                    <el-radio value="redir-host">Redir-Host</el-radio>
-                  </el-radio-group>
-                </el-form-item>
-                <el-form-item label="国内 DNS">
-                  <el-input v-model="form.domesticDns" placeholder="223.5.5.5, 119.29.29.29" />
-                  <div class="helper-text">多个 DNS 用逗号分隔</div>
-                </el-form-item>
-                <el-form-item label="国外 DNS">
-                  <el-input v-model="form.foreignDns" placeholder="https://dns.google/dns-query" />
-                </el-form-item>
-                
-                <el-divider content-position="left">规则集导入</el-divider>
-                <el-form-item label="外部规则集 URL">
-                  <el-select v-model="form.ruleProviders" multiple placeholder="选择预设规则集" style="width: 100%;">
-                    <el-option-group label="广告拦截">
-                      <el-option label="广告拦截精简版 (blackmatrix7)" value="ad-lite" />
-                      <el-option label="Loyalsoldier - 广告域名" value="reject" />
-                    </el-option-group>
-                    <el-option-group label="直连规则">
-                      <el-option label="局域网直连 (ACL4SSR)" value="lan" />
-                      <el-option label="解除屏蔽 (ACL4SSR)" value="unban" />
-                      <el-option label="Loyalsoldier - 直连域名" value="direct" />
-                    </el-option-group>
-                    <el-option-group label="代理规则">
-                      <el-option label="Loyalsoldier - 代理域名" value="proxy" />
-                      <el-option label="Loyalsoldier - GFW 域名" value="gfw" />
-                    </el-option-group>
-                  </el-select>
-                  <div class="helper-text">选择后将自动添加对应的 rule-providers 配置</div>
-                </el-form-item>
-                
-                <el-divider content-position="left">订阅自动刷新</el-divider>
-                <el-form-item>
-                  <el-switch v-model="form.autoRefresh" active-text="启用自动刷新" />
-                </el-form-item>
-                <el-form-item v-if="form.autoRefresh" label="刷新间隔（分钟）">
-                  <el-input-number v-model="form.refreshInterval" :min="5" :max="1440" />
-                </el-form-item>
-                <div v-if="form.lastRefreshTime" class="helper-text">
-                  上次刷新：{{ formatTime(form.lastRefreshTime) }}
-                </div>
-              </el-collapse-item>
-            </el-collapse>
-
-            <el-divider content-position="left">落地节点配置</el-divider>
-            <el-form-item label="快速解析节点链接（可选）">
-              <el-row :gutter="12" style="width: 100%;">
-                <el-col :span="20">
-                  <el-input v-model="form.landingNodeUrl" placeholder="支持 ss:// ssr:// vmess:// vless:// trojan:// hysteria:// hysteria2:// tuic://" />
-                </el-col>
-                <el-col :span="4">
-                  <el-button type="primary" @click="parseLandingNodeUrl" style="width: 100%;">解析</el-button>
-                </el-col>
-              </el-row>
-              <div class="helper-text">
-                支持多种协议链接：ss(Shadowsocks)、ssr、vmess、vless、trojan、hysteria、hysteria2、tuic、socks5、http。
-              </div>
-            </el-form-item>
-            <el-form-item label="节点类型">
-              <el-select v-model="form.landingNodeType" placeholder="选择协议类型" style="width: 200px;">
-                <el-option label="SOCKS5" value="socks5" />
-                <el-option label="HTTP" value="http" />
-                <el-option label="Shadowsocks (SS)" value="ss" />
-                <el-option label="ShadowsocksR (SSR)" value="ssr" />
-                <el-option label="Trojan" value="trojan" />
-                <el-option label="VMess" value="vmess" />
-                <el-option label="VLESS" value="vless" />
-                <el-option label="Hysteria" value="hysteria" />
-                <el-option label="Hysteria2" value="hysteria2" />
-                <el-option label="TUIC" value="tuic" />
-              </el-select>
-              <el-tag v-if="landingNode && landingNode.type !== form.landingNodeType" type="warning" style="margin-left: 8px;">解析类型: {{ landingNode.type.toUpperCase() }}</el-tag>
-            </el-form-item>
-            <el-form-item label="Server (IP / Domain)" prop="socksServer">
-              <el-input v-model="form.socksServer" placeholder="1.2.3.4 或 example.com" />
-            </el-form-item>
-            <el-form-item label="Port" prop="socksPort">
-              <el-input v-model="form.socksPort" placeholder="1080" />
-            </el-form-item>
-            <el-form-item label="Username">
-              <el-input v-model="form.socksUser" placeholder="可选" />
-            </el-form-item>
-            <el-form-item label="Password">
-              <el-input v-model="form.socksPass" placeholder="可选" show-password />
-            </el-form-item>
-            <el-form-item label="别名 (Alias)" prop="socksAlias">
-              <el-input v-model="form.socksAlias" placeholder="例如：US-Home 或 落地节点" />
-            </el-form-item>
-            <el-alert
-              v-if="status.message"
-              :title="status.message"
-              :type="status.type"
-              show-icon
-              :closable="false"
-              role="alert"
-            />
-          </el-form>
-        </div>
-
-        <div class="section-card">
-          <div class="section-title">2. 选择跳板节点</div>
-          <el-form label-position="top">
-            <el-form-item label="跳板节点 (Dialer-Proxy) - 支持多选">
-              <el-select v-model="form.dialerProxyGroup" multiple placeholder="选择跳板节点（可多选）" filterable collapse-tags collapse-tags-tooltip :max-collapse-tags="3" style="width: 100%;">
-                <el-option
-                  v-for="node in filteredNodes"
-                  :key="node.name"
-                  :label="node.name"
-                  :value="node.name"
-                >
-                  <span>{{ getNodeDisplayName(node) }}</span>
-                  <span 
-                    v-if="node.latency && node.latency > 0" 
-                    :style="{ color: node.latency < 300 ? '#67c23a' : '#f56c6c', marginLeft: '8px', fontWeight: 'bold' }"
-                  >
-                    ({{ node.latency }}ms)
-                  </span>
-                  <span 
-                    v-else-if="node.latency === -2" 
-                    style="color: #f56c6c; margin-left: 8px; font-weight: bold;"
-                  >
-                    (超时)
-                  </span>
-                </el-option>
-              </el-select>
-            </el-form-item>
-            <el-form-item v-if="form.dialerProxyGroup.length > 1" label="策略组类型">
-              <el-radio-group v-model="form.dialerProxyType">
-                <el-radio value="url-test">自动选择（url-test）</el-radio>
-                <el-radio value="select">手动选择（select）</el-radio>
-                <el-radio value="fallback">故障转移（fallback）</el-radio>
-              </el-radio-group>
-              <div class="helper-text">选择多个节点时将生成一个策略组作为前置跳板</div>
-            </el-form-item>
-          </el-form>
-          <div v-if="selectedNodes.length > 0" class="selected-node">
-            <div class="selected-node-title">已选中 {{ selectedNodes.length }} 个跳板节点</div>
-            <div class="selected-node-content" style="grid-template-columns: 1fr;">
-              <div v-for="node in selectedNodes" :key="node.name" style="margin-bottom: 4px;">
-                <strong>{{ node.name }}</strong> - {{ node.type }} ({{ node.server }}:{{ node.port }})
-              </div>
-            </div>
-          </div>
-
-          
-          <!-- 节点操作工具栏 -->
-          <div class="node-toolbar">
-            <el-input 
-              v-model="nodeSearch" 
-              placeholder="搜索节点..." 
-              :prefix-icon="Search"
-              clearable 
-              style="width: 200px;"
-            />
-            <el-select v-model="nodeSortBy" placeholder="排序方式" style="width: 130px; margin-left: 8px;">
-              <el-option label="默认顺序" value="default" />
-              <el-option label="按延迟" value="latency" />
-              <el-option label="按名称" value="name" />
-              <el-option label="按类型" value="type" />
-            </el-select>
-            <el-button type="primary" size="small" @click="testAllNodesLatency" :loading="isTesting" style="margin-left: 8px;">
-              {{ isTesting ? '测速中...' : '测试延迟' }}
-            </el-button>
-            <el-divider direction="vertical" />
-            <el-switch 
-              v-model="healthCheckConfig.enabled" 
-              active-text="健康监控"
-              style="margin-left: 4px;"
-            />
-            <el-tooltip v-if="healthCheckConfig.enabled" content="正在后台监控节点健康状态">
-              <el-icon class="is-loading" style="margin-left: 4px; color: #409eff;"><Loading /></el-icon>
-            </el-tooltip>
-          </div>
-
-          
-          <!-- 节点分组标签页 -->
-          <el-tabs v-model="activeNodeGroup" type="card" style="margin-top: 12px;">
-            <el-tab-pane label="全部" name="all">
-              <span slot="label">全部 ({{ filteredNodes.length }})</span>
-            </el-tab-pane>
-            <el-tab-pane 
-              v-for="group in nodeGroups" 
-              :key="group.key" 
-              :name="group.key"
-            >
-              <template #label>
-                {{ group.label }} ({{ group.count }})
-              </template>
-            </el-tab-pane>
-          </el-tabs>
-          
-          <el-table
-            :data="displayNodes"
-            size="small"
-            height="500"
-            empty-text="暂无节点，请先获取节点"
-            style="width: 100%"
-            @row-click="handleNodeRowClick"
-            highlight-current-row
-          >
-            <el-table-column label="节点名称" min-width="280" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span v-if="healthCheckConfig.enabled" style="margin-right: 4px;">
-                  <el-icon v-if="getNodeHealthStatus(row.name) === 'healthy'" size="12" style="color: #67c23a;"><CircleCheck /></el-icon>
-                  <el-icon v-else-if="getNodeHealthStatus(row.name) === 'unhealthy'" size="12" style="color: #f56c6c;"><CircleClose /></el-icon>
-                  <el-icon v-else size="12" style="color: #909399;"><Remove /></el-icon>
-                </span>
-                {{ row.name }}
-              </template>
-            </el-table-column>
-            <el-table-column label="延迟" width="90">
-              <template #default="{ row }">
-                <span v-if="row.latency === -1" style="color: #999;">—</span>
-                <span v-else-if="row.latency === -2" style="color: #f56c6c;">超时</span>
-                <span v-else-if="row.latency" :style="{ color: getLatencyColor(row.latency) }">
-                  {{ row.latency }}ms
-                </span>
-                <el-icon v-else class="is-loading" style="color: #409eff;"><Loading /></el-icon>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button 
-                  :type="form.dialerProxyGroup.includes(row.name) ? 'success' : 'primary'" 
-                  link 
-                  size="small" 
-                  @click.stop="handleNodeRowClick(row)"
-                >
-                  <span v-if="form.dialerProxyGroup.includes(row.name)" style="display: inline-flex; align-items: center;">
-                    <el-icon size="14" style="margin-right: 2px;"><Check /></el-icon>已选
-                  </span>
-                  <span v-else>选择</span>
-                </el-button>
-
-                <el-button 
-                  :type="isFavorite(row.name) ? 'warning' : 'default'" 
-                  link 
-                  size="small" 
-                  @click.stop="toggleFavorite(row.name)"
-                >
-                  <el-icon size="16">
-                    <StarFilled v-if="isFavorite(row.name)" />
-                    <Star v-else />
-                  </el-icon>
-                </el-button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="type" label="类型" width="80" />
-            <el-table-column prop="server" label="服务器" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="port" label="端口" width="70" />
-          </el-table>
-        </div>
+        <NodeList
+          :form="form"
+          :selected-nodes="selectedNodes"
+          :filtered-nodes="filteredNodes"
+          :display-nodes="displayNodes"
+          :node-groups="nodeGroups"
+          :node-search="nodeSearch"
+          :node-sort-by="nodeSortBy"
+          :active-node-group="activeNodeGroup"
+          :is-testing="isTesting"
+          :health-check-config="healthCheckConfig"
+          :get-node-display-name="getNodeDisplayName"
+          :get-latency-color="getLatencyColor"
+          :get-node-health-status="getNodeHealthStatus"
+          :is-favorite="isFavorite"
+          :toggle-favorite="toggleFavorite"
+          :handle-node-row-click="handleNodeRowClick"
+          :select-all-nodes="selectAllNodes"
+          :invert-selection="invertSelection"
+          :clear-selection="clearSelection"
+          :test-all-nodes-latency="testAllNodesLatency"
+          :on-tab-change="handleNodeGroupChange"
+        />
       </div>
 
       <div class="grid" style="margin-top: 18px;">
-        <div class="section-card">
-          <div class="section-title">3. 生成配置</div>
-          <el-form label-position="top" style="margin-bottom: 12px;">
-            <el-form-item label="规则策略">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <el-switch v-model="form.includeDefaultRules" active-text="包含默认规则" />
-                <el-button size="small" @click="showDefaultRules = true">查看默认规则</el-button>
-              </div>
-            </el-form-item>
-            <el-form-item label="规则模板预设（一键应用）">
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <el-button 
-                  v-for="(template, key) in ruleTemplates" 
-                  :key="key"
-                  size="small"
-                  @click="applyRuleTemplate(key)"
-                >
-                  {{ template.icon }} {{ template.name }}
-                </el-button>
-              </div>
-              <div class="helper-text">点击模板会将对应规则添加到自定义规则列表中</div>
-            </el-form-item>
-            <el-form-item label="快速添加规则">
-              <div class="rule-builder" style="width: 100%;">
-                <el-row :gutter="12" style="width: 100%;" type="flex">
-                  <el-col :span="6">
-                    <el-select v-model="ruleBuilder.type" placeholder="规则类型" style="width: 100%;">
-                      <el-option 
-                        v-for="rt in ruleTypes" 
-                        :key="rt.value" 
-                        :label="rt.label" 
-                        :value="rt.value" 
-                      />
-                    </el-select>
-                  </el-col>
-                  <el-col :span="10">
-                    <el-input v-model="ruleBuilder.value" placeholder="域名/地址 (如 example.com)" />
-                  </el-col>
-                  <el-col :span="5">
-                    <el-select v-model="ruleBuilder.policy" placeholder="策略组" style="width: 100%;">
-                      <el-option 
-                        v-for="pg in policyGroups" 
-                        :key="pg.value" 
-                        :label="pg.label" 
-                        :value="pg.value" 
-                      />
-                      <el-option-group v-if="nodes.length > 0" label="机场节点">
-                        <el-option
-                          v-for="node in nodes"
-                          :key="node.name"
-                          :label="getNodeDisplayName(node)"
-                          :value="node.name"
-                        />
-                      </el-option-group>
-                    </el-select>
-                  </el-col>
-                  <el-col :span="3">
-                    <el-button type="primary" @click="addCustomRule" style="width: 100%;">添加</el-button>
-                  </el-col>
-                </el-row>
-              </div>
-            </el-form-item>
-            <el-form-item label="自定义规则列表" v-if="customRules.length > 0">
-              <div class="rule-list">
-                <el-tag
-                  v-for="(rule, index) in customRules"
-                  :key="index"
-                  closable
-                  @close="removeCustomRule(index)"
-                  style="margin: 4px;"
-                >
-                  {{ rule }}
-                </el-tag>
-              </div>
-            </el-form-item>
-            <el-form-item label="高级：直接输入规则（每行一条）">
-              <el-input
-                v-model="form.customRulesText"
-                type="textarea"
-                :rows="3"
-                placeholder="例如：DOMAIN-SUFFIX,example.com,� 代理出口"
-              />
-              <div class="helper-text">
-                支持 Clash 规则格式；空行与以 #/\/\/ 开头的注释会被忽略。
-              </div>
-            </el-form-item>
-          </el-form>
-          <el-space wrap>
-            <el-button type="primary" @click="generateYaml">生成配置</el-button>
-            <el-button @click="copyYaml" :disabled="!yamlText">复制配置</el-button>
-            <el-button @click="downloadYaml" :disabled="!yamlText">下载 config.yaml</el-button>
-            <el-button @click="showConfigDiff" :disabled="!yamlText || !previousYaml">对比变更</el-button>
-            <el-divider direction="vertical" />
-            <el-button @click="saveTemplate" size="small">保存模板</el-button>
-            <el-button @click="loadTemplate" size="small">加载模板</el-button>
-            <el-button type="danger" link @click="clearAllConfig" class="clear-config-btn">清除配置</el-button>
-          </el-space>
-          
-          <!-- 一键导入功能已移除，请使用下载 config.yaml 后手动导入 -->
+        <RuleEditor
+          :form="form"
+          :rule-templates="ruleTemplates"
+          :rule-types="ruleTypes"
+          :rule-builder="ruleBuilder"
+          :custom-rules="customRules"
+          :policy-groups="policyGroups"
+          :nodes="nodes"
+          :get-node-display-name="getNodeDisplayName"
+          :add-custom-rule="addCustomRule"
+          :remove-custom-rule="removeCustomRule"
+          :apply-rule-template="applyRuleTemplate"
+          :generate-yaml="generateYaml"
+          :copy-yaml="copyYaml"
+          :download-yaml="downloadYaml"
+          :show-config-diff="showConfigDiff"
+          :save-template="saveTemplate"
+          :load-template="loadTemplate"
+          :clear-all-config="clearAllConfig"
+          :yaml-text="yamlText"
+          :previous-yaml="previousYaml"
+          :clash-import-url="clashImportUrl"
+          :config-name="configName"
+          :qrcode-data-url="qrcodeDataUrl"
+          :open-clash-import-url="openClashImportUrl"
+          :copy-clash-import-url="copyClashImportUrl"
+          :default-rules-display="defaultRulesDisplay"
+          :show-diff-dialog="showDiffDialog"
+          :diff-result="diffResult"
+        />
 
-          
-          <el-divider content-position="left">生成说明</el-divider>
-          <ul style="padding-left: 18px; color: #475569; font-size: 13px; line-height: 1.7;">
-            <li>默认使用 Fake-IP DNS、国内外分流解析。</li>
-            <li>AI/Google 组优先走 Socks5 落地节点。</li>
-            <li>代理出口组包含落地节点 + 机场节点 + DIRECT。</li>
-            <li>Socks5 节点自动注入 dialer-proxy。</li>
-          </ul>
-        </div>
-
-        <div class="section-card">
-          <div class="section-title">预览 config.yaml</div>
-          <div class="config-preview" v-html="highlightedYaml || '等待生成...'"></div>
-        </div>
+        <YamlPreview :highlighted-yaml="highlightedYaml" />
       </div>
 
       <div class="footer">
-        ClashRelay · Clash 链式代理配置生成器 · 
+        ClashRelay · Clash 链式代理配置生成器 ·
         <a href="https://github.com/Gary-zy/ClashRelay" target="_blank">GitHub</a>
       </div>
     </div>
-
-    <!-- 默认规则查看对话框 -->
-    <el-dialog v-model="showDefaultRules" title="默认规则列表" width="700px">
-      <div style="max-height: 500px; overflow-y: auto;">
-        <el-table :data="defaultRulesDisplay" size="small" stripe>
-          <el-table-column type="index" label="#" width="50" />
-          <el-table-column prop="rule" label="规则" min-width="200" show-overflow-tooltip />
-        </el-table>
-      </div>
-      <template #footer>
-        <el-button @click="showDefaultRules = false">关闭</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- 配置对比对话框 -->
-    <el-dialog v-model="showDiffDialog" title="配置变更对比" width="80%" top="5vh">
-      <div class="diff-container">
-        <div 
-          v-for="(part, index) in diffResult" 
-          :key="index"
-          :class="{ 'diff-added': part.added, 'diff-removed': part.removed, 'diff-unchanged': !part.added && !part.removed }"
-        >{{ part.value }}</div>
-      </div>
-      <template #footer>
-        <el-button @click="showDiffDialog = false">关闭</el-button>
-      </template>
-    </el-dialog>
   </div>
-
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch, onMounted, onUnmounted } from "vue";
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Loading, Search, Upload, Star, StarFilled, Check, CircleCheck, CircleClose, Remove } from '@element-plus/icons-vue';
-import yaml from "js-yaml";
-import QRCode from 'qrcode';
-import { diffLines } from 'diff';
-import { defaultRules, fakeIpFilter, ruleTypes, POLICY_PLACEHOLDERS } from "./config/defaultConfig.js";
-import { ruleTemplates } from "./config/ruleTemplates.js";
+import { computed, reactive, ref, watch, onMounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import ConfigForm from "./components/ConfigForm.vue";
+import NodeList from "./components/NodeList.vue";
+import RuleEditor from "./components/RuleEditor.vue";
+import YamlPreview from "./components/YamlPreview.vue";
+import { useNodes } from "./composables/useNodes.js";
+import { useSubscription } from "./composables/useSubscription.js";
+import { useRules } from "./composables/useRules.js";
+import { useConfig } from "./composables/useConfig.js";
+import { useImportExport } from "./composables/useImportExport.js";
+import { highlightYaml } from "./utils/helpers.js";
 
-// ==================== 配置持久化 ====================
 const STORAGE_KEY = "clashrelay_config";
-const HISTORY_KEY = "clashrelay_history";
-const RULES_KEY = "clashrelay_rules";
-const TEMPLATE_KEY = "clashrelay_template";
-const FAVORITES_KEY = "clashrelay_favorites";
 
 const loadSavedConfig = () => {
   try {
@@ -511,279 +119,190 @@ const loadSavedConfig = () => {
   }
 };
 
-const saveConfig = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      subscriptionUrl: form.subscriptionUrl,
-      proxyUrl: form.proxyUrl,
-      socksServer: form.socksServer,
-      socksPort: form.socksPort,
-      socksUser: form.socksUser,
-      socksPass: form.socksPass,
-      socksAlias: form.socksAlias,
-      // 订阅自动刷新配置
-      autoRefresh: form.autoRefresh,
-      refreshInterval: form.refreshInterval,
-      lastRefreshTime: form.lastRefreshTime,
-    }));
-  } catch {}
-};
-
-const loadSubscriptionHistory = () => {
-  try {
-    const saved = localStorage.getItem(HISTORY_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveSubscriptionHistory = (url) => {
-  if (!url) return;
-  try {
-    let history = loadSubscriptionHistory();
-    history = history.filter(h => h !== url);
-    history.unshift(url);
-    history = history.slice(0, 5);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    subscriptionHistory.value = history;
-  } catch {}
-};
-
 const formDefaults = {
   subscriptionUrl: "",
   proxyUrl: "http://localhost:8787",
   includeDefaultRules: true,
   customRulesText: "",
-  landingNodeUrl: "",  // 原 socks5Url，现支持多协议
-  landingNodeType: "socks5",  // 落地节点协议类型
+  landingNodeUrl: "",
+  landingNodeType: "socks5",
   socksServer: "",
   socksPort: "",
   socksUser: "",
   socksPass: "",
   socksAlias: "落地节点",
-  // 跳板节点配置（支持多选）
   dialerProxyGroup: [],
-  dialerProxyType: "url-test",  // url-test | select | fallback
-  // DNS 配置
+  dialerProxyType: "url-test",
+  urlTestInterval: 30,
+  urlTestTolerance: 50,
+  urlTestLazy: false,
+  dialerProxy: "",
   dnsMode: "fake-ip",
   domesticDns: "223.5.5.5, 119.29.29.29",
   foreignDns: "https://dns.google/dns-query, https://cloudflare-dns.com/dns-query",
-  // 规则集
   ruleProviders: [],
-  // 订阅自动刷新
   autoRefresh: false,
   refreshInterval: 30,
   lastRefreshTime: null,
 };
 
 const form = reactive({ ...formDefaults });
-const formRef = ref();
-const nodes = ref([]);
-const yamlText = ref("");
-const clashImportUrl = ref("");
-const configName = ref("RelayBox-配置"); // 默认配置名称
-const qrcodeDataUrl = ref("");
 const status = reactive({ message: "", type: "info" });
-const customRules = ref([]);
-const ruleBuilder = reactive({
-  type: "DOMAIN-SUFFIX",
-  value: "",
-  policy: "",  // 默认为空，用户需要手动选择
-});
 
-const isTesting = ref(false);
-const isFetching = ref(false);
-const showDefaultRules = ref(false);
+const {
+  nodes,
+  nodeSearch,
+  nodeSortBy,
+  activeNodeGroup,
+  nodeGroups,
+  filteredNodes,
+  displayNodes,
+  isTesting,
+  healthCheckConfig,
+  getNodeDisplayName,
+  getLatencyColor,
+  toggleFavorite,
+  isFavorite,
+  handleNodeRowClick,
+  selectAllNodes,
+  invertSelection,
+  clearSelection,
+  testAllNodesLatency,
+  getNodeHealthStatus,
+  formatTime,
+} = useNodes({ form, status });
 
-// ==================== 落地节点（支持多协议）====================
-const landingNode = ref(null);  // 解析后的完整节点对象
+// 处理节点分组切换
+const handleNodeGroupChange = (tabName) => {
+  activeNodeGroup.value = tabName;
+};
 
-// ==================== 配置对比功能 ====================
+const {
+  customRules,
+  ruleBuilder,
+  addCustomRule,
+  removeCustomRule,
+  applyRuleTemplate,
+  rules,
+  ruleTypes,
+  ruleTemplates,
+} = useRules({ status });
+
+const yamlText = ref("");
 const previousYaml = ref("");
-const showDiffDialog = ref(false);
-const diffResult = ref([]);
+const clashImportUrl = ref("");
+const configName = ref("RelayBox-配置");
+const qrcodeDataUrl = ref("");
 
-// ==================== 订阅定时刷新功能 ====================
-const refreshTimer = ref(null);
-
-// ==================== 节点健康监控功能 ====================
-const HEALTH_KEY = "clashrelay_health";
-const nodeHealthStatus = ref({});
-const healthCheckTimer = ref(null);
-const healthCheckConfig = reactive({
-  enabled: false,
-  interval: 5,        // 检测间隔（分钟）
-  timeout: 5000,      // 超时时间（毫秒）
-  testUrl: "http://www.gstatic.com/generate_204",
+const {
+  diffResult,
+  showDiffDialog,
+  handleConfigImport,
+  saveTemplate,
+  loadTemplate,
+  copyYaml,
+  downloadYaml,
+  showConfigDiff,
+  openClashImportUrl,
+  copyClashImportUrl,
+  generateClashImportUrl,
+} = useImportExport({
+  form,
+  nodes,
+  customRules,
+  status,
+  yamlText,
+  previousYaml,
+  clashImportUrl,
+  configName,
+  qrcodeDataUrl,
 });
 
-// 加载持久化的健康状态
-try {
-  const savedHealth = localStorage.getItem(HEALTH_KEY);
-  if (savedHealth) nodeHealthStatus.value = JSON.parse(savedHealth);
-} catch {}
-
-// ==================== 节点筛选/排序/分组 ====================
-const nodeSearch = ref("");
-const nodeSortBy = ref("default");
-const activeNodeGroup = ref("all");
-const subscriptionHistory = ref([]);
-const favoriteNodes = ref([]);
-
-// 加载收藏节点
-try {
-  const saved = localStorage.getItem(FAVORITES_KEY);
-  if (saved) favoriteNodes.value = JSON.parse(saved);
-} catch {}
-
-// 地区关键词映射
-const regionMap = {
-  "香港": ["香港", "HK", "Hong Kong", "HongKong", "🇭🇰"],
-  "美国": ["美国", "US", "USA", "United States", "🇺🇸"],
-  "日本": ["日本", "JP", "Japan", "🇯🇵"],
-  "新加坡": ["新加坡", "SG", "Singapore", "🇸🇬"],
-  "台湾": ["台湾", "TW", "Taiwan", "🇹🇼"],
-  "韩国": ["韩国", "KR", "Korea", "🇰🇷"],
-  "德国": ["德国", "DE", "Germany", "🇩🇪"],
-  "法国": ["法国", "FR", "France", "🇫🇷"],
-  "英国": ["英国", "UK", "GB", "Britain", "🇬🇧"],
-  "澳大利亚": ["澳大利亚", "AU", "Australia", "🇦🇺"],
-};
-
-const getNodeRegion = (nodeName) => {
-  for (const [region, keywords] of Object.entries(regionMap)) {
-    if (keywords.some(kw => nodeName.toLowerCase().includes(kw.toLowerCase()))) {
-      return region;
-    }
-  }
-  return "其他";
-};
-
-// 计算节点分组
-const nodeGroups = computed(() => {
-  const groups = {};
-  nodes.value.forEach(node => {
-    const region = getNodeRegion(node.name);
-    if (!groups[region]) {
-      groups[region] = { key: region, label: region, count: 0 };
-    }
-    groups[region].count++;
-  });
-  return Object.values(groups).sort((a, b) => b.count - a.count);
+const {
+  landingNode,
+  parseLandingNodeUrl,
+  selectedNodes,
+  policyGroups,
+  defaultRulesDisplay,
+  generateYaml,
+} = useConfig({
+  form,
+  nodes,
+  customRules,
+  status,
+  yamlText,
+  previousYaml,
+  generateClashImportUrl,
 });
 
-// YAML 语法高亮
-const highlightYaml = (text) => {
-  if (!text) return '';
-  // HTML 转义
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  
-  // 高亮处理
-  html = html
-    // 注释
-    .replace(/(#.*$)/gm, '<span class="yaml-comment">$1</span>')
-    // 键名（行首的键:）
-    .replace(/^(\s*)([a-zA-Z0-9_-]+)(:)/gm, '$1<span class="yaml-key">$2</span>$3')
-    // 数字
-    .replace(/:\s*(\d+)(\s*)$/gm, ': <span class="yaml-number">$1</span>$2')
-    // 布尔值
-    .replace(/:\s*(true|false)(\s*)$/gm, ': <span class="yaml-boolean">$1</span>$2')
-    // 带引号的字符串
-    .replace(/"([^"]+)"/g, '<span class="yaml-string">"$1"</span>');
-  
-  return html;
+const saveConfig = () => {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        subscriptionUrl: form.subscriptionUrl,
+        proxyUrl: form.proxyUrl,
+        socksServer: form.socksServer,
+        socksPort: form.socksPort,
+        socksUser: form.socksUser,
+        socksPass: form.socksPass,
+        socksAlias: form.socksAlias,
+        autoRefresh: form.autoRefresh,
+        refreshInterval: form.refreshInterval,
+        lastRefreshTime: form.lastRefreshTime,
+      })
+    );
+  } catch {}
 };
 
-// 高亮后的 YAML
+const {
+  isFetching,
+  querySubscriptionHistory,
+  removeHistoryItem,
+  clearSubscriptionHistory,
+  handleFetch,
+} = useSubscription({
+  form,
+  nodes,
+  status,
+  saveConfig,
+});
+
 const highlightedYaml = computed(() => highlightYaml(yamlText.value));
 
-// 筛选后的节点
-const filteredNodes = computed(() => {
-  let result = [...nodes.value];
-  
-  // 搜索筛选
-  if (nodeSearch.value) {
-    const searchLower = nodeSearch.value.toLowerCase();
-    result = result.filter(node => 
-      node.name.toLowerCase().includes(searchLower) ||
-      node.server?.toLowerCase().includes(searchLower) ||
-      node.type?.toLowerCase().includes(searchLower)
-    );
-  }
-  
-  // 排序
-  if (nodeSortBy.value === "latency") {
-    result.sort((a, b) => {
-      const la = a.latency > 0 ? a.latency : 99999;
-      const lb = b.latency > 0 ? b.latency : 99999;
-      return la - lb;
-    });
-  } else if (nodeSortBy.value === "name") {
-    result.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (nodeSortBy.value === "type") {
-    result.sort((a, b) => a.type.localeCompare(b.type));
-  }
-  
-  // 收藏节点置顶
-  result.sort((a, b) => {
-    const aFav = favoriteNodes.value.includes(a.name) ? 0 : 1;
-    const bFav = favoriteNodes.value.includes(b.name) ? 0 : 1;
-    return aFav - bFav;
-  });
-  
-  return result;
-});
-
-// 根据分组过滤显示的节点
-const displayNodes = computed(() => {
-  if (activeNodeGroup.value === "all") {
-    return filteredNodes.value;
-  }
-  return filteredNodes.value.filter(node => 
-    getNodeRegion(node.name) === activeNodeGroup.value
-  );
-});
-
-// 点击行选中节点（多选模式）
-const handleNodeRowClick = (row) => {
-  const index = form.dialerProxyGroup.indexOf(row.name);
-  if (index > -1) {
-    // 已选中，则移除
-    form.dialerProxyGroup.splice(index, 1);
-  } else {
-    // 未选中，则添加
-    form.dialerProxyGroup.push(row.name);
-  }
+const clearAllConfig = () => {
+  ElMessageBox.confirm("此操作将清除所有配置和历史记录，是否继续？", "确认清除", {
+    confirmButtonText: "确定清除",
+    cancelButtonText: "取消",
+    type: "warning",
+  })
+    .then(() => {
+      localStorage.removeItem(STORAGE_KEY);
+      clearSubscriptionHistory();
+      Object.assign(form, formDefaults);
+      nodes.value = [];
+      yamlText.value = "";
+      previousYaml.value = "";
+      customRules.value = [];
+      if (landingNode) {
+        landingNode.value = null;
+      }
+      ElMessage({
+        message: "✅ 已清除所有配置",
+        type: "success",
+        duration: 2000,
+      });
+    })
+    .catch(() => {});
 };
 
-// 初始化
 onMounted(() => {
   const savedConfig = loadSavedConfig();
   if (savedConfig) {
     Object.assign(form, savedConfig);
   }
-  subscriptionHistory.value = loadSubscriptionHistory();
-  
-  // 加载保存的自定义规则
-  try {
-    const savedRules = localStorage.getItem(RULES_KEY);
-    if (savedRules) {
-      const rules = JSON.parse(savedRules);
-      // 数据迁移：将旧的策略组名称升级为新的占位符格式
-      customRules.value = rules.map(rule => {
-        return rule
-          // 替换所有包含"专线"后缀的旧格式（如：美国家宽-出口专线、日本节点专线等）
-          .replace(/,([^,]+)专线$/g, ',{{LANDING}}');
-      });
-    }
-  } catch {}
 });
 
-// 监听表单变化自动保存
 watch(
   () => ({
     subscriptionUrl: form.subscriptionUrl,
@@ -793,1852 +312,11 @@ watch(
     socksUser: form.socksUser,
     socksPass: form.socksPass,
     socksAlias: form.socksAlias,
+    autoRefresh: form.autoRefresh,
+    refreshInterval: form.refreshInterval,
+    lastRefreshTime: form.lastRefreshTime,
   }),
   () => saveConfig(),
   { deep: true }
 );
-
-// 监听自定义规则变化自动保存
-watch(
-  customRules,
-  (newRules) => {
-    try {
-      localStorage.setItem(RULES_KEY, JSON.stringify(newRules));
-    } catch {}
-  },
-  { deep: true }
-);
-
-// ==================== 订阅自动刷新逻辑 ====================
-// 启动/停止刷新定时器
-watch(
-  () => form.autoRefresh,
-  (enabled) => {
-    if (refreshTimer.value) {
-      clearInterval(refreshTimer.value);
-      refreshTimer.value = null;
-    }
-    if (enabled && form.subscriptionUrl) {
-      refreshTimer.value = setInterval(() => {
-        handleFetch();
-        form.lastRefreshTime = new Date().toISOString();
-        saveConfig();
-      }, form.refreshInterval * 60 * 1000);
-      status.message = `已启用自动刷新，间隔 ${form.refreshInterval} 分钟`;
-      status.type = "success";
-    }
-  }
-);
-
-// 监听刷新间隔变化，重启定时器
-watch(
-  () => form.refreshInterval,
-  () => {
-    if (form.autoRefresh && form.subscriptionUrl) {
-      // 重启定时器
-      if (refreshTimer.value) {
-        clearInterval(refreshTimer.value);
-      }
-      refreshTimer.value = setInterval(() => {
-        handleFetch();
-        form.lastRefreshTime = new Date().toISOString();
-        saveConfig();
-      }, form.refreshInterval * 60 * 1000);
-    }
-  }
-);
-
-// 页面卸载时清除定时器
-onUnmounted(() => {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value);
-    refreshTimer.value = null;
-  }
-  if (healthCheckTimer.value) {
-    clearInterval(healthCheckTimer.value);
-    healthCheckTimer.value = null;
-  }
-});
-
-// ==================== 节点健康监控逻辑 ====================
-// 检测单个节点健康状态
-const checkNodeHealth = async (node) => {
-  const startTime = Date.now();
-  try {
-    const response = await fetch(`${form.proxyUrl}/ping`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ server: node.server, port: node.port }),
-      signal: AbortSignal.timeout(healthCheckConfig.timeout),
-    });
-    const data = await response.json();
-    return {
-      status: data.latency > 0 ? "healthy" : "unhealthy",
-      latency: data.latency,
-      lastCheck: Date.now(),
-    };
-  } catch {
-    return { status: "unhealthy", latency: -1, lastCheck: Date.now() };
-  }
-};
-
-// 批量检测所有节点（限制并发）
-const runHealthCheck = async () => {
-  const batchSize = 5; // 每批检测5个节点
-  for (let i = 0; i < nodes.value.length; i += batchSize) {
-    const batch = nodes.value.slice(i, i + batchSize);
-    await Promise.all(batch.map(async (node) => {
-      const health = await checkNodeHealth(node);
-      nodeHealthStatus.value[node.name] = health;
-    }));
-  }
-  // 持久化
-  try {
-    localStorage.setItem(HEALTH_KEY, JSON.stringify(nodeHealthStatus.value));
-  } catch {}
-};
-
-// 启动/停止健康检测
-watch(
-  () => healthCheckConfig.enabled,
-  (enabled) => {
-    if (healthCheckTimer.value) {
-      clearInterval(healthCheckTimer.value);
-      healthCheckTimer.value = null;
-    }
-    if (enabled && nodes.value.length > 0) {
-      // 立即执行一次
-      runHealthCheck();
-      // 设置定时检测
-      healthCheckTimer.value = setInterval(() => {
-        runHealthCheck();
-      }, healthCheckConfig.interval * 60 * 1000);
-      status.message = `已启用健康监控，间隔 ${healthCheckConfig.interval} 分钟`;
-      status.type = "success";
-    }
-  }
-);
-
-// 获取节点健康状态（返回状态字符串）
-const getNodeHealthStatus = (nodeName) => {
-  const node = nodes.value.find(n => n.name === nodeName);
-  if (!node) return 'unknown';
-  if (node.latency === null || node.latency === undefined) return 'unknown';
-  if (node.latency > 0) return 'healthy';
-  if (node.latency === -2) return 'unhealthy';
-  return 'unknown';
-};
-
-// 格式化时间显示
-const formatTime = (isoString) => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-};
-
-// ==================== 配置对比功能 ====================
-const showConfigDiff = () => {
-  if (!previousYaml.value || !yamlText.value) {
-    status.message = "需要至少生成两次配置才能对比";
-    status.type = "warning";
-    return;
-  }
-  diffResult.value = diffLines(previousYaml.value, yamlText.value);
-  showDiffDialog.value = true;
-};
-
-// ==================== 导入已有配置功能 ====================
-// 解析 Clash 配置文件
-const parseClashConfig = (yamlText) => {
-  const config = yaml.load(yamlText);
-  
-  return {
-    // DNS 设置
-    dnsMode: config.dns?.['enhanced-mode'],
-    domesticDns: config.dns?.nameserver?.join(', '),
-    foreignDns: config.dns?.fallback?.join(', '),
-    
-    // 节点列表
-    proxies: config.proxies || [],
-    
-    // 策略组
-    proxyGroups: config['proxy-groups'] || [],
-    
-    // 规则
-    rules: config.rules || [],
-  };
-};
-
-// 处理配置文件导入
-const handleConfigImport = (file) => {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const parsed = parseClashConfig(e.target.result);
-      
-      // 填充节点列表（排除 socks5 类型，因为 socks5 是落地节点）
-      const nonSocks5Nodes = parsed.proxies.filter(p => p.type !== 'socks5');
-      nodes.value = nonSocks5Nodes;
-      
-      // 填充规则（排除 MATCH 兜底规则）
-      const importedRules = parsed.rules.filter(r => !r.startsWith('MATCH'));
-      customRules.value = importedRules.slice(0, 50); // 限制数量避免太多
-      
-      // 尝试识别 Socks5 落地节点
-      const socks5Node = parsed.proxies.find(p => p.type === 'socks5');
-      if (socks5Node) {
-        form.socksServer = socks5Node.server || '';
-        form.socksPort = String(socks5Node.port || '');
-        form.socksUser = socks5Node.username || '';
-        form.socksPass = socks5Node.password || '';
-        form.socksAlias = socks5Node.name || '落地节点';
-      }
-      
-      // 填充 DNS 配置
-      if (parsed.dnsMode) {
-        form.dnsMode = parsed.dnsMode;
-      }
-      if (parsed.domesticDns) {
-        form.domesticDns = parsed.domesticDns;
-      }
-      if (parsed.foreignDns) {
-        form.foreignDns = parsed.foreignDns;
-      }
-      
-      status.message = `成功导入配置：${nonSocks5Nodes.length} 个节点，${importedRules.length} 条规则`;
-      status.type = "success";
-    } catch (error) {
-      status.message = "配置解析失败：" + error.message;
-      status.type = "error";
-    }
-  };
-  reader.readAsText(file.raw);
-};
-
-// ==================== 配置模板功能 ====================
-const saveTemplate = () => {
-  try {
-    const template = {
-      includeDefaultRules: form.includeDefaultRules,
-      dnsMode: form.dnsMode,
-      domesticDns: form.domesticDns,
-      foreignDns: form.foreignDns,
-      ruleProviders: form.ruleProviders,
-      customRulesText: form.customRulesText,
-      customRules: customRules.value,
-    };
-    localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
-    ElMessage({
-      message: '✅ 配置模板已保存！',
-      type: 'success',
-      duration: 2000,
-    });
-  } catch {
-    ElMessage.error('保存模板失败');
-  }
-};
-
-const loadTemplate = () => {
-  try {
-    const saved = localStorage.getItem(TEMPLATE_KEY);
-    if (saved) {
-      const template = JSON.parse(saved);
-      form.includeDefaultRules = template.includeDefaultRules ?? true;
-      form.dnsMode = template.dnsMode ?? "fake-ip";
-      form.domesticDns = template.domesticDns ?? "";
-      form.foreignDns = template.foreignDns ?? "";
-      form.ruleProviders = template.ruleProviders ?? [];
-      form.customRulesText = template.customRulesText ?? "";
-      if (template.customRules) {
-        customRules.value = template.customRules;
-      }
-      ElMessage({
-        message: '✅ 配置模板已加载！',
-        type: 'success',
-        duration: 2000,
-      });
-    } else {
-      ElMessage.warning('没有找到已保存的模板');
-    }
-  } catch {
-    ElMessage.error('加载模板失败');
-  }
-};
-
-// ==================== 节点收藏功能 ====================
-const toggleFavorite = (nodeName) => {
-  const index = favoriteNodes.value.indexOf(nodeName);
-  if (index > -1) {
-    favoriteNodes.value.splice(index, 1);
-    status.message = `已取消收藏 ${nodeName}`;
-  } else {
-    favoriteNodes.value.push(nodeName);
-    status.message = `已收藏 ${nodeName}`;
-  }
-  status.type = "success";
-  // 保存到 localStorage
-  try {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteNodes.value));
-  } catch {}
-};
-
-const isFavorite = (nodeName) => favoriteNodes.value.includes(nodeName);
-
-// 订阅历史查询
-const querySubscriptionHistory = (query, cb) => {
-  const results = query
-    ? subscriptionHistory.value.filter(url => url.toLowerCase().includes(query.toLowerCase()))
-    : subscriptionHistory.value;
-  cb(results.map(url => ({ value: url })));
-};
-
-// 删除历史记录项
-const removeHistoryItem = (url) => {
-  subscriptionHistory.value = subscriptionHistory.value.filter(h => h !== url);
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(subscriptionHistory.value));
-  } catch {}
-};
-
-// 清除所有配置
-const clearAllConfig = () => {
-  ElMessageBox.confirm(
-    '此操作将清除所有配置和历史记录，是否继续？',
-    '确认清除',
-    {
-      confirmButtonText: '确定清除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(HISTORY_KEY);
-    Object.assign(form, formDefaults);
-    subscriptionHistory.value = [];
-    nodes.value = [];
-    yamlText.value = "";
-    ElMessage({
-      message: '✅ 已清除所有配置',
-      type: 'success',
-      duration: 2000,
-    });
-  }).catch(() => {
-    // 取消操作
-  });
-};
-
-const rules = {
-  subscriptionUrl: [{ type: "url", message: "请输入有效的 URL", trigger: "blur" }],
-  socksServer: [{ required: true, message: "请输入落地服务器", trigger: "blur" }],
-  socksPort: [{ required: true, message: "请输入端口", trigger: "blur" }],
-  socksAlias: [{ required: true, message: "请输入节点别名", trigger: "blur" }],
-};
-
-// 多选节点计算属性
-const selectedNodes = computed(() =>
-  nodes.value.filter((node) => form.dialerProxyGroup.includes(node.name))
-);
-
-const defaultRulesDisplay = computed(() => 
-  defaultRules.map((rule) => ({ rule }))
-);
-
-// 动态策略组选项 - 基于用户输入的别名生成
-const policyGroups = computed(() => {
-  const alias = form.socksAlias?.trim() || "落地节点";
-  const landingGroupName = `🎯 ${alias}`;  // 策略组名需要带前缀，与 generateYaml 中一致
-  return [
-    { label: landingGroupName, value: landingGroupName, description: "落地节点专用线路" },
-    { label: "🌐 代理出口", value: "🌐 代理出口", description: "通用代理出口" },
-    { label: "DIRECT", value: "DIRECT", description: "直连" },
-  ];
-});
-
-const resetForm = () => {
-  Object.assign(form, formDefaults);
-  nodes.value = [];
-  yamlText.value = "";
-  customRules.value = [];
-  isTesting.value = false;
-  status.message = "已清空输入内容。";
-  status.type = "info";
-};
-
-const parseLandingNodeUrl = () => {
-  const url = form.landingNodeUrl.trim();
-  if (!url) {
-    status.message = "请输入节点链接。";
-    status.type = "warning";
-    return;
-  }
-
-  try {
-    let node = null;
-    
-    // 1. 先尝试 socks5:// 或 socks5h:// 格式
-    if (url.startsWith("socks5://") || url.startsWith("socks5h://")) {
-      // 使用正则提取各部分，支持非数字端口以便给出明确错误
-      const match = url.match(/^socks5h?:\/\/(?:([^:]+):([^@]+)@)?([^:]+):(.+)$/);
-      if (!match) {
-        status.message = "socks5 链接格式不正确，正确格式：socks5://user:pass@host:port";
-        status.type = "error";
-        return;
-      }
-      
-      const [, username, password, host, portStr] = match;
-      const port = parseInt(portStr, 10);
-      
-      if (isNaN(port) || portStr !== String(port)) {
-        status.message = `端口 "${portStr}" 不是有效数字，请把 :${portStr} 替换成真实端口号（如 :12333）`;
-        status.type = "error";
-        return;
-      }
-      
-      node = {
-        name: form.socksAlias || "socks5-landing",
-        type: "socks5",
-        server: host,
-        port: port,
-        username: username ? decodeURIComponent(username) : undefined,
-        password: password ? decodeURIComponent(password) : undefined,
-        udp: true,
-      };
-    }
-    // 2. 尝试 http:// 格式（代理协议，不是普通网页）
-    else if (url.startsWith("http://") && url.includes("@")) {
-      // 使用正则提取各部分，支持非数字端口以便给出明确错误
-      const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(.+)$/);
-      if (!match) {
-        status.message = "http 链接格式不正确，正确格式：http://user:pass@host:port";
-        status.type = "error";
-        return;
-      }
-      
-      const [, username, password, host, portStr] = match;
-      const port = parseInt(portStr, 10);
-      
-      if (isNaN(port) || portStr !== String(port)) {
-        status.message = `端口 "${portStr}" 不是有效数字，请把 :${portStr} 替换成真实端口号（如 :12333）`;
-        status.type = "error";
-        return;
-      }
-      
-      node = {
-        name: form.socksAlias || "http-landing",
-        type: "http",
-        server: host,
-        port: port,
-        username: username ? decodeURIComponent(username) : undefined,
-        password: password ? decodeURIComponent(password) : undefined,
-      };
-    }
-    // 3. 使用已有的解析函数解析其他协议
-    else {
-      node = parseProxyLine(url, 0);
-    }
-
-    if (!node) {
-      status.message = "链接格式不正确，支持格式：ss:// ssr:// vmess:// vless:// trojan:// hysteria:// hysteria2:// tuic:// socks5:// http://";
-      status.type = "error";
-      return;
-    }
-
-    // 保存完整节点对象
-    landingNode.value = node;
-    
-    // 更新节点类型选择器
-    form.landingNodeType = node.type;
-    
-    // 填充表单（兼容旧逻辑）
-    form.socksServer = node.server;
-    form.socksPort = String(node.port);
-    form.socksUser = node.username || "";
-    form.socksPass = node.password || "";
-    
-    // 如果节点有名称，更新别名
-    if (node.name && !node.name.startsWith("ss-") && !node.name.startsWith("vmess-") && !node.name.startsWith("vless-") && !node.name.startsWith("trojan-")) {
-      form.socksAlias = node.name;
-    }
-
-    status.message = `解析成功！节点类型：${node.type.toUpperCase()}`;
-    status.type = "success";
-  } catch (error) {
-    console.error("Landing node parse error:", error);
-    status.message = "解析失败，请检查链接格式。";
-    status.type = "error";
-  }
-};
-
-// 获取落地节点标签颜色
-const getLandingNodeTagType = (type) => {
-  const typeColors = {
-    socks5: "warning",
-    http: "info",
-    ss: "success",
-    vmess: "primary",
-    vless: "",
-    trojan: "danger",
-    hysteria: "primary",
-    hysteria2: "primary",
-    tuic: "success",
-  };
-  return typeColors[type] || "";
-};
-
-const addCustomRule = () => {
-  if (!ruleBuilder.type || !ruleBuilder.value || !ruleBuilder.policy) {
-    status.message = "请填写完整的规则信息。";
-    status.type = "warning";
-    return;
-  }
-
-  const rule = `${ruleBuilder.type},${ruleBuilder.value},${ruleBuilder.policy}`;
-  customRules.value.push(rule);
-  
-  // 清空输入
-  ruleBuilder.value = "";
-  
-  status.message = `规则已添加：${rule}`;
-  status.type = "success";
-};
-
-const removeCustomRule = (index) => {
-  customRules.value.splice(index, 1);
-  status.message = "规则已删除。";
-  status.type = "info";
-};
-
-// 应用规则模板
-const applyRuleTemplate = (templateKey) => {
-  const template = ruleTemplates[templateKey];
-  if (!template) return;
-  
-  // 将模板规则添加到自定义规则中（去重）
-  let addedCount = 0;
-  template.rules.forEach(rule => {
-    if (!customRules.value.includes(rule)) {
-      customRules.value.push(rule);
-      addedCount++;
-    }
-  });
-  
-  status.message = `已应用「${template.name}」模板，新增 ${addedCount} 条规则。`;
-  status.type = "success";
-};
-
-// 获取节点显示名称（不带延迟后缀）
-const getNodeDisplayName = (node) => {
-  // 移除名称末尾的延迟标记
-  return node.name.replace(/\s*\(\d+ms\)$/, '').replace(/\s*\(超时\)$/, '');
-};
-
-// 测速相关函数
-const getLatencyColor = (latency) => {
-  if (latency < 100) return "#67c23a"; // 绿色：优秀
-  if (latency < 200) return "#e6a23c"; // 橙色：良好
-  return "#f56c6c"; // 红色：较慢
-};
-
-const testNodeLatency = async (node) => {
-  const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
-  const pingUrl = `${proxyUrl}/ping`;
-  
-  try {
-    const response = await fetch(pingUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ server: node.server, port: node.port }),
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.latency;
-    }
-    return -2; // 请求失败
-  } catch (error) {
-    // 如果本地服务不可用，降级为模拟测速
-    return new Promise((resolve) => {
-      const simulatedLatency = Math.floor(Math.random() * 300) + 50;
-      setTimeout(() => resolve(simulatedLatency), Math.random() * 500 + 200);
-    });
-  }
-};
-
-const testAllNodesLatency = async () => {
-  if (nodes.value.length === 0) {
-    status.message = "没有可测试的节点。";
-    status.type = "warning";
-    return;
-  }
-  
-  isTesting.value = true;
-  status.message = "正在测试节点延迟...";
-  status.type = "info";
-  
-  // 初始化所有节点的延迟为 null（加载中）
-  nodes.value.forEach(node => {
-    node.latency = null;
-  });
-  
-  // 并发测试所有节点
-  const testPromises = nodes.value.map(async (node) => {
-    const latency = await testNodeLatency(node);
-    node.latency = latency;
-    // 移除节点名称中旧的延迟标记（如果有）
-    node.name = node.name.replace(/\s*\(\d+ms\)$/, '').replace(/\s*\(超时\)$/, '');
-  });
-  
-  await Promise.all(testPromises);
-  
-  isTesting.value = false;
-  const successCount = nodes.value.filter(n => n.latency > 0).length;
-  status.message = `测速完成！成功测试 ${successCount}/${nodes.value.length} 个节点。`;
-  status.type = "success";
-};
-
-const handleFetch = async () => {
-  status.message = "";
-  status.type = "info";
-  
-  if (!form.subscriptionUrl.trim()) {
-    status.message = "请输入订阅地址。";
-    status.type = "warning";
-    return;
-  }
-  
-  isFetching.value = true;
-  status.message = "正在获取订阅...";
-  
-  let text = "";
-  try {
-    const subscriptionUrl = form.subscriptionUrl.trim();
-    const proxyUrl = form.proxyUrl.trim();
-    const base = proxyUrl ? proxyUrl.replace(/\/+$/, "") : "";
-    const fetchUrl = base
-      ? `${base}/fetch?url=${encodeURIComponent(subscriptionUrl)}`
-      : subscriptionUrl;
-    const response = await fetch(fetchUrl);
-    text = await response.text();
-  } catch (error) {
-    isFetching.value = false;
-    status.message = "订阅拉取失败，可能存在 CORS 限制。请展开高级选项配置本地代理后再试。";
-    status.type = "warning";
-    return;
-  }
-  
-  if (!text) {
-    isFetching.value = false;
-    status.message = "订阅内容为空。";
-    status.type = "warning";
-    return;
-  }
-  const parsed = parseSubscription(text);
-  if (!parsed.length) {
-    isFetching.value = false;
-    status.message = "未解析到节点，请确认订阅内容格式是否正确。";
-    status.type = "error";
-    return;
-  }
-  nodes.value = parsed;
-  // 初始化延迟为 -1（未测试）
-  nodes.value.forEach(node => {
-    node.latency = -1;
-  });
-  if (!form.dialerProxy && parsed[0]) {
-    form.dialerProxy = parsed[0].name;
-  }
-  // 保存订阅历史
-  saveSubscriptionHistory(form.subscriptionUrl.trim());
-  isFetching.value = false;
-  status.message = `成功解析 ${parsed.length} 个节点。`;
-  status.type = "success";
-};
-
-const parseSubscription = (text) => {
-  const trimmed = text.trim();
-  try {
-    if (trimmed.includes("proxies:")) {
-      const data = yaml.load(trimmed);
-      if (data && Array.isArray(data.proxies)) {
-        return data.proxies;
-      }
-    }
-  } catch (error) {
-    // fall back to uri parsing
-  }
-  const decoded = tryDecodeBase64(trimmed);
-  const content = decoded || trimmed;
-  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  return lines.map((line, index) => parseProxyLine(line, index)).filter(Boolean);
-};
-
-const tryDecodeBase64 = (value) => {
-  if (value.includes("://")) return "";
-  try {
-    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = "=".repeat((4 - (normalized.length % 4)) % 4);
-    const bytes = Uint8Array.from(atob(normalized + pad), c => c.charCodeAt(0));
-    const decoded = new TextDecoder('utf-8').decode(bytes);
-    if (decoded.includes("://") || decoded.includes("proxies:")) {
-      return decoded;
-    }
-    return "";
-  } catch (error) {
-    return "";
-  }
-};
-
-
-const parseProxyLine = (line, index) => {
-  if (line.startsWith("vmess://")) return parseVmess(line, index);
-  if (line.startsWith("vless://")) return parseVless(line, index);
-  if (line.startsWith("trojan://")) return parseTrojan(line, index);
-  if (line.startsWith("ss://")) return parseSS(line, index);
-  if (line.startsWith("ssr://")) return parseSSR(line, index);
-  if (line.startsWith("hysteria://")) return parseHysteria(line, index);
-  if (line.startsWith("hysteria2://") || line.startsWith("hy2://")) return parseHysteria2(line, index);
-  if (line.startsWith("tuic://")) return parseTUIC(line, index);
-  return null;
-};
-
-const parseVmess = (line, index) => {
-  try {
-    const raw = line.replace("vmess://", "");
-    const json = JSON.parse(tryDecodeBase64(raw) || atob(raw));
-    const node = {
-      name: json.ps || `vmess-${index + 1}`,
-      type: "vmess",
-      server: json.add,
-      port: Number(json.port),
-      uuid: json.id,
-      alterId: Number(json.aid || 0),
-      cipher: json.scy || "auto",
-      udp: true,
-    };
-    
-    // TLS 配置
-    if (json.tls === "tls") {
-      node.tls = true;
-      if (json.sni) node.servername = json.sni;
-      // skip-cert-verify: 默认为 true（大多数机场使用伪装 servername 需要跳过证书验证）
-      // 只有明确指定 allowInsecure=0 或 verify_cert=true 时才设为 false
-      if (json.allowInsecure === "0" || json.allowInsecure === 0 || json.verify_cert === true) {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
-      }
-      // ALPN
-      if (json.alpn) {
-        node.alpn = Array.isArray(json.alpn) ? json.alpn : json.alpn.split(",");
-      }
-      // 指纹
-      if (json.fp) {
-        node["client-fingerprint"] = json.fp;
-      }
-    }
-    
-    // 传输层配置
-    if (json.net) node.network = json.net;
-    
-    // WebSocket
-    if (json.net === "ws") {
-      node["ws-opts"] = {
-        path: json.path || "/",
-      };
-      if (json.host) {
-        node["ws-opts"].headers = { Host: json.host };
-      }
-      // 早期数据
-      if (json.ed) {
-        node["ws-opts"]["max-early-data"] = Number(json.ed);
-        node["ws-opts"]["early-data-header-name"] = json.eh || "Sec-WebSocket-Protocol";
-      }
-    }
-    
-    // gRPC
-    if (json.net === "grpc") {
-      node["grpc-opts"] = { 
-        "grpc-service-name": json.path || json.serviceName || "",
-      };
-      if (json.mode) {
-        node["grpc-opts"]["grpc-mode"] = json.mode;
-      }
-    }
-    
-    // HTTP/2
-    if (json.net === "h2") {
-      node["h2-opts"] = {
-        path: json.path || "/",
-      };
-      if (json.host) {
-        node["h2-opts"].host = Array.isArray(json.host) ? json.host : [json.host];
-      }
-    }
-    
-    // HTTP
-    if (json.net === "http") {
-      node["http-opts"] = {
-        path: json.path ? [json.path] : ["/"],
-      };
-      if (json.host) {
-        node["http-opts"].headers = { Host: Array.isArray(json.host) ? json.host : [json.host] };
-      }
-    }
-    
-    // TCP HTTP 伪装
-    if (json.net === "tcp" && json.type === "http") {
-      node["http-opts"] = {
-        path: json.path ? [json.path] : ["/"],
-      };
-      if (json.host) {
-        node["http-opts"].headers = { Host: [json.host] };
-      }
-    }
-    
-    // mKCP / KCP
-    if (json.net === "kcp") {
-      node.network = "kcp";
-      node["kcp-opts"] = {};
-      if (json.type) node["kcp-opts"]["header"] = { type: json.type };
-      if (json.seed) node["kcp-opts"]["seed"] = json.seed;
-    }
-    
-    // QUIC
-    if (json.net === "quic") {
-      node.network = "quic";
-      node["quic-opts"] = {};
-      if (json.type) node["quic-opts"]["header"] = json.type;
-      if (json.host) node["quic-opts"]["security"] = json.host;
-      if (json.path) node["quic-opts"]["key"] = json.path;
-    }
-    
-    return node;
-  } catch (error) {
-    return null;
-  }
-};
-
-const parseVless = (line, index) => {
-  try {
-    const url = new URL(line);
-    const name = decodeURIComponent(url.hash.replace("#", "")) || `vless-${index + 1}`;
-    const params = Object.fromEntries(url.searchParams.entries());
-    const isReality = params.security === "reality";
-    const isTls = params.security === "tls" || isReality;
-    
-    const node = {
-      name,
-      type: "vless",
-      server: url.hostname,
-      port: Number(url.port),
-      uuid: url.username,
-      udp: true,
-      tls: isTls,
-      network: params.type || "tcp",
-    };
-    
-    // SNI / servername
-    if (params.sni) node.sni = params.sni;
-    if (params.servername) node.servername = params.servername;
-    
-    // Flow (XTLS)
-    if (params.flow) node.flow = params.flow;
-    
-    // skip-cert-verify: TLS 启用时默认为 true（大多数机场需要跳过证书验证）
-    // 只有明确指定 allowInsecure=0 时才设为 false
-    if (isTls) {
-      if (params.allowInsecure === "0" || params.insecure === "0") {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
-      }
-    }
-    
-    // Client fingerprint
-    if (params.fp) {
-      node["client-fingerprint"] = params.fp;
-    }
-    
-    // ALPN
-    if (params.alpn) {
-      node.alpn = decodeURIComponent(params.alpn).split(",");
-    }
-    
-    // Reality 配置
-    if (isReality && params.pbk) {
-      node["reality-opts"] = {
-        "public-key": params.pbk,
-      };
-      if (params.sid) {
-        node["reality-opts"]["short-id"] = params.sid;
-      }
-      // spiderX
-      if (params.spx) {
-        node["reality-opts"]["spider-x"] = decodeURIComponent(params.spx);
-      }
-    }
-    
-    // WebSocket 配置
-    if (params.type === "ws") {
-      node["ws-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        headers: params.host ? { Host: params.host } : undefined,
-      };
-      // 早期数据
-      if (params.ed) {
-        node["ws-opts"]["max-early-data"] = Number(params.ed);
-        node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
-      }
-    }
-    
-    // gRPC 配置
-    if (params.type === "grpc") {
-      node["grpc-opts"] = { 
-        "grpc-service-name": params.serviceName || params.path || "",
-      };
-      if (params.mode) {
-        node["grpc-opts"]["grpc-mode"] = params.mode;
-      }
-    }
-    
-    // HTTP/2 配置
-    if (params.type === "h2") {
-      node["h2-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        host: params.host ? [params.host] : undefined,
-      };
-    }
-    
-    // TCP HTTP 伪装
-    if (params.type === "tcp" && params.headerType === "http") {
-      node["http-opts"] = {
-        path: params.path ? [decodeURIComponent(params.path)] : ["/"],
-      };
-      if (params.host) {
-        node["http-opts"]["headers"] = { Host: [params.host] };
-      }
-    }
-    
-    // httpupgrade
-    if (params.type === "httpupgrade") {
-      node.network = "httpupgrade";
-      node["httpupgrade-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        host: params.host || undefined,
-      };
-    }
-    
-    // splithttp
-    if (params.type === "splithttp") {
-      node.network = "splithttp";
-      node["splithttp-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        host: params.host || undefined,
-      };
-    }
-    
-    return node;
-  } catch (error) {
-    return null;
-  }
-};
-
-const parseTrojan = (line, index) => {
-  try {
-    const url = new URL(line);
-    const name = decodeURIComponent(url.hash.replace("#", "")) || `trojan-${index + 1}`;
-    const params = Object.fromEntries(url.searchParams.entries());
-    
-    const isReality = params.security === "reality";
-    const isTls = params.security !== "none" && params.security !== "xtls" || isReality;
-    
-    const node = {
-      name,
-      type: "trojan",
-      server: url.hostname,
-      port: Number(url.port),
-      password: decodeURIComponent(url.username),
-      udp: true,
-    };
-    
-    // TLS
-    if (isTls && !isReality) {
-      node.tls = true;
-    }
-    
-    // SNI
-    if (params.sni) node.sni = params.sni;
-    if (params.peer) node.sni = params.peer; // 兼容旧格式
-    
-    // skip-cert-verify: TLS 启用时默认为 true（大多数机场需要跳过证书验证）
-    // 只有明确指定 allowInsecure=0 时才设为 false
-    if (node.tls || isReality) {
-      if (params.allowInsecure === "0" || params.insecure === "0") {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
-      }
-    }
-    
-    // 指纹
-    if (params.fp) {
-      node["client-fingerprint"] = params.fp;
-    }
-    
-    // ALPN
-    if (params.alpn) {
-      node.alpn = decodeURIComponent(params.alpn).split(",");
-    }
-    
-    // Reality 配置
-    if (isReality && params.pbk) {
-      node["reality-opts"] = {
-        "public-key": params.pbk,
-      };
-      if (params.sid) {
-        node["reality-opts"]["short-id"] = params.sid;
-      }
-      if (params.spx) {
-        node["reality-opts"]["spider-x"] = decodeURIComponent(params.spx);
-      }
-    }
-    
-    // 传输层
-    const transport = params.type || "tcp";
-    if (transport !== "tcp") {
-      node.network = transport;
-    }
-    
-    // WebSocket
-    if (transport === "ws") {
-      node.network = "ws";
-      node["ws-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        headers: params.host ? { Host: params.host } : undefined,
-      };
-      // 早期数据
-      if (params.ed) {
-        node["ws-opts"]["max-early-data"] = Number(params.ed);
-        node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
-      }
-    }
-    
-    // gRPC
-    if (transport === "grpc") {
-      node.network = "grpc";
-      node["grpc-opts"] = {
-        "grpc-service-name": params.serviceName || params.path || "",
-      };
-      if (params.mode) {
-        node["grpc-opts"]["grpc-mode"] = params.mode;
-      }
-    }
-    
-    // HTTP/2
-    if (transport === "h2") {
-      node.network = "h2";
-      node["h2-opts"] = {
-        path: decodeURIComponent(params.path || "/"),
-        host: params.host ? [params.host] : undefined,
-      };
-    }
-    
-    return node;
-  } catch (error) {
-    return null;
-  }
-};
-
-const parseSS = (line, index) => {
-  try {
-    // 解析 query 参数 (插件等)
-    let queryParams = {};
-    let mainPart = line.replace("ss://", "");
-    
-    if (mainPart.includes("?")) {
-      const [beforeQuery, query] = mainPart.split("?");
-      const queryWithoutHash = query.split("#")[0];
-      queryParams = Object.fromEntries(new URLSearchParams(queryWithoutHash));
-      mainPart = beforeQuery + (query.includes("#") ? "#" + query.split("#")[1] : "");
-    }
-    
-    const [main, namePart] = mainPart.split("#");
-    
-    let method, password, server, port;
-    
-    if (main.includes("@")) {
-      // 格式1: ss://BASE64(method:password)@server:port#name
-      const [userinfoPart, serverPart] = main.split("@");
-      const decoded = tryDecodeBase64(userinfoPart) || atob(userinfoPart);
-      const colonIdx = decoded.indexOf(":");
-      method = decoded.substring(0, colonIdx);
-      password = decoded.substring(colonIdx + 1);
-      [server, port] = serverPart.split(":");
-    } else {
-      // 格式2: ss://BASE64(method:password@server:port)#name
-      const decoded = tryDecodeBase64(main) || atob(main);
-      const atIdx = decoded.lastIndexOf("@");
-      const userinfo = decoded.substring(0, atIdx);
-      const serverPart = decoded.substring(atIdx + 1);
-      const colonIdx = userinfo.indexOf(":");
-      method = userinfo.substring(0, colonIdx);
-      password = userinfo.substring(colonIdx + 1);
-      [server, port] = serverPart.split(":");
-    }
-    
-    // 验证必要字段
-    if (!password || !server || !port) {
-      console.warn("SS parsing failed: missing required fields", { method, password, server, port });
-      return null;
-    }
-    
-    const node = {
-      name: decodeURIComponent(namePart || "") || `ss-${index + 1}`,
-      type: "ss",
-      server,
-      port: Number(port),
-      cipher: method,
-      password,
-      udp: true,
-    };
-    
-    // 插件支持 (obfs, v2ray-plugin, etc.)
-    if (queryParams.plugin) {
-      const pluginStr = decodeURIComponent(queryParams.plugin);
-      const [pluginName, ...optsParts] = pluginStr.split(";");
-      node.plugin = pluginName;
-      
-      if (optsParts.length > 0) {
-        const pluginOpts = {};
-        optsParts.forEach(part => {
-          const eqIdx = part.indexOf("=");
-          if (eqIdx > 0) {
-            pluginOpts[part.substring(0, eqIdx)] = part.substring(eqIdx + 1);
-          } else {
-            pluginOpts[part] = true;
-          }
-        });
-        node["plugin-opts"] = pluginOpts;
-      }
-    }
-    
-    return node;
-  } catch (error) {
-    console.warn("SS parsing error:", error);
-    return null;
-  }
-};
-
-// SSR 解析
-const parseSSR = (line, index) => {
-  try {
-    const raw = line.replace("ssr://", "");
-    const decoded = tryDecodeBase64(raw) || atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
-    
-    // 格式: server:port:protocol:method:obfs:password_base64/?params
-    const [mainPart, paramsPart] = decoded.split("/?");
-    const parts = mainPart.split(":");
-    
-    if (parts.length < 6) return null;
-    
-    const [server, port, protocol, method, obfs, passwordBase64] = parts;
-    const password = tryDecodeBase64(passwordBase64) || atob(passwordBase64.replace(/-/g, "+").replace(/_/g, "/"));
-    
-    // 解析参数
-    let name = `ssr-${index + 1}`;
-    let obfsParam = "";
-    let protocolParam = "";
-    
-    if (paramsPart) {
-      const params = Object.fromEntries(new URLSearchParams(paramsPart));
-      if (params.remarks) {
-        name = tryDecodeBase64(params.remarks) || atob(params.remarks.replace(/-/g, "+").replace(/_/g, "/"));
-      }
-      if (params.obfsparam) {
-        obfsParam = tryDecodeBase64(params.obfsparam) || atob(params.obfsparam.replace(/-/g, "+").replace(/_/g, "/"));
-      }
-      if (params.protoparam) {
-        protocolParam = tryDecodeBase64(params.protoparam) || atob(params.protoparam.replace(/-/g, "+").replace(/_/g, "/"));
-      }
-    }
-    
-    return {
-      name,
-      type: "ssr",
-      server,
-      port: Number(port),
-      cipher: method,
-      password,
-      protocol,
-      "protocol-param": protocolParam,
-      obfs,
-      "obfs-param": obfsParam,
-      udp: true,
-    };
-  } catch (error) {
-    console.warn("SSR parsing error:", error);
-    return null;
-  }
-};
-
-// Hysteria 解析
-const parseHysteria = (line, index) => {
-  try {
-    const url = new URL(line);
-    const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria-${index + 1}`;
-    const params = Object.fromEntries(url.searchParams.entries());
-    
-    const node = {
-      name,
-      type: "hysteria",
-      server: url.hostname,
-      port: Number(url.port),
-      "auth-str": params.auth || url.username || undefined,
-      up: params.upmbps || params.up || "100",
-      down: params.downmbps || params.down || "100",
-    };
-    
-    // SNI
-    if (params.peer || params.sni) {
-      node.sni = params.peer || params.sni;
-    }
-    
-    // ALPN
-    if (params.alpn) {
-      node.alpn = decodeURIComponent(params.alpn).split(",");
-    }
-    
-    // 混淆
-    if (params.obfs) {
-      node.obfs = params.obfs;
-    }
-    if (params.obfsParam) {
-      node["obfs-password"] = params.obfsParam;
-    }
-    
-    // 跳过证书验证: 默认为 true（大多数机场需要）
-    // 只有明确指定 insecure=0 时才设为 false
-    if (params.insecure === "0" || params.allowInsecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
-    
-    // 指纹
-    if (params.fp) {
-      node["fingerprint"] = params.fp;
-    }
-    
-    return node;
-  } catch (error) {
-    console.warn("Hysteria parsing error:", error);
-    return null;
-  }
-};
-
-// Hysteria2 解析
-const parseHysteria2 = (line, index) => {
-  try {
-    // 兼容 hy2:// 和 hysteria2://
-    const normalizedLine = line.replace("hy2://", "hysteria2://");
-    const url = new URL(normalizedLine);
-    const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria2-${index + 1}`;
-    const params = Object.fromEntries(url.searchParams.entries());
-    
-    const node = {
-      name,
-      type: "hysteria2",
-      server: url.hostname,
-      port: Number(url.port) || 443,
-      password: decodeURIComponent(url.username) || params.auth,
-    };
-    
-    // SNI
-    if (params.sni) {
-      node.sni = params.sni;
-    }
-    
-    // 混淆
-    if (params.obfs) {
-      node.obfs = params.obfs;
-      if (params["obfs-password"]) {
-        node["obfs-password"] = params["obfs-password"];
-      }
-    }
-    
-    // 跳过证书验证: 默认为 true（大多数机场需要）
-    // 只有明确指定 insecure=0 时才设为 false
-    if (params.insecure === "0" || params.allowInsecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
-    
-    // 指纹
-    if (params.fp || params.pinSHA256) {
-      node["fingerprint"] = params.fp || params.pinSHA256;
-    }
-    
-    // ALPN
-    if (params.alpn) {
-      node.alpn = decodeURIComponent(params.alpn).split(",");
-    }
-    
-    return node;
-  } catch (error) {
-    console.warn("Hysteria2 parsing error:", error);
-    return null;
-  }
-};
-
-// TUIC 解析
-const parseTUIC = (line, index) => {
-  try {
-    const url = new URL(line);
-    const name = decodeURIComponent(url.hash.replace("#", "")) || `tuic-${index + 1}`;
-    const params = Object.fromEntries(url.searchParams.entries());
-    
-    const node = {
-      name,
-      type: "tuic",
-      server: url.hostname,
-      port: Number(url.port) || 443,
-      uuid: url.username,
-      password: decodeURIComponent(url.password) || params.password,
-    };
-    
-    // SNI
-    if (params.sni) {
-      node.sni = params.sni;
-    }
-    
-    // ALPN
-    if (params.alpn) {
-      node.alpn = decodeURIComponent(params.alpn).split(",");
-    }
-    
-    // 拥塞控制
-    if (params.congestion_control || params.congestion) {
-      node["congestion-controller"] = params.congestion_control || params.congestion;
-    }
-    
-    // UDP relay 模式
-    if (params.udp_relay_mode) {
-      node["udp-relay-mode"] = params.udp_relay_mode;
-    }
-    
-    // 跳过证书验证: 默认为 true（大多数机场需要）
-    // 只有明确指定 insecure=0 时才设为 false
-    if (params.insecure === "0" || params.allowInsecure === "0" || params.allow_insecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
-    
-    // 禁用 SNI
-    if (params.disable_sni === "1") {
-      node["disable-sni"] = true;
-    }
-    
-    return node;
-  } catch (error) {
-    console.warn("TUIC parsing error:", error);
-    return null;
-  }
-};
-
-const parseRules = (text) =>
-  text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#") && !line.startsWith("//"));
-
-const generateYaml = () => {
-  if (!form.dialerProxyGroup || form.dialerProxyGroup.length === 0) {
-    status.message = "请选择至少一个跳板节点。";
-    status.type = "warning";
-    return;
-  }
-  if (!form.socksServer || !form.socksPort) {
-    status.message = "请填写落地节点信息，或使用链接解析功能。";
-    status.type = "warning";
-    return;
-  }
-  if (!form.socksAlias || !form.socksAlias.trim()) {
-    status.message = "请填写落地节点别名。";
-    status.type = "warning";
-    return;
-  }
-  
-  // 保存上一版本配置用于对比
-  previousYaml.value = yamlText.value;
-
-  // 确定前置跳板名称：单节点直接引用，多节点生成策略组
-  const isSingleNode = form.dialerProxyGroup.length === 1;
-  const dialerProxyName = isSingleNode 
-    ? form.dialerProxyGroup[0] 
-    : "🔀 前置跳板组";
-
-  // 构建落地节点 - 支持多协议
-  let landingProxy;
-  const nodeType = form.landingNodeType || "socks5";
-  
-  if (landingNode.value && landingNode.value.type === nodeType) {
-    // 使用已解析的完整节点对象（类型匹配时）
-    landingProxy = {
-      ...landingNode.value,
-      name: form.socksAlias.trim(),  // 使用 trim 后的别名
-      "dialer-proxy": dialerProxyName,
-    };
-    // 确保有 server 和 port
-    if (!landingProxy.server) {
-      landingProxy.server = form.socksServer.trim();
-    }
-    if (!landingProxy.port) {
-      landingProxy.port = Number(form.socksPort);
-    }
-  } else {
-    // 根据用户选择的节点类型构建配置
-    landingProxy = {
-      name: form.socksAlias.trim(),
-      type: nodeType,
-      server: form.socksServer.trim(),
-      port: Number(form.socksPort),
-      "dialer-proxy": dialerProxyName,
-    };
-    
-    // 根据不同协议添加对应字段
-    if (nodeType === "socks5" || nodeType === "http") {
-      if (form.socksUser) landingProxy.username = form.socksUser;
-      if (form.socksPass) landingProxy.password = form.socksPass;
-      if (nodeType === "socks5") landingProxy.udp = true;
-    } else if (nodeType === "ss") {
-      // Shadowsocks: password 字段作为密码，默认加密方式
-      landingProxy.password = form.socksPass || "";
-      landingProxy.cipher = "aes-256-gcm";  // 默认加密方式
-    } else if (nodeType === "ssr") {
-      // ShadowsocksR: password 字段作为密码
-      landingProxy.password = form.socksPass || "";
-      landingProxy.cipher = "aes256-cfb";  // SSR 默认加密方式
-      landingProxy.protocol = "origin";
-      landingProxy.obfs = "plain";
-      landingProxy.udp = true;
-    } else if (nodeType === "trojan") {
-      // Trojan: password 字段作为密码
-      landingProxy.password = form.socksPass || "";
-      landingProxy.udp = true;
-    } else if (nodeType === "vmess") {
-      // VMess: password 作为 uuid
-      landingProxy.uuid = form.socksPass || "";
-      landingProxy.alterId = 0;
-      landingProxy.cipher = "auto";
-      landingProxy.udp = true;
-    } else if (nodeType === "vless") {
-      // VLESS: password 作为 uuid
-      landingProxy.uuid = form.socksPass || "";
-      landingProxy.udp = true;
-    } else if (nodeType === "hysteria") {
-      // Hysteria: password 作为 auth
-      landingProxy.auth_str = form.socksPass || "";
-      landingProxy.up = "100 Mbps";  // 默认上行
-      landingProxy.down = "200 Mbps";  // 默认下行
-      landingProxy["skip-cert-verify"] = true;
-    } else if (nodeType === "hysteria2") {
-      // Hysteria2: password 作为密码
-      landingProxy.password = form.socksPass || "";
-      landingProxy["skip-cert-verify"] = true;
-    } else if (nodeType === "tuic") {
-      // TUIC: username 作为 uuid, password 作为密码
-      landingProxy.uuid = form.socksUser || "";
-      landingProxy.password = form.socksPass || "";
-      landingProxy["skip-cert-verify"] = true;
-      landingProxy["congestion-controller"] = "bbr";
-    }
-  }
-
-  // 清理节点对象，移除内部使用的字段（如 latency），只保留 Clash 配置需要的字段
-  const cleanProxy = (node) => {
-    if (!node) return node;
-    const cleaned = { ...node };
-    // 移除内部字段
-    delete cleaned.latency;
-    delete cleaned.lastCheck;
-    delete cleaned.status;
-    return cleaned;
-  };
-
-  const proxies = [...nodes.value.map(cleanProxy), cleanProxy(landingProxy)];
-  const proxyNames = nodes.value.map((node) => node.name);
-  const customRulesFromText = parseRules(form.customRulesText || "");
-  
-  // ==================== 策略组名称定义 ====================
-  // 落地节点策略组：添加前缀以区分代理节点名和策略组名，避免 Clash 循环引用错误
-  const landingProxyName = form.socksAlias.trim();  // 代理节点名
-  const landingGroupName = `🎯 ${landingProxyName}`;  // 策略组名（添加前缀区分）
-  // 通用代理策略组
-  const proxyGroupName = "🌐 代理出口";
-
-  // 规则占位符替换函数
-  const replaceProxyGroupNames = (rule) => {
-    return rule
-      .replace(/\{\{LANDING\}\}/g, landingGroupName)
-      .replace(/\{\{PROXY\}\}/g, proxyGroupName);
-  };
-  
-  // 将默认规则中的占位符替换为实际的策略组名称
-  const processedDefaultRules = form.includeDefaultRules 
-    ? defaultRules.map(replaceProxyGroupNames)
-    : [];
-  
-  // 对所有规则进行策略组名称替换
-  const combinedRules = [
-    ...processedDefaultRules,
-    ...customRules.value.map(replaceProxyGroupNames),
-    ...customRulesFromText.map(replaceProxyGroupNames),
-  ];
-  
-  // 解析用户自定义 DNS
-  const domesticDnsList = form.domesticDns.split(',').map(s => s.trim()).filter(s => s);
-  const foreignDnsList = form.foreignDns.split(',').map(s => s.trim()).filter(s => s);
-  
-  // 规则集配置
-  const ruleProvidersDef = {
-    // 广告拦截
-    "ad-lite": {
-      type: "http",
-      behavior: "classical",
-      url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/AdvertisingLite/AdvertisingLite.yaml",
-      path: "./ruleset/ad-lite.yaml",
-      interval: 86400,
-    },
-    reject: {
-      type: "http",
-      behavior: "domain",
-      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt",
-      path: "./ruleset/reject.yaml",
-      interval: 86400,
-    },
-    // 直连规则
-    lan: {
-      type: "http",
-      behavior: "classical",
-      url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/LocalAreaNetwork.list",
-      path: "./ruleset/lan.yaml",
-      interval: 86400,
-    },
-    unban: {
-      type: "http",
-      behavior: "classical",
-      url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list",
-      path: "./ruleset/unban.yaml",
-      interval: 86400,
-    },
-    direct: {
-      type: "http",
-      behavior: "domain",
-      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt",
-      path: "./ruleset/direct.yaml",
-      interval: 86400,
-    },
-    // 代理规则
-    proxy: {
-      type: "http",
-      behavior: "domain", 
-      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
-      path: "./ruleset/proxy.yaml",
-      interval: 86400,
-    },
-    gfw: {
-      type: "http",
-      behavior: "domain",
-      url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt",
-      path: "./ruleset/gfw.yaml",
-      interval: 86400,
-    },
-  };
-  
-  // 生成 rule-providers
-  const ruleProviders = {};
-  form.ruleProviders.forEach(key => {
-    if (ruleProvidersDef[key]) {
-      ruleProviders[key] = ruleProvidersDef[key];
-    }
-  });
-  
-  // 生成规则集对应的规则（按优先级排序：广告拦截 > 直连 > 代理）
-  const ruleProviderRules = [];
-  
-  // 1. 广告拦截规则（最高优先级）
-  if (form.ruleProviders.includes('ad-lite')) {
-    ruleProviderRules.push('RULE-SET,ad-lite,REJECT');
-  }
-  if (form.ruleProviders.includes('reject')) {
-    ruleProviderRules.push('RULE-SET,reject,REJECT');
-  }
-  
-  // 2. 直连规则
-  if (form.ruleProviders.includes('lan')) {
-    ruleProviderRules.push('RULE-SET,lan,DIRECT');
-  }
-  if (form.ruleProviders.includes('unban')) {
-    ruleProviderRules.push('RULE-SET,unban,DIRECT');
-  }
-  if (form.ruleProviders.includes('direct')) {
-    ruleProviderRules.push('RULE-SET,direct,DIRECT');
-  }
-  
-  // 3. 代理规则
-  if (form.ruleProviders.includes('proxy')) {
-    ruleProviderRules.push(`RULE-SET,proxy,${proxyGroupName}`);
-  }
-  if (form.ruleProviders.includes('gfw')) {
-    ruleProviderRules.push(`RULE-SET,gfw,${proxyGroupName}`);
-  }
-  
-  // 合并规则（规则集规则放在前面）
-  const finalRules = [...ruleProviderRules, ...combinedRules];
-
-  // 构建策略组列表
-  const proxyGroups = [];
-  
-  // 如果选择多个节点，生成前置跳板策略组
-  if (!isSingleNode) {
-    const dialerGroup = {
-      name: "🔀 前置跳板组",
-      type: form.dialerProxyType,
-      proxies: [...form.dialerProxyGroup],
-    };
-    // url-test 和 fallback 需要额外配置
-    if (form.dialerProxyType === "url-test" || form.dialerProxyType === "fallback") {
-      dialerGroup.url = "http://www.gstatic.com/generate_204";
-      dialerGroup.interval = 300;
-    }
-    proxyGroups.push(dialerGroup);
-  }
-  
-  // 策略组配置 - 增强版，与原始订阅保持一致
-  // 1. 自动选择策略组（url-test）- 自动测速选择最快节点
-  const autoSelectGroup = {
-    name: "♻️ 自动选择",
-    type: "url-test",
-    proxies: [...proxyNames],
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    tolerance: 50,
-  };
-  
-  // 2. 故障转移策略组（fallback）- 按顺序尝试
-  const fallbackGroup = {
-    name: "🛡️ 故障转移",
-    type: "fallback",
-    proxies: [...proxyNames],
-    url: "http://www.gstatic.com/generate_204",
-    interval: 180,
-  };
-  
-  // 3. 负载均衡策略组（load-balance）
-  const loadBalanceGroup = {
-    name: "⚖️ 负载均衡",
-    type: "load-balance",
-    proxies: [...proxyNames],
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    strategy: "consistent-hashing",
-  };
-  
-  proxyGroups.push(
-    {
-      name: landingGroupName,
-      type: "select",
-      proxies: [landingProxyName],  // 使用代理节点名，不是策略组名
-    },
-    {
-      name: proxyGroupName,
-      type: "select",
-      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, landingProxyName, "DIRECT"],
-    },
-    autoSelectGroup,
-    fallbackGroup,
-    loadBalanceGroup,
-  );
-
-  const config = {
-    // 全局配置 - 与原始订阅保持一致
-    "mixed-port": 7890,
-    "allow-lan": true,
-    "bind-address": "*",
-    mode: "rule",
-    "log-level": "info",
-    "external-controller": "127.0.0.1:9090",
-    
-    // DNS 配置 - 增强版
-    dns: {
-      enable: true,
-      ipv6: false,
-      "use-hosts": true,
-      "enhanced-mode": form.dnsMode,
-      "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-      "fake-ip-range": "198.18.0.1/16",
-      "fake-ip-filter": form.dnsMode === "fake-ip" ? [
-        "*.lan",
-        "*.local",
-        "localhost",
-        "*.localhost",
-        "*.test",
-        "*.invalid",
-        "*.example",
-        "time.*.com",
-        "ntp.*.com",
-        "*.ntp.org.cn",
-        "+.stun.*.*",
-        "+.stun.*.*.*",
-        "*.msftconnecttest.com",
-        "*.msftncsi.com",
-        "*.srv.nintendo.net",
-        "*.stun.playstation.net",
-        "xbox.*.microsoft.com",
-        "*.xboxlive.com",
-        "*.battlenet.com.cn",
-        "*.logon.battlenet.com.cn",
-      ] : undefined,
-      nameserver: domesticDnsList.length > 0 ? domesticDnsList : ["https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"],
-      fallback: foreignDnsList.length > 0 ? foreignDnsList : [
-        "https://doh.dns.sb/dns-query",
-        "https://dns.cloudflare.com/dns-query",
-        "https://dns.twnic.tw/dns-query",
-        "tls://8.8.4.4:853",
-      ],
-      "fallback-filter": {
-        geoip: true,
-        "geoip-code": "CN",
-        ipcidr: ["240.0.0.0/4", "0.0.0.0/32"],
-      },
-    },
-    proxies,
-    "proxy-groups": proxyGroups,
-    ...(Object.keys(ruleProviders).length > 0 ? { "rule-providers": ruleProviders } : {}),
-    rules: finalRules,
-  };
-
-
-  yamlText.value = yaml.dump(config, {
-    noRefs: true,
-    lineWidth: 120,
-    quotingType: '"',
-  });
-  // 生成 Clash 导入链接
-  generateClashImportUrl();
-  status.message = "配置已生成，可复制或下载。";
-  status.type = "success";
-};
-
-const copyYaml = async () => {
-  try {
-    await navigator.clipboard.writeText(yamlText.value);
-    ElMessage({
-      message: '✅ 已复制到剪贴板',
-      type: 'success',
-      duration: 2000,
-    });
-  } catch (error) {
-    ElMessage.error('复制失败，请手动复制');
-  }
-};
-
-const downloadYaml = () => {
-  const blob = new Blob([yamlText.value], { type: "text/yaml;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "config.yaml";
-  link.click();
-  URL.revokeObjectURL(link.href);
-};
-
-// 直接通过协议唤起 Clash 客户端
-const openClashImportUrl = () => {
-  if (!clashImportUrl.value) return;
-  let fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-  if (configName.value.trim()) {
-    fullUrl += `&name=${encodeURIComponent(configName.value.trim())}`;
-  }
-  window.location.href = fullUrl;
-  ElMessage({
-    message: '正在唤起 Clash 客户端...',
-    type: 'info',
-    duration: 2000,
-  });
-};
-
-// 复制 Clash 导入链接
-const copyClashImportUrl = async () => {
-  try {
-    let fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-    if (configName.value.trim()) {
-      fullUrl += `&name=${encodeURIComponent(configName.value.trim())}`;
-    }
-    await navigator.clipboard.writeText(fullUrl);
-    ElMessage({
-      message: '✅ Clash 导入链接已复制',
-      type: 'success',
-      duration: 2000,
-    });
-    status.type = "success";
-  } catch (error) {
-    status.message = "复制失败，请手动复制。";
-    status.type = "error";
-  }
-};
-
-// 生成配置后创建导入链接
-const generateClashImportUrl = async () => {
-  const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
-  const uploadUrl = `${proxyUrl}/config/upload`;
-  
-  try {
-    // 尝试上传到本地代理服务器
-    const res = await fetch(uploadUrl, {
-      method: "POST",
-      body: yamlText.value,
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      clashImportUrl.value = data.url; // http://localhost:8787/config/xxxx
-      status.message = "配置已托管至本地服务，一键导入准备就绪（有效期10分钟）。";
-      status.type = "success";
-    } else {
-      throw new Error("Upload failed");
-    }
-  } catch (error) {
-    // 降级方案：使用 Data URI
-    console.warn("Local proxy upload failed, falling back to Data URI", error);
-    const base64Config = btoa(unescape(encodeURIComponent(yamlText.value)));
-    clashImportUrl.value = `data:text/yaml;base64,${base64Config}`;
-    status.message = "本地服务未连接，使用 Data URI 模式（部分客户端可能不支持）。";
-    status.type = "warning";
-  }
-
-  // 生成二维码（仅当 URL 较短时）
-  const fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-  try {
-    if (fullUrl.length < 2000) {
-      qrcodeDataUrl.value = await QRCode.toDataURL(fullUrl, {
-        width: 150,
-        margin: 2,
-        color: { dark: '#1e293b', light: '#ffffff' }
-      });
-    } else {
-      qrcodeDataUrl.value = "";
-    }
-  } catch {
-    qrcodeDataUrl.value = "";
-  }
-};
 </script>
