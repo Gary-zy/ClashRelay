@@ -101,6 +101,14 @@ export const defaultRules = [
   "DOMAIN-SUFFIX,rytr.me,{{LANDING}}",
   "DOMAIN-SUFFIX,grammarly.com,{{LANDING}}",
 
+  // Trae AI / ByteDance
+  "DOMAIN-SUFFIX,trae.ai,DIRECT",
+  "DOMAIN-SUFFIX,trae.com,DIRECT",
+  "DOMAIN-SUFFIX,doubao.com,DIRECT",
+
+  // Kimi / Moonshot (月之暗面)
+  "DOMAIN-SUFFIX,kimi.ai,DIRECT",
+
   // AI 图像工具
   "DOMAIN-SUFFIX,leonardo.ai,{{LANDING}}",
   "DOMAIN-SUFFIX,ideogram.ai,{{LANDING}}",
@@ -115,7 +123,7 @@ export const defaultRules = [
   "DOMAIN-SUFFIX,pika.art,{{LANDING}}",
   "DOMAIN-SUFFIX,heygen.com,{{LANDING}}",
   "DOMAIN-SUFFIX,luma.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,klingai.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,klingai.com,DIRECT",
 
   // AI 搜索/研究
   "DOMAIN-SUFFIX,you.com,{{LANDING}}",
@@ -128,8 +136,8 @@ export const defaultRules = [
   "DOMAIN-SUFFIX,anyscale.com,{{LANDING}}",
   "DOMAIN-SUFFIX,fireworks.ai,{{LANDING}}",
   "DOMAIN-SUFFIX,groq.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,deepseek.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,moonshot.cn,{{LANDING}}",
+  "DOMAIN-SUFFIX,deepseek.com,DIRECT",
+  "DOMAIN-SUFFIX,moonshot.cn,DIRECT",
 
   // ==================== GitHub (走代理出口) ====================
   "DOMAIN-SUFFIX,github.com,{{PROXY}}",

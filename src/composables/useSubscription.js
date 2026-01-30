@@ -118,7 +118,23 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
       return;
     }
 
-    nodes.value = parsed;
+    const nameCounts = new Map();
+    const finalNodes = [];
+
+    parsed.forEach((node) => {
+      let uniqueName = node.name;
+      if (nameCounts.has(uniqueName)) {
+        const count = nameCounts.get(uniqueName) + 1;
+        nameCounts.set(uniqueName, count);
+        uniqueName = `${uniqueName} (${count - 1})`;
+        node.name = uniqueName;
+      } else {
+        nameCounts.set(uniqueName, 1);
+      }
+      finalNodes.push(node);
+    });
+
+    nodes.value = finalNodes;
     nodes.value.forEach((node) => {
       node.latency = -1;
     });

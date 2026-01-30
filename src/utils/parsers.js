@@ -1,16 +1,37 @@
+// 安全的 Base64 解码，支持 URL-safe 格式
 export const tryDecodeBase64 = (value) => {
   if (value.includes("://")) return "";
   try {
+    // 标准化 URL-safe Base64 为标准 Base64
     const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
     const pad = "=".repeat((4 - (normalized.length % 4)) % 4);
     const bytes = Uint8Array.from(atob(normalized + pad), (c) => c.charCodeAt(0));
     const decoded = new TextDecoder("utf-8").decode(bytes);
-    if (decoded.includes("://") || decoded.includes("proxies:")) {
+    // 放宽检查条件：只要解码成功且包含可打印字符即可
+    if (decoded && decoded.length > 0 && /[\x20-\x7E]/.test(decoded)) {
       return decoded;
     }
     return "";
   } catch (error) {
     return "";
+  }
+};
+
+// 专门用于解码 VMess JSON 的函数
+export const decodeVmessBase64 = (value) => {
+  try {
+    // 标准化 URL-safe Base64 为标准 Base64
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = "=".repeat((4 - (normalized.length % 4)) % 4);
+    const bytes = Uint8Array.from(atob(normalized + pad), (c) => c.charCodeAt(0));
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch (error) {
+    // 回退到标准 atob
+    try {
+      return atob(value);
+    } catch {
+      return "";
+    }
   }
 };
 
@@ -31,7 +52,7 @@ export function parseProxyLine(line, index) {
 export function parseVmess(line, index) {
   try {
     const raw = line.replace("vmess://", "");
-    const json = JSON.parse(tryDecodeBase64(raw) || atob(raw));
+    const json = JSON.parse(decodeVmessBase64(raw));
     const node = {
       name: json.ps || `vmess-${index + 1}`,
       type: "vmess",
@@ -57,6 +78,10 @@ export function parseVmess(line, index) {
       if (json.fp) {
         node["client-fingerprint"] = json.fp;
       }
+      // TLS 指纹
+      if (json.fingerprint) {
+        node.fingerprint = json.fingerprint;
+      }
     }
 
     if (json.net) node.network = json.net;
@@ -71,6 +96,10 @@ export function parseVmess(line, index) {
       if (json.ed) {
         node["ws-opts"]["max-early-data"] = Number(json.ed);
         node["ws-opts"]["early-data-header-name"] = json.eh || "Sec-WebSocket-Protocol";
+      }
+      // v2ray-http-upgrade
+      if (json.v2rayHttpUpgrade || json["v2ray-http-upgrade"]) {
+        node["ws-opts"]["v2ray-http-upgrade"] = true;
       }
     }
 
@@ -96,6 +125,9 @@ export function parseVmess(line, index) {
       node["http-opts"] = {
         path: json.path ? [json.path] : ["/"],
       };
+      if (json.method) {
+        node["http-opts"].method = json.method;
+      }
       if (json.host) {
         node["http-opts"].headers = {
           Host: Array.isArray(json.host) ? json.host : [json.host],
@@ -107,6 +139,9 @@ export function parseVmess(line, index) {
       node["http-opts"] = {
         path: json.path ? [json.path] : ["/"],
       };
+      if (json.method) {
+        node["http-opts"].method = json.method;
+      }
       if (json.host) {
         node["http-opts"].headers = { Host: [json.host] };
       }
@@ -250,7 +285,9 @@ export function parseTrojan(line, index) {
     const params = Object.fromEntries(url.searchParams.entries());
 
     const isReality = params.security === "reality";
-    const isTls = (params.security !== "none" && params.security !== "xtls") || isReality;
+    const isXtls = params.security === "xtls";
+    // TLS 默认开启，除非明确指定 security=none
+    const isTls = params.security !== "none" && !isXtls;
 
     const node = {
       name,
@@ -261,14 +298,17 @@ export function parseTrojan(line, index) {
       udp: true,
     };
 
-    if (isTls && !isReality) {
+    // TLS 设置
+    if (isTls || isReality) {
       node.tls = true;
     }
 
+    // SNI
     if (params.sni) node.sni = params.sni;
     if (params.peer) node.sni = params.peer;
 
-    if (node.tls || isReality) {
+    // 证书验证
+    if (node.tls || isReality || isXtls) {
       if (params.allowInsecure === "0" || params.insecure === "0") {
         node["skip-cert-verify"] = false;
       } else {
@@ -276,14 +316,22 @@ export function parseTrojan(line, index) {
       }
     }
 
+    // 客户端指纹
     if (params.fp) {
       node["client-fingerprint"] = params.fp;
     }
 
+    // ALPN
     if (params.alpn) {
       node.alpn = decodeURIComponent(params.alpn).split(",");
     }
 
+    // Flow (XTLS) - 关键字段，影响连接
+    if (params.flow) {
+      node.flow = params.flow;
+    }
+
+    // Reality 配置
     if (isReality && params.pbk) {
       node["reality-opts"] = {
         "public-key": params.pbk,
@@ -296,6 +344,7 @@ export function parseTrojan(line, index) {
       }
     }
 
+    // 传输层
     const transport = params.type || "tcp";
     if (transport !== "tcp") {
       node.network = transport;
@@ -534,10 +583,25 @@ export function parseHysteria2(line, index) {
       password: decodeURIComponent(url.username) || params.auth,
     };
 
+    // 端口跳变 (mport 参数)
+    if (params.mport) {
+      node.ports = params.mport;
+    }
+
+    // 带宽限制
+    if (params.up || params.upmbps) {
+      node.up = params.up || params.upmbps;
+    }
+    if (params.down || params.downmbps) {
+      node.down = params.down || params.downmbps;
+    }
+
+    // SNI
     if (params.sni) {
       node.sni = params.sni;
     }
 
+    // 混淆
     if (params.obfs) {
       node.obfs = params.obfs;
       if (params["obfs-password"]) {
@@ -545,16 +609,19 @@ export function parseHysteria2(line, index) {
       }
     }
 
+    // 证书验证
     if (params.insecure === "0" || params.allowInsecure === "0") {
       node["skip-cert-verify"] = false;
     } else {
       node["skip-cert-verify"] = true;
     }
 
+    // 指纹
     if (params.fp || params.pinSHA256) {
       node["fingerprint"] = params.fp || params.pinSHA256;
     }
 
+    // ALPN
     if (params.alpn) {
       node.alpn = decodeURIComponent(params.alpn).split(",");
     }
@@ -581,29 +648,37 @@ export function parseTUIC(line, index) {
       password: decodeURIComponent(url.password) || params.password,
     };
 
+    // SNI
     if (params.sni) {
       node.sni = params.sni;
     }
 
+    // ALPN
     if (params.alpn) {
       node.alpn = decodeURIComponent(params.alpn).split(",");
     }
 
-    if (params.congestion_control || params.congestion) {
-      node["congestion-controller"] = params.congestion_control || params.congestion;
+    // 拥塞控制 - 支持多种参数名
+    const congestion = params.congestion_control || params["congestion-controller"] || params.congestion;
+    if (congestion) {
+      node["congestion-controller"] = congestion;
     }
 
-    if (params.udp_relay_mode) {
-      node["udp-relay-mode"] = params.udp_relay_mode;
+    // UDP 中继模式 - 支持多种参数名
+    const udpRelayMode = params.udp_relay_mode || params["udp-relay-mode"];
+    if (udpRelayMode) {
+      node["udp-relay-mode"] = udpRelayMode;
     }
 
+    // 证书验证
     if (params.insecure === "0" || params.allowInsecure === "0" || params.allow_insecure === "0") {
       node["skip-cert-verify"] = false;
     } else {
       node["skip-cert-verify"] = true;
     }
 
-    if (params.disable_sni === "1") {
+    // 禁用 SNI
+    if (params.disable_sni === "1" || params["disable-sni"] === "1") {
       node["disable-sni"] = true;
     }
 

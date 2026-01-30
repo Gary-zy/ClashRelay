@@ -80,28 +80,6 @@
     <el-button type="danger" link @click="clearAllConfig" class="clear-config-btn">清除配置</el-button>
   </el-space>
 
-    <el-divider content-position="left">一键导入（Clash Verge）</el-divider>
-    <div class="helper-text" style="margin-bottom: 8px;">
-      Clash Verge 支持使用 URL Scheme 快速导入配置，Windows 平台需正确注册 clash:// 协议。
-    </div>
-    <el-form label-position="top">
-      <el-form-item label="配置名称（可选）">
-        <el-input v-model="configNameModel" placeholder="RelayBox-配置" />
-      </el-form-item>
-      <el-form-item label="导入链接（Scheme）">
-        <el-input v-model="clashSchemeUrl" readonly />
-      </el-form-item>
-    </el-form>
-    <el-space wrap>
-      <el-button type="success" :disabled="!clashImportUrlValue" @click="openClashImportUrl">
-        一键导入 Clash Verge
-      </el-button>
-      <el-button :disabled="!clashImportUrlValue" @click="copyClashImportUrl">复制导入链接</el-button>
-    </el-space>
-    <div v-if="qrcodeDataUrlValue" style="margin-top: 12px;">
-      <img :src="qrcodeDataUrlValue" alt="Clash 导入二维码" width="150" height="150" />
-    </div>
-
     <el-divider content-position="left">生成说明</el-divider>
     <ul style="padding-left: 18px; color: #475569; font-size: 13px; line-height: 1.7;">
       <li>默认使用 Fake-IP DNS、国内外分流解析。</li>
@@ -167,11 +145,6 @@ const props = defineProps({
   clearAllConfig: { type: Function, required: true },
   yamlText: { type: [String, Object], required: true },
   previousYaml: { type: [String, Object], required: true },
-  clashImportUrl: { type: [String, Object], required: true },
-  configName: { type: [String, Object], required: true },
-  qrcodeDataUrl: { type: [String, Object], required: true },
-  openClashImportUrl: { type: Function, required: true },
-  copyClashImportUrl: { type: Function, required: true },
   defaultRulesDisplay: { type: Array, required: true },
   showDiffDialog: { type: [Boolean, Object], required: true },
   diffResult: { type: [Array, Object], required: true },
@@ -195,20 +168,7 @@ const showDefaultRulesModel = ref(false);
 const showDiffDialogModel = bindRef(props.showDiffDialog);
 const yamlTextValue = computed(() => unwrapRef(props.yamlText));
 const previousYamlValue = computed(() => unwrapRef(props.previousYaml));
-const clashImportUrlValue = computed(() => unwrapRef(props.clashImportUrl));
-const qrcodeDataUrlValue = computed(() => unwrapRef(props.qrcodeDataUrl));
-const configNameModel = bindRef(props.configName);
 const customRulesValue = computed(() => unwrapRef(props.customRules) || []);
 const nodesValue = computed(() => unwrapRef(props.nodes) || []);
 const diffResultValue = computed(() => unwrapRef(props.diffResult) || []);
-const clashSchemeUrl = computed(() => {
-  const baseUrl = unwrapRef(props.clashImportUrl);
-  if (!baseUrl) return "";
-  let fullUrl = `clash://install-config?url=${encodeURIComponent(baseUrl)}`;
-  const name = unwrapRef(props.configName)?.trim();
-  if (name) {
-    fullUrl += `&name=${encodeURIComponent(name)}`;
-  }
-  return fullUrl;
-});
 </script>

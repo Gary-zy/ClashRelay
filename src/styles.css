@@ -513,3 +513,12 @@ body {
 .health-unknown {
   color: #909399;
 }
+
+/* 帮助按钮 */
+.help-btn {
+  flex-shrink: 0;
+}
+
+.help-btn .el-icon {
+  margin-right: 4px;
+}

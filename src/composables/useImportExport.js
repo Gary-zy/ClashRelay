@@ -1,7 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import yaml from "js-yaml";
-import QRCode from "qrcode";
 import { diffLines } from "diff";
 
 const TEMPLATE_KEY = "clashrelay_template";
@@ -13,9 +12,6 @@ export const useImportExport = ({
   status,
   yamlText,
   previousYaml,
-  clashImportUrl,
-  configName,
-  qrcodeDataUrl,
 }) => {
   const diffResult = ref([]);
   const showDiffDialog = ref(false);
@@ -161,78 +157,6 @@ export const useImportExport = ({
     showDiffDialog.value = true;
   };
 
-  const openClashImportUrl = () => {
-    if (!clashImportUrl.value) return;
-    let fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-    if (configName.value.trim()) {
-      fullUrl += `&name=${encodeURIComponent(configName.value.trim())}`;
-    }
-    window.location.href = fullUrl;
-    ElMessage({
-      message: "正在唤起 Clash 客户端...",
-      type: "info",
-      duration: 2000,
-    });
-  };
-
-  const copyClashImportUrl = async () => {
-    try {
-      let fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-      if (configName.value.trim()) {
-        fullUrl += `&name=${encodeURIComponent(configName.value.trim())}`;
-      }
-      await navigator.clipboard.writeText(fullUrl);
-      ElMessage({
-        message: "✅ Clash 导入链接已复制",
-        type: "success",
-        duration: 2000,
-      });
-      setStatus("", "success");
-    } catch (error) {
-      setStatus("复制失败，请手动复制。", "error");
-    }
-  };
-
-  const generateClashImportUrl = async () => {
-    const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
-    const uploadUrl = `${proxyUrl}/config/upload`;
-
-    try {
-      const res = await fetch(uploadUrl, {
-        method: "POST",
-        body: yamlText.value,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        clashImportUrl.value = data.url;
-        setStatus("配置已托管至本地服务，一键导入准备就绪（有效期10分钟）。", "success");
-      } else {
-        throw new Error("Upload failed");
-      }
-    } catch (error) {
-      console.warn("Local proxy upload failed, falling back to Data URI", error);
-      const base64Config = btoa(unescape(encodeURIComponent(yamlText.value)));
-      clashImportUrl.value = `data:text/yaml;base64,${base64Config}`;
-      setStatus("本地服务未连接，使用 Data URI 模式（部分客户端可能不支持）。", "warning");
-    }
-
-    const fullUrl = `clash://install-config?url=${encodeURIComponent(clashImportUrl.value)}`;
-    try {
-      if (fullUrl.length < 2000) {
-        qrcodeDataUrl.value = await QRCode.toDataURL(fullUrl, {
-          width: 150,
-          margin: 2,
-          color: { dark: "#1e293b", light: "#ffffff" },
-        });
-      } else {
-        qrcodeDataUrl.value = "";
-      }
-    } catch {
-      qrcodeDataUrl.value = "";
-    }
-  };
-
   return {
     diffResult,
     showDiffDialog,
@@ -243,8 +167,5 @@ export const useImportExport = ({
     copyYaml,
     downloadYaml,
     showConfigDiff,
-    openClashImportUrl,
-    copyClashImportUrl,
-    generateClashImportUrl,
   };
 };

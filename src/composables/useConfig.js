@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import yaml from "js-yaml";
 import { defaultRules } from "../config/defaultConfig.js";
 import { parseProxyLine, parseRules } from "../utils/parsers.js";
+import { useNodeParams } from "./useNodeParams.js";
 
 export const useConfig = ({
   form,
@@ -10,9 +11,11 @@ export const useConfig = ({
   status,
   yamlText,
   previousYaml,
-  generateClashImportUrl,
 }) => {
   const landingNode = ref(null);
+
+  // 获取参数补全功能（静默运行）
+  const { completeNode, completeNodes } = useNodeParams();
 
   const setStatus = (message, type) => {
     if (!status) return;
@@ -48,6 +51,8 @@ export const useConfig = ({
 
     try {
       let node = null;
+      // 重置之前解析的节点，避免残留
+      landingNode.value = null;
 
       if (url.startsWith("socks5://") || url.startsWith("socks5h://") || url.startsWith("socks://")) {
         const match = url.match(/^(?:socks5h?|socks):\/\/(?:([^:]+):([^@]+)@)?([^:]+):(.+)$/);
@@ -224,8 +229,12 @@ export const useConfig = ({
       return cleaned;
     };
 
-    const proxies = [...nodes.value.map(cleanProxy), cleanProxy(landingProxy)];
-    const proxyNames = nodes.value.map((node) => node.name);
+    // 应用参数补全后再清理（静默运行）
+    const completedNodes = completeNodes(nodes.value);
+    const completedLandingProxy = completeNode(landingProxy);
+
+    const proxies = [...completedNodes.map(cleanProxy), cleanProxy(completedLandingProxy)];
+    const proxyNames = completedNodes.map((node) => node.name);
     const customRulesFromText = parseRules(form.customRulesText || "");
 
     const landingProxyNameValue = landingProxyName.value;
@@ -472,10 +481,6 @@ export const useConfig = ({
       lineWidth: 120,
       quotingType: '"',
     });
-
-    if (generateClashImportUrl) {
-      generateClashImportUrl();
-    }
 
     setStatus("配置已生成，可复制或下载。", "success");
   };
