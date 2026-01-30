@@ -5,7 +5,7 @@
 export const ruleTemplates = {
   streaming: {
     name: "流媒体优化",
-    icon: "🎬",
+    icon: "Film",
     description: "Netflix、Disney+、YouTube 等流媒体服务走代理",
     rules: [
       "DOMAIN-SUFFIX,netflix.com,{{PROXY}}",
@@ -30,7 +30,7 @@ export const ruleTemplates = {
   },
   gaming: {
     name: "游戏加速",
-    icon: "🎮",
+    icon: "Monitor",
     description: "Steam、Epic、PlayStation 等游戏平台走代理",
     rules: [
       "DOMAIN-SUFFIX,steampowered.com,{{PROXY}}",
@@ -55,7 +55,7 @@ export const ruleTemplates = {
   },
   office: {
     name: "办公直连",
-    icon: "💼",
+    icon: "Suitcase",
     description: "国内办公软件和常用网站走直连",
     rules: [
       "DOMAIN-SUFFIX,dingtalk.com,DIRECT",
@@ -82,7 +82,7 @@ export const ruleTemplates = {
   },
   developer: {
     name: "开发者加速",
-    icon: "💻",
+    icon: "Platform",
     description: "GitHub、NPM、Docker 等开发资源走代理",
     rules: [
       "DOMAIN-SUFFIX,github.com,{{PROXY}}",
@@ -106,7 +106,7 @@ export const ruleTemplates = {
   },
   social: {
     name: "社交媒体",
-    icon: "📱",
+    icon: "ChatDotRound",
     description: "Twitter、Instagram、Telegram 等社交平台走代理",
     rules: [
       "DOMAIN-SUFFIX,twitter.com,{{PROXY}}",
@@ -130,7 +130,7 @@ export const ruleTemplates = {
   },
   trae: {
     name: "Trae AI 开发",
-    icon: "🤖",
+    icon: "Cpu",
     description: "Trae IDE 专属规则，解决连接超时问题",
     rules: [
       "DOMAIN-SUFFIX,trae.ai,DIRECT",

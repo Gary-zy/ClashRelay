@@ -31,7 +31,9 @@
       <div class="step-content">
         <!-- Step 0: 欢迎 -->
         <div v-if="currentStep === 0" class="step-panel welcome-panel">
-          <div class="welcome-icon">👋</div>
+          <div class="welcome-icon">
+            <el-icon><Guide /></el-icon>
+          </div>
           <h2>欢迎使用 ClashRelay</h2>
           <p class="welcome-desc">
             ClashRelay 是一个链式代理配置生成器，帮助你快速生成支持
@@ -39,19 +41,19 @@
           </p>
           <div class="feature-grid">
             <div class="feature-item">
-              <span class="feature-icon">📡</span>
+              <el-icon class="feature-icon"><Connection /></el-icon>
               <span class="feature-text">多协议支持</span>
             </div>
             <div class="feature-item">
-              <span class="feature-icon">🔀</span>
+              <el-icon class="feature-icon"><Switch /></el-icon>
               <span class="feature-text">链式代理</span>
             </div>
             <div class="feature-item">
-              <span class="feature-icon">📋</span>
+              <el-icon class="feature-icon"><List /></el-icon>
               <span class="feature-text">规则模板</span>
             </div>
             <div class="feature-item">
-              <span class="feature-icon">⚡</span>
+              <el-icon class="feature-icon"><Lightning /></el-icon>
               <span class="feature-text">一键导入</span>
             </div>
           </div>
@@ -59,7 +61,9 @@
 
         <!-- Step 1: 订阅 -->
         <div v-if="currentStep === 1" class="step-panel">
-          <div class="step-icon">📡</div>
+          <div class="step-icon">
+            <el-icon><Link /></el-icon>
+          </div>
           <h3>第一步：导入订阅</h3>
           <p>输入你的机场订阅地址，点击「获取节点」按钮解析节点列表。</p>
           <div class="tip-box">
@@ -83,7 +87,9 @@
 
         <!-- Step 2: 节点 -->
         <div v-if="currentStep === 2" class="step-panel">
-          <div class="step-icon">🔀</div>
+          <div class="step-icon">
+            <el-icon><Connection /></el-icon>
+          </div>
           <h3>第二步：选择跳板节点</h3>
           <p>从解析出的节点列表中选择一个或多个作为「跳板节点」。</p>
           <div class="tip-box info">
@@ -106,7 +112,9 @@
 
         <!-- Step 3: 规则 -->
         <div v-if="currentStep === 3" class="step-panel">
-          <div class="step-icon">📋</div>
+          <div class="step-icon">
+            <el-icon><List /></el-icon>
+          </div>
           <h3>第三步：配置落地节点与规则</h3>
           <p>输入你的落地节点信息，并选择需要的规则模板。</p>
           <div class="tip-box success">
@@ -192,6 +200,12 @@ import {
   Upload,
   DocumentCopy,
   Edit,
+  Switch,
+  Lightning,
+  Guide,
+  Trophy,
+  Promotion,
+  ChatLineRound,
 } from "@element-plus/icons-vue";
 
 const ONBOARDING_KEY = "clashrelay_onboarding_completed";
@@ -306,6 +320,7 @@ onMounted(() => {
 
 .logo-icon {
   font-size: 24px;
+  color: var(--accent-600);
 }
 
 .logo-text {

@@ -2,8 +2,12 @@
   <div class="ink-bg">
     <div class="container">
       <div class="hero">
-        <div>
-          <h1 class="hero-title">ClashRelay - 链式代理配置生成器</h1>
+        <div class="hero-content">
+          <div class="title-wrapper">
+            <h1 class="hero-title">ClashRelay - 链式代理配置生成器</h1>
+            <InkSeal class="hero-seal" :size="64" :rotate="-15" />
+          </div>
+          <InkBrushLine class="hero-brush" />
           <p class="hero-desc">
             输入机场订阅与落地节点，选择跳板节点后，一键生成带 DNS 优化与策略组分流的
             config.yaml。
@@ -14,6 +18,14 @@
           使用指南
         </el-button>
       </div>
+
+      <!-- 装饰：右下角墨竹 -->
+      <InkBamboo position="fixed" :right="-40" :bottom="-50" :opacity="0.9" />
+      
+      <!-- 全局 Loading -->
+      <Transition name="fade">
+        <InkLoading v-if="globalLoading" />
+      </Transition>
 
       <!-- 新手引导 -->
       <OnboardingWizard
@@ -52,7 +64,7 @@
             <el-form-item>
               <el-button
                 type="primary"
-                @click="handleFetch"
+                @click="handleFetchWithLoading"
                 :loading="isFetching"
                 :disabled="isFetching"
                 style="width: 100%;"
@@ -153,8 +165,8 @@
             <el-table-column label="节点名称" min-width="240" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="node-name">
-                  <el-icon v-if="form.dialerProxyGroup.includes(row.name)" size="14" class="selected-icon">
-                    <Check />
+                  <el-icon v-if="form.dialerProxyGroup.includes(row.name)" size="16" class="selected-icon">
+                    <InkCheck />
                   </el-icon>
                   {{ row.name }}
                 </span>
@@ -253,7 +265,8 @@
                 class="template-tag"
                 @click="applyRuleTemplate(template)"
               >
-                {{ template.icon }} {{ template.name }}
+                <el-icon class="template-icon"><component :is="iconMap[template.icon]" /></el-icon>
+                {{ template.name }}
               </span>
             </div>
           </div>
@@ -303,9 +316,14 @@
 <script setup>
 import { computed, reactive, ref, watch, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { QuestionFilled, Search, Upload, Check, Loading } from "@element-plus/icons-vue";
+import { QuestionFilled, Search, Upload, Check, Loading, Film, Monitor, Suitcase, Platform, ChatDotRound, Cpu } from "@element-plus/icons-vue";
 import OnboardingWizard from "./components/OnboardingWizard.vue";
 import SelectionTray from "./components/SelectionTray.vue";
+import InkSeal from "./components/decorations/InkSeal.vue";
+import InkBamboo from "./components/decorations/InkBamboo.vue";
+import InkBrushLine from "./components/decorations/InkBrushLine.vue";
+import InkLoading from "./components/InkLoading.vue";
+import InkCheck from "./components/decorations/InkCheck.vue";
 import { useNodes } from "./composables/useNodes.js";
 import { useSubscription } from "./composables/useSubscription.js";
 import { useRules } from "./composables/useRules.js";
@@ -314,7 +332,17 @@ import { useImportExport } from "./composables/useImportExport.js";
 import { useNodeParams } from "./composables/useNodeParams.js";
 import { highlightYaml } from "./utils/helpers.js";
 
+const iconMap = {
+  Film,
+  Monitor,
+  Suitcase,
+  Platform,
+  ChatDotRound,
+  Cpu
+};
+
 const STORAGE_KEY = "clashrelay_config";
+const globalLoading = ref(false);
 
 const loadSavedConfig = () => {
   try {
@@ -324,7 +352,6 @@ const loadSavedConfig = () => {
     return null;
   }
 };
-
 const formDefaults = {
   subscriptionUrl: "",
   proxyUrl: "http://localhost:8787",
@@ -459,6 +486,18 @@ const {
   saveConfig,
 });
 
+const handleFetchWithLoading = async () => {
+  globalLoading.value = true;
+  const minTime = new Promise(resolve => setTimeout(resolve, 1000));
+  
+  try {
+    await handleFetch();
+  } finally {
+    await minTime;
+    globalLoading.value = false;
+  }
+};
+
 const highlightedYaml = computed(() => highlightYaml(yamlText.value));
 
 // 参数补全（静默运行）
@@ -533,8 +572,10 @@ watch(
 
 /* 步骤区块 */
 .step-section {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid var(--line-200);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 10px 24px rgba(26, 26, 26, 0.06);
@@ -600,15 +641,23 @@ watch(
 }
 
 .selected-icon {
-  color: var(--accent-600);
+  margin-right: 2px;
+  filter: drop-shadow(0 0 2px rgba(185, 43, 39, 0.2));
 }
 
 .el-table .selected-row {
-  background-color: rgba(31, 42, 68, 0.06) !important;
+  background-color: rgba(31, 42, 68, 0.04) !important;
+  font-weight: 500;
+  position: relative;
+}
+
+.el-table .selected-row td:first-child {
+  /* 左侧朱砂竖线指示器 */
+  box-shadow: inset 4px 0 0 -1px #b92b27 !important;
 }
 
 .el-table .selected-row:hover > td {
-  background-color: rgba(31, 42, 68, 0.1) !important;
+  background-color: rgba(31, 42, 68, 0.08) !important;
 }
 
 /* 策略组配置 */
@@ -681,6 +730,12 @@ watch(
   color: var(--accent-600);
 }
 
+.template-icon {
+  margin-right: 4px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
 /* YAML 预览 */
 .yaml-section {
   margin-top: 16px;
@@ -728,6 +783,44 @@ watch(
   .strategy-config {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* 装饰元素样式 */
+.hero-content {
+  position: relative;
+  flex: 1;
+}
+
+.title-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.hero-seal {
+  position: absolute;
+  top: -10px;
+  right: -50px;
+  opacity: 0.9;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-brush {
+  width: 100%;
+  max-width: 420px;
+  height: 12px;
+  margin-top: -6px;
+  margin-bottom: 12px;
+  display: block;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .hero-seal {
+    right: -20px;
+    top: -20px;
+    transform: scale(0.7) rotate(-15deg);
   }
 }
 </style>
