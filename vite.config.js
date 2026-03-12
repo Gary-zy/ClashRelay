@@ -7,4 +7,15 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vue: ["vue"],
+          "element-plus": ["element-plus"],
+          yaml: ["js-yaml"],
+        },
+      },
+    },
+  },
 });

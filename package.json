@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"node proxy-server.js\"",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "dependencies": {
     "diff": "^8.0.3",

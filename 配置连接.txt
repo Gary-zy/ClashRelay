@@ -1,0 +1,328 @@
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+dns:
+  enable: true
+  ipv6: false
+  use-hosts: true
+  enhanced-mode: fake-ip
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - localhost
+    - "*.localhost"
+    - "*.test"
+    - "*.invalid"
+    - "*.example"
+    - time.*.com
+    - ntp.*.com
+    - "*.ntp.org.cn"
+    - +.stun.*.*
+    - +.stun.*.*.*
+    - "*.msftconnecttest.com"
+    - "*.msftncsi.com"
+    - "*.srv.nintendo.net"
+    - "*.stun.playstation.net"
+    - xbox.*.microsoft.com
+    - "*.xboxlive.com"
+    - "*.battlenet.com.cn"
+    - "*.logon.battlenet.com.cn"
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fallback:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+      - 0.0.0.0/32
+proxies:
+  - name: cn2-frontier
+    type: anytls
+    server: bwg1.77997799.xyz
+    port: 38625
+    password: 64FMQKJo
+    udp: true
+    sni: ai.77997799.xyz
+    client-fingerprint: chrome
+    skip-cert-verify: true
+proxy-groups:
+  - name: 🎯 cn2-frontier
+    type: select
+    proxies:
+      - cn2-frontier
+  - name: 🌐 代理出口
+    type: select
+    proxies:
+      - cn2-frontier
+      - DIRECT
+rules:
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-KEYWORD,antigravity,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,anthropic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,claude.ai,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,anthropic,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,claude,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cursor.sh,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cursor.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,anysphere.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,todesktop.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,auth0.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,openai.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chatgpt.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,oaistatic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,oaiusercontent.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,perplexity.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,x.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,grok.x.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,huggingface.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,copilot.microsoft.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,copilot.githubusercontent.com,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,copilot,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,github.com,🌐 代理出口
+  - DOMAIN-SUFFIX,githubusercontent.com,🌐 代理出口
+  - DOMAIN-SUFFIX,google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleapis.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gstatic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleusercontent.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gvt1.com,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,gemini,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,bard.google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,deepmind.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ai.google.dev,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,youtube.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googlevideo.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ytimg.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ggpht.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,android.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,firebaseio.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,appspot.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,go.dev,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,golang.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,recaptcha.net,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,google,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - DOMAIN-KEYWORD,-cn,DIRECT
+  - DOMAIN-SUFFIX,trae.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,traeapi.us,🌐 代理出口
+  - DOMAIN-SUFFIX,bytedance.net,🌐 代理出口
+  - DOMAIN-SUFFIX,mchost.guru,🌐 代理出口
+  - DOMAIN-SUFFIX,volces.com,🌐 代理出口
+  - DOMAIN-SUFFIX,trae.ai,DIRECT
+  - DOMAIN-SUFFIX,gstatic.com,🌐 代理出口
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-KEYWORD,antigravity,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,anthropic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,claude.ai,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,anthropic,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,claude,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cursor.sh,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cursor.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,anysphere.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,todesktop.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,auth0.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,openai.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chatgpt.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,oaistatic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,oaiusercontent.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,openaiapi-site.azureedge.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,sora.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,perplexity.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,pplx.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,x.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,grok.x.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,grok.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,huggingface.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,hf.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,huggingface.tech,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,copilot.microsoft.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,copilot.githubusercontent.com,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,copilot,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,midjourney.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,mj.run,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,stability.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,stablediffusionweb.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,dreamstudio.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,clipdrop.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,runwayml.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,runway.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,poe.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,quora.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,character.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,replicate.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,replicate.delivery,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cohere.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cohere.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,mistral.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chat.mistral.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,meta.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,llama.meta.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ai.meta.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,notion.so,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,notion.site,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,jasper.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,copy.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,writesonic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,rytr.me,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,grammarly.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,trae.ai,DIRECT
+  - DOMAIN-SUFFIX,trae.com,DIRECT
+  - DOMAIN-SUFFIX,doubao.com,DIRECT
+  - DOMAIN-SUFFIX,kimi.ai,DIRECT
+  - DOMAIN-SUFFIX,leonardo.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ideogram.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,lexica.art,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,playground.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,civitai.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,elevenlabs.io,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,suno.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,suno.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,pika.art,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,heygen.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,luma.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,klingai.com,DIRECT
+  - DOMAIN-SUFFIX,you.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,phind.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,consensus.app,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,elicit.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,together.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,anyscale.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,fireworks.ai,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,groq.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,deepseek.com,DIRECT
+  - DOMAIN-SUFFIX,moonshot.cn,DIRECT
+  - DOMAIN-SUFFIX,github.com,🌐 代理出口
+  - DOMAIN-SUFFIX,githubusercontent.com,🌐 代理出口
+  - DOMAIN-SUFFIX,ipip.la,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipip.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip.sb,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip.cn,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip138.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cip.cc,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,myip.la,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipw.cn,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip.tool.chinaz.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,tool.chinaz.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chinaz.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,boce.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,17ce.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ping.pe,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ce8.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,itdog.cn,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipshudi.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chaipip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipshu.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipplus360.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,test-ipv6.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipinfo.io,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip-api.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ifconfig.me,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ifconfig.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipify.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,icanhazip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,whatismyip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,whatismyipaddress.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,checkip.amazonaws.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipecho.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ident.me,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipgeolocation.io,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ip2location.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,whoer.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,browserleaks.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipaddress.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipaddress.my,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,myip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,showmyip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,iplocation.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipleak.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,dnsleaktest.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,dnsleak.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,perfect-privacy.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,expressvpn.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,speedtest.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,fast.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,speedof.me,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,testmy.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,meter.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,bandwidthplace.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,speedcheck.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipchicken.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,myexternalip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,wtfismyip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,curlmyip.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,httpbin.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,jsonip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ipapi.co,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,geoiplookup.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,db-ip.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,maxmind.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleapis.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gstatic.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleusercontent.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googlesyndication.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googletagmanager.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googletagservices.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,google-analytics.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleadservices.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googleads.g.doubleclick.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,doubleclick.net,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gvt1.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gvt2.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,gvt3.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,1e100.net,🎯 cn2-frontier
+  - DOMAIN-KEYWORD,gemini,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,bard.google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,deepmind.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ai.google.dev,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,makersuite.google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,youtube.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,youtu.be,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googlevideo.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ytimg.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,ggpht.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,youtube-nocookie.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cloud.google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,firebaseio.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,firebase.google.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,firebasestorage.googleapis.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,firebaseapp.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,crashlytics.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,android.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,appspot.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,go.dev,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,golang.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,googlesource.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chromium.org,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,chrome.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,withgoogle.com,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,recaptcha.net,🎯 cn2-frontier
+  - IP-CIDR,142.250.0.0/15,🎯 cn2-frontier,no-resolve
+  - IP-CIDR,172.217.0.0/16,🎯 cn2-frontier,no-resolve
+  - IP-CIDR,216.58.192.0/19,🎯 cn2-frontier,no-resolve
+  - IP-CIDR,74.125.0.0/16,🎯 cn2-frontier,no-resolve
+  - DOMAIN-KEYWORD,google,🎯 cn2-frontier
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - DOMAIN-KEYWORD,-cn,DIRECT
+  - GEOIP,CN,DIRECT
+  - GEOSITE,CN,DIRECT
+  - MATCH,🌐 代理出口

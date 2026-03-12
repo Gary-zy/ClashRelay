@@ -39,6 +39,7 @@ export function parseProxyLine(line, index) {
   if (line.startsWith("vmess://")) return parseVmess(line, index);
   if (line.startsWith("vless://")) return parseVless(line, index);
   if (line.startsWith("trojan://")) return parseTrojan(line, index);
+  if (line.startsWith("anytls://")) return parseAnyTLS(line, index);
   if (line.startsWith("ss://")) return parseSS(line, index);
   if (line.startsWith("ssr://")) return parseSSR(line, index);
   if (line.startsWith("hysteria://")) return parseHysteria(line, index);
@@ -378,6 +379,49 @@ export function parseTrojan(line, index) {
         path: decodeURIComponent(params.path || "/"),
         host: params.host ? [params.host] : undefined,
       };
+    }
+
+    return node;
+  } catch (error) {
+    return null;
+  }
+}
+
+export function parseAnyTLS(line, index) {
+  try {
+    const url = new URL(line);
+    const name = decodeURIComponent(url.hash.replace("#", "")) || `anytls-${index + 1}`;
+    const params = Object.fromEntries(url.searchParams.entries());
+    const password = decodeURIComponent(url.username || params.password || "");
+
+    const node = {
+      name,
+      type: "anytls",
+      server: url.hostname,
+      port: Number(url.port),
+      password,
+      udp: params.udp ? params.udp !== "0" && params.udp !== "false" : true,
+    };
+
+    if (!node.server || !node.port || !node.password) return null;
+
+    if (params.sni) node.sni = params.sni;
+    if (params.servername) node.sni = params.servername;
+
+    if (params.alpn) {
+      const alpn = decodeURIComponent(params.alpn)
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item);
+      if (alpn.length > 0) node.alpn = alpn;
+    }
+
+    const clientFingerprint = params.fp || params["client-fingerprint"];
+    if (clientFingerprint) node["client-fingerprint"] = clientFingerprint;
+
+    const insecure = params.allowInsecure ?? params.insecure;
+    if (insecure !== undefined) {
+      node["skip-cert-verify"] = !(insecure === "0" || insecure === "false");
     }
 
     return node;

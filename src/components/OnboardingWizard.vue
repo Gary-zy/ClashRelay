@@ -8,11 +8,11 @@
     class="onboarding-dialog"
   >
     <template #header>
-      <div class="onboarding-header">
-        <div class="onboarding-logo">
-          <span class="logo-icon">🔗</span>
-          <span class="logo-text">ClashRelay</span>
-        </div>
+        <div class="onboarding-header">
+          <div class="onboarding-logo">
+            <span class="logo-icon">🔗</span>
+          <span class="logo-text">Clash 配置生成器</span>
+          </div>
         <el-button text @click="skipOnboarding" class="skip-btn">
           跳过引导
         </el-button>
@@ -20,13 +20,13 @@
     </template>
 
     <div class="onboarding-content">
-      <el-steps :active="currentStep" finish-status="success" align-center>
-        <el-step title="欢迎" :icon="House" />
-        <el-step title="订阅" :icon="Link" />
-        <el-step title="节点" :icon="Connection" />
-        <el-step title="规则" :icon="List" />
-        <el-step title="完成" :icon="Check" />
-      </el-steps>
+        <el-steps :active="currentStep" finish-status="success" align-center>
+          <el-step title="欢迎" :icon="House" />
+          <el-step title="订阅" :icon="Link" />
+          <el-step title="节点" :icon="Connection" />
+          <el-step title="落地" :icon="List" />
+          <el-step title="完成" :icon="Check" />
+        </el-steps>
 
       <div class="step-content">
         <!-- Step 0: 欢迎 -->
@@ -34,27 +34,27 @@
           <div class="welcome-icon">
             <el-icon><Guide /></el-icon>
           </div>
-          <h2>欢迎使用 ClashRelay</h2>
+          <h2>欢迎使用 Clash 配置生成器</h2>
           <p class="welcome-desc">
-            ClashRelay 是一个链式代理配置生成器，帮助你快速生成支持
-            <strong>中继/链式代理</strong> 的 Clash 配置文件。
+            这个工具只做一件事：把订阅节点、跳板选择和落地节点整理成
+            <strong>一份干净的 Clash 配置</strong>。
           </p>
           <div class="feature-grid">
             <div class="feature-item">
               <el-icon class="feature-icon"><Connection /></el-icon>
-              <span class="feature-text">多协议支持</span>
+              <span class="feature-text">Clash Only</span>
             </div>
             <div class="feature-item">
               <el-icon class="feature-icon"><Switch /></el-icon>
-              <span class="feature-text">链式代理</span>
+              <span class="feature-text">直连 / 中转</span>
             </div>
             <div class="feature-item">
               <el-icon class="feature-icon"><List /></el-icon>
-              <span class="feature-text">规则模板</span>
+              <span class="feature-text">默认规则</span>
             </div>
             <div class="feature-item">
               <el-icon class="feature-icon"><Lightning /></el-icon>
-              <span class="feature-text">一键导入</span>
+              <span class="feature-text">一键导出</span>
             </div>
           </div>
         </div>
@@ -65,7 +65,7 @@
             <el-icon><Link /></el-icon>
           </div>
           <h3>第一步：导入订阅</h3>
-          <p>输入你的机场订阅地址，点击「获取节点」按钮解析节点列表。</p>
+          <p>输入机场订阅地址，点击「获取节点」解析可用节点列表。</p>
           <div class="tip-box">
             <el-icon><InfoFilled /></el-icon>
             <div>
@@ -73,7 +73,7 @@
               <ul>
                 <li>Base64 编码的订阅链接</li>
                 <li>纯文本节点列表</li>
-                <li>Clash YAML 配置文件</li>
+                <li>Clash YAML 订阅内容</li>
               </ul>
             </div>
           </div>
@@ -90,15 +90,15 @@
           <div class="step-icon">
             <el-icon><Connection /></el-icon>
           </div>
-          <h3>第二步：选择跳板节点</h3>
-          <p>从解析出的节点列表中选择一个或多个作为「跳板节点」。</p>
+          <h3>第二步：决定是否使用跳板</h3>
+          <p>中转模式下选择一个或多个跳板；直连模式下，这一步可以直接跳过。</p>
           <div class="tip-box info">
             <el-icon><InfoFilled /></el-icon>
             <div>
-              <strong>什么是链式代理？</strong>
+              <strong>两种模式有什么区别？</strong>
               <p style="margin: 4px 0 0;">
-                流量路径：<code>本机 → 跳板节点 → 落地节点 → 目标网站</code><br>
-                跳板节点负责中转，落地节点决定最终出口 IP。
+                中转模式：<code>本机 → 跳板节点 → 落地节点 → 目标网站</code><br>
+                直连模式：<code>本机 → 落地节点 → 目标网站</code>
               </p>
             </div>
           </div>
@@ -115,19 +115,15 @@
           <div class="step-icon">
             <el-icon><List /></el-icon>
           </div>
-          <h3>第三步：配置落地节点与规则</h3>
-          <p>输入你的落地节点信息，并选择需要的规则模板。</p>
+          <h3>第三步：配置落地节点</h3>
+          <p>SOCKS5 / HTTP 可以手填，其他 Clash 协议统一通过链接解析导入。</p>
           <div class="tip-box success">
             <el-icon><SuccessFilled /></el-icon>
             <div>
-              <strong>预设规则模板：</strong>
-              <div class="template-tags">
-                <el-tag size="small">🎬 流媒体优化</el-tag>
-                <el-tag size="small">🎮 游戏加速</el-tag>
-                <el-tag size="small">💼 办公直连</el-tag>
-                <el-tag size="small">💻 开发者加速</el-tag>
-                <el-tag size="small">📱 社交媒体</el-tag>
-              </div>
+              <strong>规则策略：</strong>
+              <p style="margin: 4px 0 0;">
+                系统会自动带上默认规则；你只需要在最后一步补充自定义规则即可。
+              </p>
             </div>
           </div>
           <div class="demo-image">
@@ -143,8 +139,8 @@
           <div class="complete-icon">🎉</div>
           <h2>准备就绪！</h2>
           <p class="complete-desc">
-            现在你已经了解了 ClashRelay 的基本使用流程。<br>
-            点击下方按钮开始配置你的第一个链式代理！
+            现在流程已经捋顺了。<br>
+            点击下方按钮开始生成你的 Clash 配置。
           </p>
           <div class="quick-actions">
             <div class="action-item" @click="startWithDemo">
@@ -203,9 +199,6 @@ import {
   Switch,
   Lightning,
   Guide,
-  Trophy,
-  Promotion,
-  ChatLineRound,
 } from "@element-plus/icons-vue";
 
 const ONBOARDING_KEY = "clashrelay_onboarding_completed";
@@ -551,27 +544,47 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 20px 32px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 247, 242, 0.94));
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    background 0.24s ease,
+    box-shadow 0.24s ease;
 }
 
 .action-item:hover {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  transform: translateY(-2px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 241, 234, 0.98));
+  border-color: rgba(185, 43, 39, 0.24);
+  transform: translateY(-3px);
+  box-shadow:
+    0 16px 26px rgba(31, 42, 68, 0.08),
+    0 6px 12px rgba(185, 43, 39, 0.08);
 }
 
 .action-item :deep(.el-icon) {
-  color: #3b82f6;
+  color: var(--accent-600);
+  transition:
+    transform 0.24s ease,
+    color 0.24s ease;
+}
+
+.action-item:hover :deep(.el-icon) {
+  transform: translateY(-1px) scale(1.06);
+  color: var(--vermillion-500);
 }
 
 .action-item span {
   font-size: 14px;
-  color: #374151;
+  color: var(--ink-700);
   font-weight: 500;
+  transition: color 0.24s ease;
+}
+
+.action-item:hover span {
+  color: var(--ink-900);
 }
 
 .onboarding-footer {

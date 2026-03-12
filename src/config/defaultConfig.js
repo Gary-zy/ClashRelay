@@ -4,10 +4,19 @@
 
 export const defaultRules = [
   // ==================== 内网直连 ====================
+  "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
   "IP-CIDR,192.168.0.0/16,DIRECT",
   "IP-CIDR,10.0.0.0/8,DIRECT",
+  "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
   "IP-CIDR,172.16.0.0/12,DIRECT",
   "IP-CIDR,127.0.0.0/8,DIRECT",
+  "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+  "IP-CIDR,198.18.0.0/15,DIRECT,no-resolve",
+  "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+  "IP-CIDR6,::1/128,DIRECT,no-resolve",
+  "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+  "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+  "DOMAIN,localhost,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
 
   // ==================== AI 服务 (走落地节点) ====================
@@ -209,6 +218,14 @@ export const defaultRules = [
   "DOMAIN-SUFFIX,geoiplookup.net,{{LANDING}}",
   "DOMAIN-SUFFIX,db-ip.com,{{LANDING}}",
   "DOMAIN-SUFFIX,maxmind.com,{{LANDING}}",
+  // IP 质量 / 风控 / 代理检测
+  "DOMAIN-SUFFIX,scamalytics.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,ipqualityscore.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,proxycheck.io,{{LANDING}}",
+  "DOMAIN-SUFFIX,abuseipdb.com,{{LANDING}}",
+  "DOMAIN-SUFFIX,pixelscan.net,{{LANDING}}",
+  "DOMAIN-SUFFIX,ipleak.org,{{LANDING}}",
+  "DOMAIN-SUFFIX,iphey.com,{{LANDING}}",
 
   // ==================== Google 服务 (走落地节点) ====================
   // Google 核心域名
@@ -275,6 +292,57 @@ export const defaultRules = [
   // ==================== 国内直连 ====================
   "DOMAIN-SUFFIX,cn,DIRECT",
   "DOMAIN-KEYWORD,-cn,DIRECT",
+  "GEOIP,CN,DIRECT",
+  "GEOSITE,CN,DIRECT",
+
+  // ==================== 默认规则 ====================
+  "MATCH,{{PROXY}}",
+];
+
+// 订阅整理模式默认规则 — 不依赖 {{LANDING}}，仅使用 {{PROXY}} 和 DIRECT
+export const subscriptionDefaultRules = [
+  // ==================== 内网直连 ====================
+  "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+  "IP-CIDR,192.168.0.0/16,DIRECT",
+  "IP-CIDR,10.0.0.0/8,DIRECT",
+  "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+  "IP-CIDR,172.16.0.0/12,DIRECT",
+  "IP-CIDR,127.0.0.0/8,DIRECT",
+  "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+  "IP-CIDR,198.18.0.0/15,DIRECT,no-resolve",
+  "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+  "IP-CIDR6,::1/128,DIRECT,no-resolve",
+  "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+  "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+  "DOMAIN,localhost,DIRECT",
+  "DOMAIN-SUFFIX,local,DIRECT",
+
+  // ==================== 常用代理站点 ====================
+  "DOMAIN-SUFFIX,github.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,githubusercontent.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,google.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,googleapis.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,gstatic.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,youtube.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,googlevideo.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,openai.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,chatgpt.com,{{PROXY}}",
+  "DOMAIN-SUFFIX,claude.ai,{{PROXY}}",
+  "DOMAIN-SUFFIX,anthropic.com,{{PROXY}}",
+
+  // ==================== 国内直连 ====================
+  // 国内域名直连兜底
+  "DOMAIN-SUFFIX,cn,DIRECT",
+  "DOMAIN-KEYWORD,-cn,DIRECT",
+
+  // Trae AI / 豆包 / Kimi / DeepSeek — 国产 AI 直连
+  "DOMAIN-SUFFIX,trae.ai,DIRECT",
+  "DOMAIN-SUFFIX,doubao.com,DIRECT",
+  "DOMAIN-SUFFIX,kimi.ai,DIRECT",
+  "DOMAIN-SUFFIX,deepseek.com,DIRECT",
+  "DOMAIN-SUFFIX,moonshot.cn,DIRECT",
+
+  // GeoIP / GeoSite 中国直连
   "GEOIP,CN,DIRECT",
   "GEOSITE,CN,DIRECT",
 

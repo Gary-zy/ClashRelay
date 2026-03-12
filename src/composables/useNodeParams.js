@@ -1,7 +1,4 @@
-import { ref, reactive, watch } from "vue";
-import { pickByPriority, isDefined } from "../utils/tribool.js";
-
-const PARAMS_KEY = "clashrelay_rename_config";
+import { isDefined } from "../utils/tribool.js";
 
 /**
  * 系统默认值 - 参考 Clash Verge 的默认行为
@@ -18,41 +15,9 @@ const systemDefaults = {
 
 /**
  * 参数补全 Composable
- * 静默运行，自动为节点补全缺失的参数
+ * 仅保留静默的协议默认值补全，不再暴露额外用户配置。
  */
 export const useNodeParams = () => {
-  // 节点名称清洗配置（这是唯一暴露给用户的功能）
-  const globalParams = reactive({
-    renameEnabled: false,
-    renamePattern: "",
-    renameReplace: "",
-  });
-
-  // 从 localStorage 加载清洗配置
-  const loadParams = () => {
-    try {
-      const saved = localStorage.getItem(PARAMS_KEY);
-      if (saved) {
-        Object.assign(globalParams, JSON.parse(saved));
-      }
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  // 保存清洗配置
-  const saveParams = () => {
-    try {
-      localStorage.setItem(PARAMS_KEY, JSON.stringify({
-        renameEnabled: globalParams.renameEnabled,
-        renamePattern: globalParams.renamePattern,
-        renameReplace: globalParams.renameReplace,
-      }));
-    } catch (e) {
-      // ignore
-    }
-  };
-
   /**
    * 通用参数补全 - 静默应用
    */
@@ -108,6 +73,14 @@ export const useNodeParams = () => {
       return result;
     },
 
+    anytls: (node) => {
+      const result = { ...node };
+      if (!isDefined(result["client-fingerprint"])) {
+        result["client-fingerprint"] = systemDefaults.clientFingerprint;
+      }
+      return result;
+    },
+
     ss: (node) => node,
     ssr: (node) => node,
 
@@ -130,33 +103,15 @@ export const useNodeParams = () => {
   };
 
   /**
-   * 节点名称清洗
-   */
-  const cleanNodeName = (name) => {
-    if (!globalParams.renameEnabled || !globalParams.renamePattern) {
-      return name;
-    }
-    try {
-      const regex = new RegExp(globalParams.renamePattern, "g");
-      return name.replace(regex, globalParams.renameReplace || "").trim();
-    } catch (e) {
-      return name;
-    }
-  };
-
-  /**
    * 统一补全单个节点（静默运行）
    */
   const completeNode = (rawNode) => {
     let node = { ...rawNode };
 
-    // 1. 名称清洗
-    node.name = cleanNodeName(node.name);
-
-    // 2. 通用参数补全
+    // 1. 通用参数补全
     node = commonConstruct(node);
 
-    // 3. 协议特定补全
+    // 2. 协议特定补全
     const construct = protocolConstruct[node.type];
     if (construct) {
       node = construct(node);
@@ -170,37 +125,8 @@ export const useNodeParams = () => {
    */
   const completeNodes = (nodes) => nodes.map(completeNode);
 
-  /**
-   * 预览节点清洗结果
-   */
-  const previewRename = (nodes) => {
-    if (!globalParams.renameEnabled || !globalParams.renamePattern) {
-      return nodes.map((n) => ({ original: n.name, cleaned: n.name }));
-    }
-    return nodes.map((n) => ({
-      original: n.name,
-      cleaned: cleanNodeName(n.name),
-    }));
-  };
-
-  // 自动保存清洗配置
-  watch(
-    () => ({
-      renameEnabled: globalParams.renameEnabled,
-      renamePattern: globalParams.renamePattern,
-      renameReplace: globalParams.renameReplace,
-    }),
-    () => saveParams(),
-    { deep: true }
-  );
-
-  // 初始化
-  loadParams();
-
   return {
-    globalParams,
     completeNode,
     completeNodes,
-    previewRename,
   };
 };
