@@ -4,10 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "dev:web": "vite",
     "dev": "concurrently \"vite\" \"node proxy-server.js\"",
     "build": "vite build",
+    "build:desktop": "vite build --mode desktop",
     "preview": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "diff": "^8.0.3",
@@ -17,8 +21,11 @@
     "vue": "latest"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1",
     "@vitejs/plugin-vue": "latest",
     "concurrently": "latest",
+    "unplugin-vue-components": "^31.0.0",
     "vite": "latest"
   }
 }

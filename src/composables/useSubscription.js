@@ -2,6 +2,7 @@ import { ref } from "vue";
 import yaml from "js-yaml";
 import { parseProxyLine, tryDecodeBase64 } from "../utils/parsers.js";
 import { getFetchErrorMessage } from "./useConfig.js";
+import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 
 const HISTORY_KEY = "clashrelay_history";
 
@@ -97,28 +98,48 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
       const subscriptionUrl = form.subscriptionUrl.trim();
       const proxyUrl = form.proxyUrl.trim();
       const base = proxyUrl ? proxyUrl.replace(/\/+$/, "") : "";
-      const fetchUrl = base ? `${base}/fetch?url=${encodeURIComponent(subscriptionUrl)}` : subscriptionUrl;
-      const response = await fetch(fetchUrl);
-      responseStatus = response.status;
-      if (!response.ok) {
-        isFetching.value = false;
-        setStatus(
-          getFetchErrorMessage({
-            responseStatus,
-            usedProxy: Boolean(base),
-          }),
-          response.status >= 500 ? "warning" : "error"
-        );
-        return;
+
+      if (isDesktopApp()) {
+        const response = await desktopApi.fetchSubscription(subscriptionUrl);
+        responseStatus = response.status;
+        if (!response.ok) {
+          isFetching.value = false;
+          setStatus(
+            getFetchErrorMessage({
+              responseStatus,
+              usedProxy: false,
+              errorKind: response.errorKind,
+            }),
+            response.status >= 500 ? "warning" : "error"
+          );
+          return;
+        }
+        text = response.text;
+      } else {
+        const fetchUrl = base ? `${base}/fetch?url=${encodeURIComponent(subscriptionUrl)}` : subscriptionUrl;
+        const response = await fetch(fetchUrl);
+        responseStatus = response.status;
+        if (!response.ok) {
+          isFetching.value = false;
+          setStatus(
+            getFetchErrorMessage({
+              responseStatus,
+              usedProxy: Boolean(base),
+            }),
+            response.status >= 500 ? "warning" : "error"
+          );
+          return;
+        }
+        text = await response.text();
       }
-      text = await response.text();
     } catch (error) {
       isFetching.value = false;
       setStatus(
         getFetchErrorMessage({
           error,
           responseStatus,
-          usedProxy: Boolean(form.proxyUrl.trim()),
+          usedProxy: !isDesktopApp() && Boolean(form.proxyUrl.trim()),
+          errorKind: isDesktopApp() ? "network" : undefined,
         }),
         "warning"
       );

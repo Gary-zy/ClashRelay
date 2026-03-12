@@ -1,21 +1,27 @@
 <template>
   <div class="ink-bg">
     <div class="container">
-      <div class="hero">
-        <div class="hero-content">
-          <div class="title-wrapper">
+      <header class="app-header">
+        <div class="app-brand">
+          <InkSeal class="hero-seal" :size="38" :rotate="-8" />
+          <div class="app-brand-copy">
+            <div class="app-brand-topline">
+              <span class="app-brand-kicker">RelayBox for macOS</span>
+              <span class="app-brand-mode">{{ modeSummary.stamp }}</span>
+            </div>
             <h1 class="hero-title">Clash 配置生成器</h1>
-            <InkSeal class="hero-seal" :size="64" :rotate="-15" />
           </div>
-          <InkBrushLine class="hero-brush" />
-          <p class="hero-desc">
-            {{ form.generateMode === 'subscription' ? '抓取订阅节点，规范化整理后直接输出 Clash Verge 可用配置。' : '获取订阅节点、决定是否走跳板、配置落地节点，然后生成干净的 Clash YAML。' }}
-          </p>
         </div>
-        <el-button type="primary" plain size="small" @click="showOnboarding" class="help-btn">
-          <el-icon><QuestionFilled /></el-icon>
-          使用指南
-        </el-button>
+        <div class="app-header-actions">
+          <span class="app-header-status">{{ modeSummary.output }}</span>
+          <el-button type="primary" plain size="small" @click="showOnboarding" class="help-btn">
+            <el-icon><QuestionFilled /></el-icon>
+            使用指南
+          </el-button>
+        </div>
+      </header>
+      <div class="app-header-caption">
+        {{ form.generateMode === 'subscription' ? '桌面端直接抓订阅、做整理、出 YAML，不再让你在长页面里滚来滚去。' : '订阅、节点、落地和导出都拆进独立工作区，主流程在桌面端横着走，不再纵向修仙。' }}
       </div>
 
       <InkBamboo position="fixed" :right="-40" :bottom="-50" :opacity="0.9" />
@@ -31,46 +37,78 @@
       />
 
       <div class="layout-stack">
-        <section class="workflow-ribbon">
-          <div class="workflow-ribbon-main">
-            <span class="workflow-kicker">当前工作台</span>
-            <div class="workflow-title-row">
-              <h2 class="workflow-title">{{ modeSummary.title }}</h2>
-              <span class="workflow-stamp">{{ modeSummary.stamp }}</span>
-            </div>
-            <p class="workflow-desc">{{ modeSummary.description }}</p>
-          </div>
-          <div class="workflow-ribbon-stats">
-            <div v-for="stat in workflowStats" :key="stat.label" class="workflow-stat-card">
-              <span class="workflow-stat-label">{{ stat.label }}</span>
-              <strong class="workflow-stat-value">{{ stat.value }}</strong>
-              <span class="workflow-stat-note">{{ stat.note }}</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="step-section mode-workbench">
-          <div class="mode-card-grid">
-            <button
-              v-for="mode in workbenchModes"
-              :key="mode.key"
-              type="button"
-              class="mode-card"
-              :class="{ 'is-active': currentWorkbenchMode === mode.key }"
-              @click="setWorkbenchMode(mode.key)"
-            >
-              <span class="mode-card-stamp">{{ mode.stamp }}</span>
-              <div class="mode-card-title-row">
-                <strong class="mode-card-title">{{ mode.title }}</strong>
-                <span class="mode-card-tag">{{ mode.output }}</span>
+        <!-- 左侧边栏 -->
+        <aside class="layout-sidebar">
+          <section class="workflow-ribbon">
+            <div class="workflow-ribbon-main">
+              <span class="workflow-kicker">工作台摘要</span>
+              <div class="workflow-title-row">
+                <span class="workflow-stamp">{{ modeSummary.stamp }}</span>
+                <h2 class="workflow-title">{{ modeSummary.title }}</h2>
               </div>
-              <p class="mode-card-desc">{{ mode.description }}</p>
-              <span class="mode-card-foot">{{ mode.footnote }}</span>
+              <p class="workflow-desc">{{ modeSummary.description }}</p>
+            </div>
+            <div class="workflow-ribbon-stats">
+              <div v-for="stat in workflowStats" :key="stat.label" class="workflow-stat-card">
+                <span class="workflow-stat-label">{{ stat.label }}</span>
+                <strong class="workflow-stat-value">{{ stat.value }}</strong>
+                <span class="workflow-stat-note">{{ stat.note }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="step-section mode-workbench">
+            <div class="mode-workbench-header">
+              <span class="workflow-kicker">链路模式</span>
+              <div class="mode-workbench-copy">
+                <strong class="mode-workbench-title">选择这次的生成路线</strong>
+                <span class="mode-workbench-note">这里先定生成方式，详细说明和节点行为放到中间工作台里看。</span>
+              </div>
+            </div>
+            <div class="mode-card-grid">
+              <button
+                v-for="mode in workbenchModes"
+                :key="mode.key"
+                type="button"
+                class="mode-card"
+                :class="{ 'is-active': currentWorkbenchMode === mode.key }"
+                @click="setWorkbenchMode(mode.key)"
+              >
+                <span class="mode-card-stamp">{{ mode.stamp }}</span>
+                <div class="mode-card-title-row">
+                  <strong class="mode-card-title">{{ mode.title }}</strong>
+                  <span class="mode-card-tag">{{ mode.output }}</span>
+                </div>
+                <p class="mode-card-desc">{{ mode.description }}</p>
+              </button>
+            </div>
+          </section>
+        </aside>
+
+        <!-- 右侧主区域 -->
+        <main class="layout-main">
+          <section class="step-section workspace-tabs-shell">
+          <div class="workspace-tab-strip">
+            <button
+              v-for="tab in workspaceTabs"
+              :key="tab.key"
+              type="button"
+              class="workspace-tab-button"
+              :class="{ 'is-active': activeWorkspaceTab === tab.key }"
+              @click="activeWorkspaceTab = tab.key"
+            >
+              <span class="workspace-tab-index">{{ tab.index }}</span>
+              <span class="workspace-tab-label">{{ tab.title }}</span>
+              <span class="workspace-tab-state" :class="`is-${tab.state}`">{{ tab.stateLabel }}</span>
             </button>
           </div>
+          <div class="workspace-tab-copy">
+            <strong>{{ currentWorkspaceMeta.title }}</strong>
+            <span>{{ currentWorkspaceMeta.note }}</span>
+          </div>
         </section>
 
-        <section :class="['step-section', `state-${getStepState('fetch')}`]">
+        <section v-show="activeWorkspaceTab === 'fetch'" :class="['step-section', 'fetch-stage', `state-${getStepState('fetch')}`]">
           <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('fetch')">
             <span class="step-number">1</span>
             <div class="step-heading">
@@ -105,10 +143,14 @@
               </el-form-item>
 
               <div class="fetch-grid">
-                <el-form-item label="本地订阅代理地址（可选）">
+                <el-form-item v-if="!isDesktopShell" label="本地订阅代理地址（可选）">
                   <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
                   <div class="helper-text">仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。</div>
                 </el-form-item>
+                <div v-else class="desktop-native-note">
+                  <strong>桌面端已内建订阅抓取与测速能力</strong>
+                  <span>这里不再需要手填本地代理地址，App 会直接通过原生宿主处理订阅请求和延迟测试。</span>
+                </div>
 
                 <div class="fetch-action-card">
                   <span class="fetch-action-kicker">下一步</span>
@@ -129,7 +171,7 @@
           </div>
         </section>
 
-        <section :class="['step-section', `state-${getStepState('nodes')}`]">
+        <section v-show="activeWorkspaceTab === 'nodes'" :class="['step-section', 'nodes-stage', `state-${getStepState('nodes')}`]">
           <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('nodes')">
             <span class="step-number">2</span>
             <div class="step-heading">
@@ -278,7 +320,7 @@
           </div>
         </section>
 
-        <section v-if="form.generateMode !== 'subscription'" :class="['step-section', `state-${getStepState('landing')}`]">
+        <section v-if="form.generateMode !== 'subscription' && activeWorkspaceTab === 'landing'" :class="['step-section', 'landing-stage', `state-${getStepState('landing')}`]">
           <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('landing')">
             <span class="step-number">3</span>
             <div class="step-heading">
@@ -351,7 +393,7 @@
           </div>
         </section>
 
-        <section v-if="form.generateMode === 'subscription'" :class="['step-section', 'subscription-info-card', `state-${getStepState('landing')}`]">
+        <section v-if="form.generateMode === 'subscription' && activeWorkspaceTab === 'landing'" :class="['step-section', 'subscription-info-card', 'landing-stage', `state-${getStepState('landing')}`]">
           <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('landing')">
             <span class="step-number">3</span>
             <div class="step-heading">
@@ -374,7 +416,7 @@
           </div>
         </section>
 
-        <section :class="['step-section', `state-${getStepState('rules')}`]">
+        <section v-show="activeWorkspaceTab === 'rules'" :class="['step-section', 'rules-stage', `state-${getStepState('rules')}`]">
           <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('rules')">
             <span class="step-number">4</span>
             <div class="step-heading">
@@ -388,7 +430,50 @@
           </div>
 
           <div v-show="isStepExpanded('rules')" class="step-body">
-            <div class="rule-card">
+            <div class="desktop-output-toolbar">
+              <div class="desktop-output-summary">
+                <span class="sticky-action-kicker">{{ modeSummary.stamp }}</span>
+                <strong class="desktop-output-title">{{ stickyActionSummary.title }}</strong>
+                <span class="desktop-output-note">{{ stickyActionSummary.note }}</span>
+              </div>
+              <div class="desktop-output-actions">
+                <span class="sticky-state-pill" :class="{ 'is-ready': readyToGenerate, 'is-blocked': !readyToGenerate }">
+                  {{ readyToGenerate ? "可以生成" : "还有前置条件" }}
+                </span>
+                <el-button v-if="lastSavedPath" size="small" @click="revealSavedYaml">定位文件</el-button>
+                <el-button v-if="yamlText" size="small" @click="copyYaml">复制</el-button>
+                <el-button v-if="yamlText" size="small" @click="downloadYaml">{{ saveActionLabel }}</el-button>
+                <el-button
+                  type="primary"
+                  size="large"
+                  @click="handleGenerate"
+                  :disabled="!readyToGenerate"
+                >
+                  {{ form.generateMode === 'subscription' ? '生成订阅配置' : '生成 Clash 配置' }}
+                </el-button>
+              </div>
+            </div>
+
+            <div class="output-tab-strip">
+              <button
+                type="button"
+                class="output-tab-button"
+                :class="{ 'is-active': activeOutputTab === 'rules' }"
+                @click="activeOutputTab = 'rules'"
+              >
+                规则
+              </button>
+              <button
+                type="button"
+                class="output-tab-button"
+                :class="{ 'is-active': activeOutputTab === 'preview' }"
+                @click="activeOutputTab = 'preview'"
+              >
+                预览
+              </button>
+            </div>
+
+            <div v-show="activeOutputTab === 'rules'" class="rule-card">
               <div class="rule-card-header">
                 <div>
                   <div class="config-label">自定义规则（可选）</div>
@@ -497,12 +582,12 @@
               </div>
             </div>
 
-            <div class="format-tip">
+            <div v-show="activeOutputTab === 'rules'" class="format-tip">
               <el-icon><InfoFilled /></el-icon>
               <span>当前只生成 Clash YAML，支持 Clash Verge、OpenClash、Shadowrocket 等客户端导入。</span>
             </div>
 
-            <div v-if="yamlText" class="yaml-section">
+            <div v-if="activeOutputTab === 'preview' && yamlText" class="yaml-section">
               <div class="yaml-header">
                 <div class="yaml-heading">
                   <span class="yaml-title">Clash 配置预览</span>
@@ -510,38 +595,19 @@
                 </div>
                 <div class="yaml-actions">
                   <el-button size="small" @click="copyYaml">复制</el-button>
-                  <el-button size="small" type="primary" @click="downloadYaml">下载</el-button>
+                  <el-button size="small" type="primary" @click="downloadYaml">{{ saveActionLabel }}</el-button>
                 </div>
               </div>
               <pre class="config-preview" v-html="highlightedYaml"></pre>
             </div>
+
+            <div v-else-if="activeOutputTab === 'preview'" class="empty-preview-card">
+              <strong>还没有可预览的 Clash YAML</strong>
+              <span>先把订阅、链路和规则准备好，再点一次生成。生成后我会把你自动切到这里。</span>
+            </div>
           </div>
         </section>
-      </div>
-
-      <div class="sticky-action-bar" :class="{ 'has-preview': !!yamlText }">
-        <div class="sticky-action-copy">
-          <span class="sticky-action-kicker">{{ modeSummary.stamp }}</span>
-          <strong class="sticky-action-title">{{ stickyActionSummary.title }}</strong>
-          <span class="sticky-action-note">{{ stickyActionSummary.note }}</span>
-        </div>
-        <div class="sticky-action-indicator">
-          <span class="sticky-state-pill" :class="{ 'is-ready': readyToGenerate, 'is-blocked': !readyToGenerate }">
-            {{ readyToGenerate ? "可以生成" : "还有前置条件" }}
-          </span>
-        </div>
-        <div class="sticky-action-buttons">
-          <el-button v-if="yamlText" size="small" @click="copyYaml">复制</el-button>
-          <el-button v-if="yamlText" size="small" @click="downloadYaml">下载</el-button>
-          <el-button
-            type="primary"
-            size="large"
-            @click="handleGenerate"
-            :disabled="!readyToGenerate"
-          >
-            {{ form.generateMode === 'subscription' ? '生成订阅配置' : '生成 Clash 配置' }}
-          </el-button>
-        </div>
+        </main>
       </div>
 
       <div class="footer">
@@ -559,16 +625,17 @@ import { QuestionFilled, Search, Loading, InfoFilled, ArrowDown } from "@element
 import SelectionTray from "./components/SelectionTray.vue";
 import InkSeal from "./components/decorations/InkSeal.vue";
 import InkBamboo from "./components/decorations/InkBamboo.vue";
-import InkBrushLine from "./components/decorations/InkBrushLine.vue";
 import InkLoading from "./components/InkLoading.vue";
 import { useNodes } from "./composables/useNodes.js";
 import { useSubscription } from "./composables/useSubscription.js";
 import { useConfig } from "./composables/useConfig.js";
 import { highlightYaml } from "./utils/helpers.js";
+import { desktopApi, isDesktopApp } from "./utils/desktop.js";
 
 const OnboardingWizard = defineAsyncComponent(() => import("./components/OnboardingWizard.vue"));
 
 const STORAGE_KEY = "clashrelay_config";
+const DESKTOP_STATE_VERSION = 1;
 const LEGACY_STORAGE_KEYS = ["clashrelay_favorites", "clashrelay_health", "clashrelay_template", "clashrelay_rules"];
 const landingTypeOptions = [
   { label: "SOCKS5", value: "socks5" },
@@ -609,11 +676,16 @@ const persistedKeys = [
   "isDirect",
   "generateMode",
 ];
+const desktopPersistedKeys = persistedKeys.filter((key) => key !== "proxyUrl");
+const isDesktopShell = isDesktopApp();
 
 const globalLoading = ref(false);
 const isCompactViewport = ref(false);
 const onboardingRef = ref(null);
 const showAdvancedRuleEditor = ref(true);
+const lastSavedPath = ref("");
+const activeWorkspaceTab = ref("fetch");
+const activeOutputTab = ref("rules");
 const expandedSteps = reactive({
   fetch: true,
   nodes: true,
@@ -625,6 +697,8 @@ const ruleDraft = reactive({
   value: "",
   policy: "",
 });
+
+let saveConfigTimer = null;
 
 const loadSavedConfig = () => {
   try {
@@ -639,6 +713,15 @@ const loadSavedConfig = () => {
     return null;
   }
 };
+
+const createDesktopStatePayload = () => ({
+  version: DESKTOP_STATE_VERSION,
+  form: desktopPersistedKeys.reduce((acc, key) => {
+    acc[key] = Array.isArray(form[key]) ? [...form[key]] : form[key];
+    return acc;
+  }, {}),
+  lastSavedPath: lastSavedPath.value || "",
+});
 
 const clearLegacyStorage = () => {
   LEGACY_STORAGE_KEYS.forEach((key) => {
@@ -672,6 +755,7 @@ const form = reactive({ ...formDefaults });
 const status = reactive({ message: "", type: "info" });
 const yamlText = ref("");
 const previousYaml = ref("");
+const saveActionLabel = computed(() => (isDesktopShell ? "保存" : "下载"));
 
 const {
   nodes,
@@ -698,6 +782,12 @@ const saveConfig = () => {
     }, {});
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {}
+
+  if (!isDesktopShell) return;
+  if (saveConfigTimer) window.clearTimeout(saveConfigTimer);
+  saveConfigTimer = window.setTimeout(() => {
+    desktopApi.saveState(createDesktopStatePayload()).catch(() => {});
+  }, 200);
 };
 
 const {
@@ -1089,6 +1179,69 @@ const getStepStateLabel = (key) => {
   };
   return labelMap[getStepState(key)];
 };
+const workspaceTabs = computed(() => {
+  const tabs = [
+    { key: "fetch", title: "订阅", state: getStepState("fetch"), stateLabel: getStepStateLabel("fetch") },
+    {
+      key: "nodes",
+      title: currentWorkbenchMode.value === "subscription" ? "整理" : "节点",
+      state: getStepState("nodes"),
+      stateLabel: getStepStateLabel("nodes"),
+    },
+  ];
+
+  if (form.generateMode !== "subscription") {
+    tabs.push({
+      key: "landing",
+      title: "落地",
+      state: getStepState("landing"),
+      stateLabel: getStepStateLabel("landing"),
+    });
+  }
+
+  tabs.push({
+    key: "rules",
+    title: "导出",
+    state: getStepState("rules"),
+    stateLabel: getStepStateLabel("rules"),
+  });
+
+  return tabs.map((tab, index) => ({
+    ...tab,
+    index: String(index + 1).padStart(2, "0"),
+  }));
+});
+const currentWorkspaceMeta = computed(() => {
+  if (activeWorkspaceTab.value === "fetch") {
+    return {
+      title: "订阅入口",
+      note: currentWorkbenchMode.value === "direct"
+        ? "直连模式里这一步可选，但有订阅就能顺手看一眼节点质量。"
+        : "先把节点拉进桌面工作台，后面的链路和导出才有东西干活。",
+    };
+  }
+
+  if (activeWorkspaceTab.value === "nodes") {
+    return {
+      title: modeSummary.value.nodeTitle,
+      note: modeSummary.value.nodeDescription,
+    };
+  }
+
+  if (activeWorkspaceTab.value === "rules") {
+    return {
+      title: "规则与导出",
+      note: "最后一步单独看，规则、预览和保存都放在这儿，别再让结果区把前面步骤挤成夹心饼干。",
+    };
+  }
+
+  return {
+    title: "落地配置",
+    note: form.generateMode === "subscription"
+      ? "整理模式不需要落地节点，这一步直接省掉。"
+      : "把落地节点参数一次填顺，别在生成前后反复回头补洞。",
+  };
+});
 const isStepExpanded = (key) => !isCompactViewport.value || expandedSteps[key];
 const toggleStepPanel = (key) => {
   if (!isCompactViewport.value) return;
@@ -1101,6 +1254,8 @@ const handleGenerate = () => {
     return;
   }
   generateYaml();
+  activeWorkspaceTab.value = "rules";
+  activeOutputTab.value = "preview";
 };
 
 const appendLinesToCustomRules = (lines) => {
@@ -1179,22 +1334,37 @@ const handleFetchWithLoading = async () => {
 const copyYaml = async () => {
   if (!yamlText.value) return;
   try {
-    await navigator.clipboard.writeText(yamlText.value);
+    await desktopApi.copyText(yamlText.value);
     ElMessage.success("Clash 配置已复制到剪贴板");
   } catch {
     ElMessage.error("复制失败，请手动复制");
   }
 };
 
-const downloadYaml = () => {
+const downloadYaml = async () => {
   if (!yamlText.value) return;
-  const blob = new Blob([yamlText.value], { type: "text/yaml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "config.yaml";
-  link.click();
-  URL.revokeObjectURL(url);
+  try {
+    const result = await desktopApi.saveYaml("config.yaml", yamlText.value);
+    if (result?.canceled) return;
+    if (result?.path) {
+      lastSavedPath.value = result.path;
+      saveConfig();
+      ElMessage.success("Clash 配置已保存");
+      return;
+    }
+    ElMessage.success("Clash 配置已下载");
+  } catch {
+    ElMessage.error("保存失败，请重试");
+  }
+};
+
+const revealSavedYaml = async () => {
+  if (!lastSavedPath.value) return;
+  try {
+    await desktopApi.revealInFinder(lastSavedPath.value);
+  } catch {
+    ElMessage.error("无法在 Finder 中定位文件");
+  }
 };
 
 const removeSelectedNode = (nodeName) => {
@@ -1230,29 +1400,58 @@ const loadDemoConfig = () => {
   });
 };
 
-onMounted(() => {
+onMounted(async () => {
   syncViewportState();
   window.addEventListener("resize", syncViewportState);
   clearLegacyStorage();
+
+  if (isDesktopShell) {
+    try {
+      const savedDesktopState = await desktopApi.loadState();
+      if (savedDesktopState?.form) {
+        Object.assign(form, savedDesktopState.form);
+        lastSavedPath.value = savedDesktopState.lastSavedPath || "";
+        return;
+      }
+    } catch {}
+  }
+
   const savedConfig = loadSavedConfig();
   if (savedConfig) {
     Object.assign(form, savedConfig);
+    if (isDesktopShell) {
+      desktopApi.saveState({
+        version: DESKTOP_STATE_VERSION,
+        form: desktopPersistedKeys.reduce((acc, key) => {
+          acc[key] = Array.isArray(form[key]) ? [...form[key]] : form[key];
+          return acc;
+        }, {}),
+        lastSavedPath: "",
+      }).catch(() => {});
+    }
   }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", syncViewportState);
+  if (saveConfigTimer) window.clearTimeout(saveConfigTimer);
 });
 
 watch(form, saveConfig, { deep: true });
 
 watch(activeStep, (step) => {
+  if (workspaceTabs.value.some((tab) => tab.key === step)) {
+    activeWorkspaceTab.value = step;
+  }
   if (isCompactViewport.value) {
     expandedSteps[step] = true;
   }
 });
 
 watch(currentWorkbenchMode, (mode) => {
+  if (mode === "subscription" && activeWorkspaceTab.value === "landing") {
+    activeWorkspaceTab.value = "nodes";
+  }
   ruleDraft.policy = mode === 'subscription' ? '🌐 代理出口' : landingPolicyName.value;
 }, { immediate: true });
 
@@ -1261,14 +1460,117 @@ watch(landingPolicyName, (newName) => {
     ruleDraft.policy = newName;
   }
 });
+
+watch(yamlText, (value) => {
+  if (value) {
+    activeOutputTab.value = "preview";
+  }
+});
 </script>
 
 <style>
 .layout-stack {
   display: flex;
+  gap: 18px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.layout-sidebar {
+  width: 272px;
+  display: flex;
   flex-direction: column;
   gap: 18px;
-  padding-bottom: 124px;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.layout-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Sidebar contents flex behavior */
+.workflow-ribbon {
+  flex-shrink: 0;
+}
+
+.mode-workbench {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Main contents flex behavior */
+.workspace-tabs-shell {
+  flex-shrink: 0;
+}
+
+.fetch-stage,
+.nodes-stage,
+.landing-stage,
+.rules-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desktop-native-note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px dashed rgba(31, 42, 68, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink-700);
+  line-height: 1.6;
+}
+
+.desktop-output-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 14px 30px rgba(26, 26, 26, 0.06);
+}
+
+.desktop-output-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desktop-output-title {
+  color: var(--ink-800);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.desktop-output-note {
+  color: var(--ink-600);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.desktop-output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .workflow-ribbon,
@@ -1278,13 +1580,14 @@ watch(landingPolicyName, (newName) => {
   border: 1px solid var(--line-300);
   border-radius: 22px;
   box-shadow: var(--shadow-ink);
+  min-height: 0;
 }
 
 .workflow-ribbon {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 18px;
-  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
   overflow: hidden;
 }
 
@@ -1325,16 +1628,17 @@ watch(landingPolicyName, (newName) => {
 
 .workflow-title-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 10px 0 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 4px;
 }
 
 .workflow-title {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: clamp(22px, 3vw, 32px);
-  line-height: 1.18;
+  font-size: clamp(22px, 2vw, 28px);
+  line-height: 1.22;
   color: var(--ink-800);
 }
 
@@ -1355,52 +1659,89 @@ watch(landingPolicyName, (newName) => {
 .workflow-desc {
   margin: 0;
   color: var(--ink-600);
-  line-height: 1.75;
-  max-width: 66ch;
+  line-height: 1.65;
+  max-width: 24ch;
 }
 
 .workflow-ribbon-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .workflow-stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 116px;
-  padding: 14px;
-  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 4px 14px;
+  align-items: start;
+  min-height: 0;
+  padding: 11px 13px;
+  border-radius: 16px;
   border: 1px solid rgba(31, 42, 68, 0.08);
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .workflow-stat-label {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   font-size: 12px;
   color: var(--ink-600);
+  padding-top: 4px;
 }
 
 .workflow-stat-value {
+  grid-column: 2;
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size: 18px;
+  line-height: 1.15;
   color: var(--accent-600);
 }
 
 .workflow-stat-note {
+  grid-column: 2;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: #687487;
 }
 
 .mode-workbench {
-  padding: 18px 20px;
+  padding: 14px 16px 16px;
+  background: rgba(253, 251, 247, 0.88);
+  border: 1px solid var(--line-300);
+  border-radius: 22px;
+  box-shadow: var(--shadow-ink);
+  overflow-y: auto;
+}
+
+.mode-workbench-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mode-workbench-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mode-workbench-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink-800);
+}
+
+.mode-workbench-note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #6b7789;
 }
 
 .mode-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .mode-card {
@@ -1410,15 +1751,15 @@ watch(landingPolicyName, (newName) => {
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 16px 18px;
-  border-radius: 18px;
+  gap: 7px;
+  padding: 12px 13px 13px;
+  border-radius: 15px;
   border: 1px solid rgba(31, 42, 68, 0.1);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 247, 242, 0.85));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 246, 241, 0.9));
   cursor: pointer;
   isolation: isolate;
   transition:
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s ease,
     border-color 0.28s ease,
     box-shadow 0.28s ease,
     background 0.28s ease;
@@ -1460,12 +1801,10 @@ watch(landingPolicyName, (newName) => {
 }
 
 .mode-card:hover {
-  transform: translateY(-6px) scale(1.012);
-  border-color: rgba(185, 43, 39, 0.24);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 241, 234, 0.96));
-  box-shadow:
-    0 22px 34px rgba(31, 42, 68, 0.11),
-    0 8px 18px rgba(185, 43, 39, 0.08);
+  transform: translateY(-1px);
+  border-color: rgba(185, 43, 39, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 246, 239, 0.94));
+  box-shadow: 0 10px 20px rgba(31, 42, 68, 0.05);
 }
 
 .mode-card:hover::before {
@@ -1501,9 +1840,9 @@ watch(landingPolicyName, (newName) => {
 }
 
 .mode-card.is-active {
-  border-color: rgba(185, 43, 39, 0.32);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 241, 234, 0.94));
-  box-shadow: inset 0 0 0 1px rgba(185, 43, 39, 0.12), 0 16px 32px rgba(185, 43, 39, 0.08);
+  border-color: rgba(185, 43, 39, 0.24);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
+  box-shadow: inset 3px 0 0 rgba(185, 43, 39, 0.52), 0 10px 18px rgba(31, 42, 68, 0.05);
 }
 
 .mode-card-stamp {
@@ -1534,13 +1873,15 @@ watch(landingPolicyName, (newName) => {
 .mode-card-title-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  align-items: center;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .mode-card-title {
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 15px;
+  line-height: 1.25;
   color: var(--ink-800);
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), color 0.28s ease;
 }
@@ -1557,16 +1898,174 @@ watch(landingPolicyName, (newName) => {
 .mode-card-desc,
 .mode-card-foot {
   color: var(--ink-600);
-  line-height: 1.65;
+  line-height: 1.5;
+  font-size: 12px;
   transition: color 0.28s ease;
 }
 
 .mode-card-foot {
+  display: none;
+}
+
+.workspace-tab-strip,
+.output-tab-strip {
+  display: flex;
+  gap: 10px;
+}
+
+.workspace-tab-strip {
+  flex-wrap: wrap;
+}
+
+.workspace-tab-button,
+.output-tab-button {
+  appearance: none;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink-700);
+  cursor: pointer;
+  transition:
+    border-color 0.22s ease,
+    background 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+.workspace-tab-button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 148px;
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.workspace-tab-button:hover,
+.output-tab-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(185, 43, 39, 0.16);
+  box-shadow: 0 10px 18px rgba(31, 42, 68, 0.04);
+}
+
+.workspace-tab-button.is-active,
+.output-tab-button.is-active {
+  border-color: rgba(185, 43, 39, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(185, 43, 39, 0.08);
+}
+
+.workspace-tab-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(31, 42, 68, 0.08);
+  color: var(--accent-600);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workspace-tab-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-800);
+}
+
+.workspace-tab-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.workspace-tab-state.is-complete {
+  background: rgba(88, 112, 103, 0.1);
+  color: var(--bamboo-500);
+}
+
+.workspace-tab-state.is-active {
+  background: rgba(185, 43, 39, 0.1);
+  color: var(--vermillion-500);
+}
+
+.workspace-tab-state.is-pending {
+  background: rgba(31, 42, 68, 0.08);
+  color: var(--ink-600);
+}
+
+.workspace-tab-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(31, 42, 68, 0.08);
+}
+
+.workspace-tab-copy strong {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink-800);
+}
+
+.workspace-tab-copy span {
+  color: var(--ink-600);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.output-tab-strip {
+  margin-bottom: 14px;
+}
+
+.output-tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
   font-size: 12px;
+  font-weight: 700;
+}
+
+.empty-preview-card {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px dashed rgba(31, 42, 68, 0.14);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.empty-preview-card strong {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink-800);
+}
+
+.empty-preview-card span {
+  color: var(--ink-600);
+  line-height: 1.6;
 }
 
 .step-section {
-  padding: 20px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .step-section.state-active {
@@ -1703,6 +2202,9 @@ watch(landingPolicyName, (newName) => {
 
 .step-body {
   padding-top: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .title-wrapper {
@@ -1828,6 +2330,11 @@ watch(landingPolicyName, (newName) => {
   gap: 10px;
 }
 
+.rule-card-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .rule-card-actions .el-button.is-text {
   border-radius: 999px;
   padding-inline: 12px;
@@ -1872,6 +2379,7 @@ watch(landingPolicyName, (newName) => {
 
 .node-table-shell {
   position: relative;
+  min-height: 0;
 }
 
 .node-table-shell.is-readonly {
@@ -2006,20 +2514,31 @@ watch(landingPolicyName, (newName) => {
 
 .rule-card {
   padding: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .rule-card-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: flex-start;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
   margin-bottom: 14px;
+}
+
+.rule-card-header > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .rule-workbench {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
+  min-height: 0;
 }
 
 .rule-builder-panel,
@@ -2192,7 +2711,11 @@ watch(landingPolicyName, (newName) => {
 }
 
 .yaml-section {
-  margin-top: 16px;
+  margin-top: 0;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
 }
 
 .yaml-header {
@@ -2351,7 +2874,12 @@ watch(landingPolicyName, (newName) => {
 }
 
 @media (max-width: 1100px) {
-  .workflow-ribbon,
+  .layout-stack {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+
   .fetch-grid,
   .rule-workbench,
   .mode-card-grid {
@@ -2360,10 +2888,6 @@ watch(landingPolicyName, (newName) => {
 }
 
 @media (max-width: 900px) {
-  .layout-stack {
-    padding-bottom: 168px;
-  }
-
   .step-section,
   .mode-workbench,
   .workflow-ribbon {
@@ -2382,6 +2906,7 @@ watch(landingPolicyName, (newName) => {
   .selector-toolbar,
   .selector-toolbar-filters,
   .selector-toolbar-actions,
+  .workspace-tab-strip,
   .rule-card-header,
   .rule-card-actions,
   .yaml-header,
@@ -2402,6 +2927,16 @@ watch(landingPolicyName, (newName) => {
 
   .history-url {
     max-width: 220px;
+  }
+
+  .workspace-tab-button {
+    min-width: 0;
+    grid-template-columns: auto 1fr;
+  }
+
+  .workspace-tab-state {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .sticky-action-bar {

@@ -11,7 +11,7 @@ const isValidPort = (value) => {
   return Number.isInteger(port) && port > 0 && port <= 65535;
 };
 
-export const getFetchErrorMessage = ({ error, responseStatus, usedProxy }) => {
+export const getFetchErrorMessage = ({ error, responseStatus, usedProxy, errorKind }) => {
   if (responseStatus) {
     if (responseStatus === 401 || responseStatus === 403) {
       return "订阅请求被目标站拒绝了，检查订阅链接、鉴权参数或本地代理配置。";
@@ -29,6 +29,18 @@ export const getFetchErrorMessage = ({ error, responseStatus, usedProxy }) => {
 
   if (usedProxy) {
     return "本地代理地址不可用，或者代理服务没启动。先确认 proxy-server.js 在跑，再重试。";
+  }
+
+  if (errorKind === "invalid_url") {
+    return "订阅地址格式不对，只支持 http/https。";
+  }
+
+  if (errorKind === "timeout") {
+    return "订阅请求超时了，网络太慢或者订阅源没响应。";
+  }
+
+  if (errorKind === "network") {
+    return "桌面端拉取订阅失败，网络不可达或者订阅源拒绝连接。";
   }
 
   if (error?.name === "AbortError") {

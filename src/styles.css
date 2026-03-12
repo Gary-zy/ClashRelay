@@ -61,9 +61,10 @@ body {
 
 .ink-bg {
   position: relative;
+  height: 100vh;
   min-height: 100vh;
-  padding: 32px 20px 56px;
-  overflow-x: hidden;
+  padding: 16px 18px 14px;
+  overflow: hidden;
   background-image: url('./assets/ink_bg.png');
   background-size: cover;
   background-position: center center;
@@ -73,31 +74,101 @@ body {
 
 .container {
   position: relative;
-  max-width: 1180px;
+  max-width: 1560px;
   margin: 0 auto;
   z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.hero {
+.app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 18px 12px 28px;
+  gap: 20px;
+  padding: 2px 4px 10px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(38, 36, 34, 0.1);
+  flex-shrink: 0;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-brand-topline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-brand-kicker {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a7f87;
+}
+
+.app-brand-mode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(185, 43, 39, 0.08);
+  color: var(--vermillion-500);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .hero-title {
   font-family: var(--font-serif);
-  font-size: 30px;
-  letter-spacing: 0.5px;
-  margin: 0 0 10px;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+  margin: 0;
 }
 
-.hero-desc {
-  margin: 0;
-  font-size: 15px;
-  color: var(--ink-700);
-  line-height: 1.6;
+.app-header-caption {
+  margin: 0 0 10px;
+  padding: 0 4px;
+  max-width: 980px;
+  font-size: 13px;
+  color: var(--ink-600);
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 0;
+  flex-shrink: 0;
+}
+
+.app-header-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 42, 68, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink-600);
+  font-size: 12px;
 }
 
 .hero-card {
@@ -154,16 +225,19 @@ body {
   padding: 14px;
   border-radius: 12px;
   border: 1px solid #1e293b;
-  max-height: 420px;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   white-space: pre;
 }
 
 .footer {
-  margin-top: 28px;
+  margin-top: 10px;
   text-align: center;
   color: #6b7280;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .helper-text {
@@ -353,16 +427,16 @@ body {
     padding: 16px 12px 40px;
   }
   
-  .hero {
+  .app-header {
     flex-direction: column;
-    text-align: center;
-    padding: 12px 8px 20px;
+    align-items: stretch;
+    padding: 12px 8px 18px;
   }
-  
-  .hero-title {
-    font-size: 24px;
+
+  .app-header-actions {
+    justify-content: space-between;
   }
-  
+
   .hero-desc {
     font-size: 14px;
   }

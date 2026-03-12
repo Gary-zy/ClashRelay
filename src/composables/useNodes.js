@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { formatTime } from "../utils/helpers.js";
+import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 
 const regionMap = {
   "香港": ["香港", "HK", "Hong Kong", "HongKong", "🇭🇰"],
@@ -136,6 +137,15 @@ export const useNodes = ({ form, status }) => {
   };
 
   const testNodeLatency = async (node) => {
+    if (isDesktopApp()) {
+      try {
+        const data = await desktopApi.pingNode(node.server, Number(node.port));
+        return data.latency;
+      } catch (error) {
+        return -2;
+      }
+    }
+
     const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
     const pingUrl = `${proxyUrl}/ping`;
 
