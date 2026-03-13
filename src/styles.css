@@ -77,6 +77,7 @@ body {
   max-width: 1560px;
   margin: 0 auto;
   z-index: 1;
+  padding-top: 36px; /* 沉浸式标题栏红绿灯空间 */
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -88,10 +89,12 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 2px 4px 10px;
+  padding: 2px 4px 8px;
+  padding-left: 80px; /* 为红绿灯按钮留空间 */
   margin-bottom: 2px;
-  border-bottom: 1px solid rgba(38, 36, 34, 0.1);
+  border-bottom: 1px solid rgba(38, 36, 34, 0.08);
   flex-shrink: 0;
+  -webkit-app-region: drag; /* 允许拖动窗口 */
 }
 
 .app-brand {
@@ -142,12 +145,12 @@ body {
 }
 
 .app-header-caption {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   padding: 0 4px;
   max-width: 980px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink-600);
-  line-height: 1.5;
+  line-height: 1.4;
   flex-shrink: 0;
 }
 
@@ -157,6 +160,7 @@ body {
   gap: 10px;
   padding-top: 0;
   flex-shrink: 0;
+  -webkit-app-region: no-drag; /* 按钮区域不响应窗口拖拽 */
 }
 
 .app-header-status {

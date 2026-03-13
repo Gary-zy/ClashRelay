@@ -1,7 +1,7 @@
 <template>
   <div class="ink-bg">
     <div class="container">
-      <header class="app-header">
+      <header class="app-header" data-tauri-drag-region>
         <div class="app-brand">
           <InkSeal class="hero-seal" :size="38" :rotate="-8" />
           <div class="app-brand-copy">
@@ -36,56 +36,35 @@
         @load-demo="loadDemoConfig"
       />
 
-      <div class="layout-stack">
-        <!-- 左侧边栏 -->
-        <aside class="layout-sidebar">
-          <section class="workflow-ribbon">
-            <div class="workflow-ribbon-main">
-              <span class="workflow-kicker">工作台摘要</span>
-              <div class="workflow-title-row">
-                <span class="workflow-stamp">{{ modeSummary.stamp }}</span>
-                <h2 class="workflow-title">{{ modeSummary.title }}</h2>
-              </div>
-              <p class="workflow-desc">{{ modeSummary.description }}</p>
+      <div class="layout-flow">
+        <!-- 顶部信息条 -->
+        <div class="dashboard-strip">
+          <div class="dashboard-left">
+            <span class="workflow-stamp">{{ modeSummary.stamp }}</span>
+            <strong class="dashboard-title">{{ modeSummary.title }}</strong>
+          </div>
+          <div class="dashboard-center">
+            <div v-for="stat in workflowStats" :key="stat.label" class="dashboard-stat-chip">
+              <span class="dashboard-stat-label">{{ stat.label }}</span>
+              <strong class="dashboard-stat-value">{{ stat.value }}</strong>
             </div>
-            <div class="workflow-ribbon-stats">
-              <div v-for="stat in workflowStats" :key="stat.label" class="workflow-stat-card">
-                <span class="workflow-stat-label">{{ stat.label }}</span>
-                <strong class="workflow-stat-value">{{ stat.value }}</strong>
-                <span class="workflow-stat-note">{{ stat.note }}</span>
-              </div>
-            </div>
-          </section>
+          </div>
+          <div class="dashboard-right">
+            <button
+              v-for="mode in workbenchModes"
+              :key="mode.key"
+              type="button"
+              class="mode-pill"
+              :class="{ 'is-active': currentWorkbenchMode === mode.key }"
+              @click="setWorkbenchMode(mode.key)"
+            >
+              <span class="mode-pill-stamp">{{ mode.stamp }}</span>
+              <span class="mode-pill-label">{{ mode.title }}</span>
+            </button>
+          </div>
+        </div>
 
-          <section class="step-section mode-workbench">
-            <div class="mode-workbench-header">
-              <span class="workflow-kicker">链路模式</span>
-              <div class="mode-workbench-copy">
-                <strong class="mode-workbench-title">选择这次的生成路线</strong>
-                <span class="mode-workbench-note">这里先定生成方式，详细说明和节点行为放到中间工作台里看。</span>
-              </div>
-            </div>
-            <div class="mode-card-grid">
-              <button
-                v-for="mode in workbenchModes"
-                :key="mode.key"
-                type="button"
-                class="mode-card"
-                :class="{ 'is-active': currentWorkbenchMode === mode.key }"
-                @click="setWorkbenchMode(mode.key)"
-              >
-                <span class="mode-card-stamp">{{ mode.stamp }}</span>
-                <div class="mode-card-title-row">
-                  <strong class="mode-card-title">{{ mode.title }}</strong>
-                  <span class="mode-card-tag">{{ mode.output }}</span>
-                </div>
-                <p class="mode-card-desc">{{ mode.description }}</p>
-              </button>
-            </div>
-          </section>
-        </aside>
-
-        <!-- 右侧主区域 -->
+        <!-- 全宽主工作区 -->
         <main class="layout-main">
           <section class="step-section workspace-tabs-shell">
           <div class="workspace-tab-strip">
@@ -101,10 +80,6 @@
               <span class="workspace-tab-label">{{ tab.title }}</span>
               <span class="workspace-tab-state" :class="`is-${tab.state}`">{{ tab.stateLabel }}</span>
             </button>
-          </div>
-          <div class="workspace-tab-copy">
-            <strong>{{ currentWorkspaceMeta.title }}</strong>
-            <span>{{ currentWorkspaceMeta.note }}</span>
           </div>
         </section>
 
@@ -1469,43 +1444,137 @@ watch(yamlText, (value) => {
 </script>
 
 <style>
-.layout-stack {
+/* ═══════════════════════════════════════════
+   新版流式布局
+   ═══════════════════════════════════════════ */
+.layout-flow {
   display: flex;
-  gap: 18px;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 14px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.layout-sidebar {
-  width: 272px;
+/* ── 顶部信息条 ── */
+.dashboard-strip {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  gap: 16px;
   flex-shrink: 0;
-  min-height: 0;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: rgba(253, 251, 247, 0.9);
+  border: 1px solid var(--line-300);
+  box-shadow: 0 8px 20px rgba(22, 23, 24, 0.05);
 }
 
+.dashboard-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dashboard-title {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--ink-800);
+  white-space: nowrap;
+}
+
+.dashboard-center {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.dashboard-stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 42, 68, 0.06);
+  background: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+}
+
+.dashboard-stat-label {
+  font-size: 11px;
+  color: var(--ink-600);
+}
+
+.dashboard-stat-value {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1;
+  color: var(--accent-600);
+}
+
+.dashboard-right {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mode-pill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink-700);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    border-color 0.22s ease,
+    background 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.mode-pill:hover {
+  border-color: rgba(185, 43, 39, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 12px rgba(31, 42, 68, 0.06);
+}
+
+.mode-pill.is-active {
+  border-color: rgba(185, 43, 39, 0.3);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
+  box-shadow: 0 0 0 2px rgba(185, 43, 39, 0.12);
+}
+
+.mode-pill-stamp {
+  font-size: 12px;
+}
+
+.mode-pill.is-active .mode-pill-stamp {
+  color: var(--vermillion-500);
+}
+
+.mode-pill-label {
+  font-weight: 600;
+}
+
+.mode-pill.is-active .mode-pill-label {
+  color: var(--ink-900);
+}
+
+/* ── 全宽主区域 ── */
 .layout-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   min-width: 0;
   min-height: 0;
-}
-
-/* Sidebar contents flex behavior */
-.workflow-ribbon {
-  flex-shrink: 0;
-}
-
-.mode-workbench {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 /* Main contents flex behavior */
@@ -1573,7 +1642,6 @@ watch(yamlText, (value) => {
   align-items: center;
 }
 
-.workflow-ribbon,
 .step-section {
   position: relative;
   background: rgba(253, 251, 247, 0.88);
@@ -1583,15 +1651,6 @@ watch(yamlText, (value) => {
   min-height: 0;
 }
 
-.workflow-ribbon {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  overflow: hidden;
-}
-
-.workflow-ribbon::before,
 .step-section::before {
   content: "";
   position: absolute;
@@ -1603,8 +1662,6 @@ watch(yamlText, (value) => {
     linear-gradient(180deg, rgba(31, 42, 68, 0.02), transparent 35%);
 }
 
-.workflow-ribbon-main,
-.workflow-ribbon-stats,
 .step-header,
 .step-body {
   position: relative;
@@ -1626,21 +1683,7 @@ watch(yamlText, (value) => {
   color: var(--ink-600);
 }
 
-.workflow-title-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 8px 0 4px;
-}
-
-.workflow-title {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(22px, 2vw, 28px);
-  line-height: 1.22;
-  color: var(--ink-800);
-}
+/* (旧版 workflow-title-row / workflow-title / workflow-desc 已移至 dashboard-*) */
 
 .workflow-stamp {
   display: inline-flex;
@@ -1656,91 +1699,13 @@ watch(yamlText, (value) => {
   letter-spacing: 0.12em;
 }
 
-.workflow-desc {
-  margin: 0;
-  color: var(--ink-600);
-  line-height: 1.65;
-  max-width: 24ch;
-}
+/* (旧版 workflow-ribbon-stats / workflow-stat-card 已移至 dashboard-stat-*) */
 
-.workflow-ribbon-stats {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.workflow-stat-card {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 4px 14px;
-  align-items: start;
-  min-height: 0;
-  padding: 11px 13px;
-  border-radius: 16px;
-  border: 1px solid rgba(31, 42, 68, 0.08);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.workflow-stat-label {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  font-size: 12px;
-  color: var(--ink-600);
-  padding-top: 4px;
-}
-
-.workflow-stat-value {
-  grid-column: 2;
-  font-family: var(--font-serif);
-  font-size: 18px;
-  line-height: 1.15;
-  color: var(--accent-600);
-}
-
-.workflow-stat-note {
-  grid-column: 2;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #687487;
-}
-
-.mode-workbench {
-  padding: 14px 16px 16px;
-  background: rgba(253, 251, 247, 0.88);
-  border: 1px solid var(--line-300);
-  border-radius: 22px;
-  box-shadow: var(--shadow-ink);
-  overflow-y: auto;
-}
-
-.mode-workbench-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.mode-workbench-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.mode-workbench-title {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  color: var(--ink-800);
-}
-
-.mode-workbench-note {
-  font-size: 12px;
-  line-height: 1.55;
-  color: #6b7789;
-}
+/* (mode-workbench 已废弃，合并到 dashboard-modes) */
 
 .mode-card-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1801,7 +1766,6 @@ watch(yamlText, (value) => {
 }
 
 .mode-card:hover {
-  transform: translateY(-1px);
   border-color: rgba(185, 43, 39, 0.18);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 246, 239, 0.94));
   box-shadow: 0 10px 20px rgba(31, 42, 68, 0.05);
@@ -1818,15 +1782,12 @@ watch(yamlText, (value) => {
 }
 
 .mode-card:hover .mode-card-stamp {
-  transform: translateY(-2px) rotate(-4deg);
   background: rgba(185, 43, 39, 0.14);
   color: var(--vermillion-500);
-  box-shadow: 0 8px 14px rgba(185, 43, 39, 0.12);
 }
 
 .mode-card:hover .mode-card-title {
   color: #181615;
-  transform: translateX(3px);
 }
 
 .mode-card:hover .mode-card-tag {
@@ -1840,9 +1801,9 @@ watch(yamlText, (value) => {
 }
 
 .mode-card.is-active {
-  border-color: rgba(185, 43, 39, 0.24);
+  border-color: rgba(185, 43, 39, 0.3);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
-  box-shadow: inset 3px 0 0 rgba(185, 43, 39, 0.52), 0 10px 18px rgba(31, 42, 68, 0.05);
+  box-shadow: 0 0 0 2px rgba(185, 43, 39, 0.15);
 }
 
 .mode-card-stamp {
@@ -2000,26 +1961,7 @@ watch(yamlText, (value) => {
   color: var(--ink-600);
 }
 
-.workspace-tab-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(31, 42, 68, 0.08);
-}
-
-.workspace-tab-copy strong {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  color: var(--ink-800);
-}
-
-.workspace-tab-copy span {
-  color: var(--ink-600);
-  font-size: 13px;
-  line-height: 1.6;
-}
+/* workspace-tab-copy 已从模板中移除 */
 
 .output-tab-strip {
   margin-bottom: 14px;
@@ -2874,23 +2816,26 @@ watch(yamlText, (value) => {
 }
 
 @media (max-width: 1100px) {
-  .layout-stack {
-    flex-direction: column;
+  .dashboard-strip {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-center {
+    display: none;
+  }
+
+  .layout-flow {
     overflow-y: auto;
   }
 
-
   .fetch-grid,
-  .rule-workbench,
-  .mode-card-grid {
+  .rule-workbench {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 900px) {
-  .step-section,
-  .mode-workbench,
-  .workflow-ribbon {
+  .step-section {
     padding: 16px;
   }
 
