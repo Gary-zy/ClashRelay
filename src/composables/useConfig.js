@@ -473,10 +473,10 @@ export const useConfig = ({
           type: "socks5",
           server: host,
           port,
-          username: username ? decodeURIComponent(username) : undefined,
-          password: password ? decodeURIComponent(password) : undefined,
           udp: true,
         };
+        if (username) node.username = decodeURIComponent(username);
+        if (password) node.password = decodeURIComponent(password);
       } else if (url.startsWith("http://") && url.includes("@")) {
         const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(.+)$/);
         if (!match) {
@@ -497,9 +497,9 @@ export const useConfig = ({
           type: "http",
           server: host,
           port,
-          username: username ? decodeURIComponent(username) : undefined,
-          password: password ? decodeURIComponent(password) : undefined,
         };
+        if (username) node.username = decodeURIComponent(username);
+        if (password) node.password = decodeURIComponent(password);
       } else {
         node = parseProxyLine(url, 0);
       }

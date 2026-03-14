@@ -146,7 +146,8 @@ export const useNodes = ({ form, status }) => {
       }
     }
 
-    const proxyUrl = form.proxyUrl.replace(/\/+$/, "");
+    const proxyUrl = (form.proxyUrl || "").replace(/\/+$/, "");
+    if (!proxyUrl) return -2; // 无代理服务时直接跳过
     const pingUrl = `${proxyUrl}/ping`;
 
     try {
