@@ -114,17 +114,77 @@
                     </div>
                   </template>
                 </el-autocomplete>
-                <div class="helper-text">点击输入框可查看历史记录；如果订阅站不放 CORS，再去填下方代理地址。</div>
+                <div class="helper-text">点击输入框可查看历史记录；如果订阅站不放 CORS，或者别人只给你 Clash Verge 里的完整配置，也别在这一步硬杠。</div>
               </el-form-item>
 
               <div class="fetch-grid">
-                <el-form-item v-if="!isDesktopShell" label="本地订阅代理地址（可选）">
-                  <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
-                  <div class="helper-text">仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。</div>
-                </el-form-item>
-                <div v-else class="desktop-native-note">
-                  <strong>桌面端已内建订阅抓取与测速能力</strong>
-                  <span>这里不再需要手填本地代理地址，App 会直接通过原生宿主处理订阅请求和延迟测试。</span>
+                <div class="fetch-support-stack">
+                  <el-form-item v-if="!isDesktopShell" label="本地订阅代理地址（可选）">
+                    <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
+                    <div class="helper-text">仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。</div>
+                  </el-form-item>
+                  <div v-else class="desktop-native-note">
+                    <strong>桌面端已内建订阅抓取与测速能力</strong>
+                    <span>这里不再需要手填本地代理地址，App 会直接通过原生宿主处理订阅请求和延迟测试。</span>
+                  </div>
+
+                  <div class="clash-import-card">
+                    <div class="clash-import-header">
+                      <div class="clash-import-copy">
+                        <span class="clash-import-kicker">替代路线</span>
+                        <div class="clash-import-title-row">
+                          <el-icon class="clash-import-icon"><DocumentCopy /></el-icon>
+                          <strong class="clash-import-title">从 Clash Verge 粘贴配置</strong>
+                        </div>
+                        <span class="clash-import-desc">网页直拉订阅跨域时，就让别人先导进 Clash Verge，再把完整配置全选复制回来。</span>
+                      </div>
+                      <span class="clash-import-note">只提取节点，不继承原分组和规则</span>
+                    </div>
+
+                    <el-input
+                      v-model="clashConfigImportText"
+                      type="textarea"
+                      :rows="5"
+                      resize="none"
+                      placeholder="把 Clash Verge 里的完整配置文本粘贴到这里"
+                    />
+
+                    <div class="clash-import-actions">
+                      <span class="helper-text">适合已经在客户端里导入成功，但网页这边因为跨域拉不到订阅的场景。</span>
+                      <el-button
+                        type="primary"
+                        plain
+                        @click="handleClashConfigImport"
+                        :disabled="!clashConfigImportText.trim()"
+                      >
+                        导入 Clash 配置节点
+                      </el-button>
+                    </div>
+                  </div>
+
+                  <el-collapse class="paste-collapse">
+                    <el-collapse-item name="paste">
+                      <template #title>
+                        <span class="paste-collapse-title"><el-icon><DocumentCopy /></el-icon>手动粘贴订阅内容（CORS 失败时用这个）</span>
+                      </template>
+                      <el-input
+                        v-model="manualSubscriptionText"
+                        type="textarea"
+                        :rows="5"
+                        placeholder="把订阅内容粘贴到这里（支持 Base64、YAML、逐行节点链接）"
+                      />
+                      <el-button
+                        type="primary"
+                        plain
+                        size="small"
+                        style="margin-top: 8px;"
+                        @click="handleManualPaste"
+                        :disabled="!manualSubscriptionText.trim()"
+                      >
+                        导入订阅内容
+                      </el-button>
+                    </el-collapse-item>
+                  </el-collapse>
                 </div>
 
                 <div class="fetch-action-card">
@@ -141,30 +201,6 @@
                     {{ isFetching ? "正在获取..." : "获取节点" }}
                   </el-button>
                 </div>
-
-                <el-collapse class="paste-collapse">
-                  <el-collapse-item name="paste">
-                    <template #title>
-                      <span class="paste-collapse-title">📋 手动粘贴订阅内容（CORS 失败时用这个）</span>
-                    </template>
-                    <el-input
-                      v-model="manualSubscriptionText"
-                      type="textarea"
-                      :rows="5"
-                      placeholder="把订阅内容粘贴到这里（支持 Base64、YAML、逐行节点链接）"
-                    />
-                    <el-button
-                      type="primary"
-                      plain
-                      size="small"
-                      style="margin-top: 8px;"
-                      @click="handleManualPaste"
-                      :disabled="!manualSubscriptionText.trim()"
-                    >
-                      导入粘贴内容
-                    </el-button>
-                  </el-collapse-item>
-                </el-collapse>
               </div>
             </el-form>
           </div>
@@ -201,6 +237,22 @@
             <div v-else class="readonly-note-card">
               <strong>{{ currentWorkbenchMode === 'direct' ? '当前是节点参考台' : '当前是订阅整理台' }}</strong>
               <span>{{ currentWorkbenchMode === 'direct' ? '节点列表只用于搜索、排序、测速和观察质量，不参与跳板选择。' : '所有订阅节点默认参与导出，这里主要负责筛选、分组和测速。' }}</span>
+            </div>
+
+            <div v-if="informationalNodeCount > 0" class="node-meta-bar">
+              <div class="node-meta-copy">
+                <span class="node-meta-kicker">提示项</span>
+                <strong class="node-meta-title">检测到 {{ informationalNodeCount }} 个公告 / 流量提示节点</strong>
+                <span class="node-meta-desc">这类名字通常只是订阅附赠的说明牌，不是真给你选线路用的。默认先隐藏，嫌碍眼就一把清掉。</span>
+              </div>
+              <div class="node-meta-actions">
+                <el-switch
+                  v-model="hideInformationalNodes"
+                  active-text="隐藏提示项"
+                  inactive-text="显示全部"
+                />
+                <el-button plain size="small" @click="clearInformationalNodes">一键清理</el-button>
+              </div>
             </div>
 
             <div class="selector-toolbar">
@@ -488,6 +540,131 @@
 
               <div class="rule-workbench">
                 <div class="rule-builder-panel">
+                  <div class="rule-helper-panel">
+                    <div class="rule-helper-header">
+                      <div>
+                        <div class="config-label">网站规则助手</div>
+                        <div class="helper-text">扔进网址、域名或关键词，我直接把适合 Clash Verge 的规则候选给你摆出来。</div>
+                      </div>
+                      <span class="rule-helper-badge">默认走 {{ ruleHelperPolicy }}</span>
+                    </div>
+
+                    <div class="rule-helper-input-row">
+                      <el-input
+                        v-model="ruleHelperInput"
+                        placeholder="例如 https://chat.openai.com/ / linux.do / openrouter"
+                        clearable
+                      />
+                      <el-select v-model="ruleHelperPolicy" placeholder="策略">
+                        <el-option-group
+                          v-for="group in rulePolicyGroups"
+                          :key="`assistant-group-${group.label}`"
+                          :label="group.label"
+                        >
+                          <el-option
+                            v-for="option in group.options"
+                            :key="`assistant-${option.value}`"
+                            :label="option.label"
+                            :value="option.value"
+                          />
+                        </el-option-group>
+                      </el-select>
+                    </div>
+
+                    <div v-if="ruleHelperResult.error" class="rule-helper-empty">
+                      <strong>目标没识别出来</strong>
+                      <span>{{ ruleHelperResult.error }}</span>
+                    </div>
+
+                    <div v-else-if="ruleHelperCandidates.length > 0" class="rule-helper-candidate-list">
+                      <div
+                        v-for="candidate in ruleHelperCandidates"
+                        :key="candidate.id"
+                        class="rule-helper-candidate"
+                        :class="{ 'is-recommended': candidate.isRecommended, 'is-duplicate': candidate.analysis.exactDuplicate }"
+                      >
+                        <div class="rule-helper-candidate-main">
+                          <div class="rule-helper-candidate-meta">
+                            <span class="rule-mini-chip">{{ candidate.type }}</span>
+                            <span v-if="candidate.isRecommended" class="rule-mini-chip is-policy">推荐起手</span>
+                          </div>
+                          <strong class="rule-helper-candidate-title">{{ candidate.title }}</strong>
+                          <span class="rule-helper-candidate-subtitle">{{ candidate.subtitle }}</span>
+                          <code class="rule-line-code">{{ candidate.line }}</code>
+                          <div v-if="candidate.conflictNotes.length > 0" class="rule-helper-conflicts">
+                            <span
+                              v-for="note in candidate.conflictNotes"
+                              :key="`${candidate.id}-${note}`"
+                              class="rule-helper-conflict-note"
+                            >
+                              {{ note }}
+                            </span>
+                          </div>
+                        </div>
+                        <el-button
+                          type="primary"
+                          plain
+                          :disabled="candidate.analysis.exactDuplicate"
+                          @click="applyRuleHelperCandidate(candidate)"
+                        >
+                          {{ candidate.analysis.exactDuplicate ? "已存在" : "加入规则" }}
+                        </el-button>
+                      </div>
+                    </div>
+
+                    <div class="rule-helper-snippet-shell">
+                      <div class="rule-helper-snippet-header">
+                        <div>
+                          <div class="config-label">常用站点快捷片段</div>
+                          <div class="helper-text">不想打字就直接点，默认按当前策略塞进自定义规则。</div>
+                        </div>
+                      </div>
+                      <div class="rule-helper-site-groups">
+                        <div v-for="group in siteRuleSnippetGroups" :key="group.title" class="rule-snippet-group">
+                          <span class="rule-snippets-label">{{ group.title }}</span>
+                          <div class="rule-snippet-list">
+                            <button
+                              v-for="site in group.items"
+                              :key="site.domain"
+                              type="button"
+                              class="rule-snippet-chip"
+                              @click="applyRuleHelperSite(site)"
+                            >
+                              {{ site.label }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-if="recentRuleHelperCards.length > 0" class="rule-helper-recent-shell">
+                      <div class="rule-helper-recent-header">
+                        <div class="config-label">最近添加</div>
+                        <span class="helper-text">最近 10 条，懒得重复敲的时候拿来复用。</span>
+                      </div>
+                      <div class="rule-helper-recent-list">
+                        <div
+                          v-for="entry in recentRuleHelperCards"
+                          :key="entry.line"
+                          class="rule-helper-recent-item"
+                        >
+                          <div class="rule-helper-recent-main">
+                            <strong>{{ entry.label }}</strong>
+                            <code class="rule-line-code">{{ entry.line }}</code>
+                          </div>
+                          <el-button
+                            size="small"
+                            plain
+                            :disabled="entry.analysis.exactDuplicate"
+                            @click="reapplyRecentRuleEntry(entry)"
+                          >
+                            {{ entry.analysis.exactDuplicate ? "已存在" : "再加一次" }}
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="rule-builder-row">
                     <el-select v-model="ruleDraft.type" placeholder="规则类型">
                       <el-option
@@ -498,12 +675,18 @@
                       />
                     </el-select>
                     <el-select v-model="ruleDraft.policy" placeholder="策略">
-                      <el-option
-                        v-for="option in rulePolicyOptions"
-                        :key="option.value"
-                        :label="option.label"
-                        :value="option.value"
-                      />
+                      <el-option-group
+                        v-for="group in rulePolicyGroups"
+                        :key="`draft-group-${group.label}`"
+                        :label="group.label"
+                      >
+                        <el-option
+                          v-for="option in group.options"
+                          :key="option.value"
+                          :label="option.label"
+                          :value="option.value"
+                        />
+                      </el-option-group>
                     </el-select>
                   </div>
 
@@ -620,7 +803,7 @@
 <script setup>
 import { computed, defineAsyncComponent, reactive, ref, watch, onBeforeUnmount, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { QuestionFilled, Search, Loading, InfoFilled, ArrowDown } from "@element-plus/icons-vue";
+import { QuestionFilled, Search, Loading, InfoFilled, ArrowDown, DocumentCopy } from "@element-plus/icons-vue";
 import SelectionTray from "./components/SelectionTray.vue";
 import InkSeal from "./components/decorations/InkSeal.vue";
 import InkBamboo from "./components/decorations/InkBamboo.vue";
@@ -628,12 +811,23 @@ import InkLoading from "./components/InkLoading.vue";
 import { useNodes } from "./composables/useNodes.js";
 import { useSubscription } from "./composables/useSubscription.js";
 import { useConfig, MANUAL_LANDING_TYPES } from "./composables/useConfig.js";
+import { defaultRules, subscriptionDefaultRules } from "./config/defaultConfig.js";
 import { highlightYaml } from "./utils/helpers.js";
 import { desktopApi, isDesktopApp } from "./utils/desktop.js";
+import { countInformationalNodes } from "./utils/nodeMetadata.js";
+import {
+  analyzeRuleCandidate,
+  buildRulePolicyOptions,
+  buildRuleHelperSuggestions,
+  extractRuleDescriptor,
+  RULE_ASSISTANT_DEFAULT_POLICY,
+  RULE_ASSISTANT_SITE_GROUPS,
+} from "./utils/ruleAssistant.js";
 
 const OnboardingWizard = defineAsyncComponent(() => import("./components/OnboardingWizard.vue"));
 
 const STORAGE_KEY = "clashrelay_config";
+const RULE_HELPER_RECENT_KEY = "relaybox_rule_helper_recent";
 const DESKTOP_STATE_VERSION = 1;
 const LEGACY_STORAGE_KEYS = ["clashrelay_favorites", "clashrelay_health", "clashrelay_template", "clashrelay_rules"];
 const landingTypeOptions = [
@@ -696,6 +890,9 @@ const ruleDraft = reactive({
   value: "",
   policy: "",
 });
+const ruleHelperInput = ref("");
+const ruleHelperPolicy = ref(RULE_ASSISTANT_DEFAULT_POLICY);
+const recentRuleHelperEntries = ref([]);
 
 let saveConfigTimer = null;
 
@@ -735,6 +932,27 @@ const clearLegacyStorage = () => {
   });
 };
 
+const loadRecentRuleHelperEntries = () => {
+  try {
+    const saved = localStorage.getItem(RULE_HELPER_RECENT_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((entry) => entry && entry.line && entry.label).slice(0, 10)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveRecentRuleHelperEntries = () => {
+  try {
+    localStorage.setItem(
+      RULE_HELPER_RECENT_KEY,
+      JSON.stringify(recentRuleHelperEntries.value.slice(0, 10))
+    );
+  } catch {}
+};
+
 const formDefaults = {
   subscriptionUrl: "",
   proxyUrl: import.meta.env.DEV ? "http://localhost:8787" : "",
@@ -770,6 +988,10 @@ const {
   filteredNodes,
   displayNodes,
   isTesting,
+  hideInformationalNodes,
+  informationalNodes,
+  informationalNodeCount,
+  visibleNodes,
   getLatencyColor,
   handleNodeRowClick,
   selectAllNodes,
@@ -800,6 +1022,7 @@ const {
   removeHistoryItem,
   handleFetch,
   parseSubscription,
+  importClashConfigText,
 } = useSubscription({
   form,
   nodes,
@@ -809,6 +1032,7 @@ const {
 
 // 手动粘贴订阅内容（CORS 失败时的回退方案）
 const manualSubscriptionText = ref("");
+const clashConfigImportText = ref("");
 const handleManualPaste = () => {
   const text = manualSubscriptionText.value.trim();
   if (!text) return;
@@ -838,6 +1062,25 @@ const handleManualPaste = () => {
   if (saveConfig) saveConfig();
   manualSubscriptionText.value = "";
   status.message = `成功从粘贴内容解析 ${parsed.length} 个节点。`;
+  status.type = "success";
+};
+const handleClashConfigImport = () => {
+  const result = importClashConfigText(clashConfigImportText.value);
+  if (!result.ok) return;
+  const informationalCount = countInformationalNodes(result.nodes);
+  clashConfigImportText.value = "";
+  if (informationalCount > 0) {
+    status.message = `${status.message} 已识别 ${informationalCount} 个提示项，节点台默认先帮你藏起来了。`;
+  }
+};
+const clearInformationalNodes = () => {
+  if (informationalNodes.value.length === 0) return;
+  const informationalNames = new Set(informationalNodes.value.map((node) => node.name));
+  const removedCount = informationalNodes.value.length;
+  nodes.value = nodes.value.filter((node) => !informationalNames.has(node.name));
+  form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => !informationalNames.has(name));
+  if (saveConfig) saveConfig();
+  status.message = `已清理 ${removedCount} 个提示项节点，工作台终于不闹眼睛了。`;
   status.type = "success";
 };
 
@@ -923,20 +1166,13 @@ const modeSummary = computed(() => {
   };
   return summaryMap[currentWorkbenchMode.value];
 });
-const rulePolicyOptions = computed(() => {
-  if (form.generateMode === 'subscription') {
-    return [
-      { label: "代理出口 (🌐 代理出口)", value: "🌐 代理出口" },
-      { label: "直连 (DIRECT)", value: "DIRECT" },
-      { label: "自动选择 (♻️ 自动选择)", value: "♻️ 自动选择" },
-    ];
-  }
-  return [
-    { label: `落地节点 (${landingPolicyName.value})`, value: landingPolicyName.value },
-    { label: "代理出口 (🌐 代理出口)", value: "🌐 代理出口" },
-    { label: "直连 (DIRECT)", value: "DIRECT" },
-  ];
-});
+const rulePolicyGroups = computed(() =>
+  buildRulePolicyOptions({
+    mode: currentWorkbenchMode.value,
+    landingPolicyName: landingPolicyName.value,
+  })
+);
+const rulePolicyOptions = computed(() => rulePolicyGroups.value.flatMap((group) => group.options));
 const splitRuleByTopLevelCommas = (line) => {
   const parts = [];
   let depth = 0;
@@ -972,6 +1208,58 @@ const customRuleEntries = computed(() =>
       policy,
     };
   })
+);
+const applyCurrentRulePolicyPlaceholders = (rule) => {
+  if (form.generateMode === "subscription") {
+    return rule
+      .replace(/\{\{PROXY\}\}/g, "🌐 代理出口")
+      .replace(/\{\{LANDING\}\}/g, "🌐 代理出口");
+  }
+
+  return rule
+    .replace(/\{\{LANDING\}\}/g, landingPolicyName.value)
+    .replace(/\{\{PROXY\}\}/g, "🌐 代理出口")
+    .replace(/[^,]*其他外网/g, "🌐 代理出口")
+    .replace(/,Proxy$/g, ",🌐 代理出口");
+};
+const activeBuiltInRuleLines = computed(() => {
+  const baseRules = form.generateMode === "subscription" ? subscriptionDefaultRules : defaultRules;
+  return baseRules.map((rule) => applyCurrentRulePolicyPlaceholders(rule));
+});
+const ruleCatalogLines = computed(() => [...customRuleLines.value, ...activeBuiltInRuleLines.value]);
+const ruleHelperResult = computed(() => buildRuleHelperSuggestions(ruleHelperInput.value, ruleHelperPolicy.value));
+const ruleHelperCandidates = computed(() =>
+  ruleHelperResult.value.candidates.map((candidate, index) => {
+    const analysis = analyzeRuleCandidate(candidate.line, ruleCatalogLines.value);
+    return {
+      ...candidate,
+      isRecommended: index === 0,
+      analysis,
+      conflictNotes: buildRuleConflictNotes(analysis),
+    };
+  })
+);
+const recentRuleHelperCards = computed(() =>
+  recentRuleHelperEntries.value.map((entry) => ({
+    ...entry,
+    analysis: analyzeRuleCandidate(entry.line, ruleCatalogLines.value),
+  }))
+);
+const resolveSnippetPolicy = (policyKind) => {
+  if (policyKind === "landing" && currentWorkbenchMode.value !== "subscription") {
+    return landingPolicyName.value;
+  }
+  return "🌐 代理出口";
+};
+const siteRuleSnippetGroups = computed(() =>
+  RULE_ASSISTANT_SITE_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      policy: resolveSnippetPolicy(item.policyKind),
+      line: `DOMAIN-SUFFIX,${item.domain},${resolveSnippetPolicy(item.policyKind)}`,
+    })),
+  }))
 );
 const quickRuleSnippetGroups = computed(() => {
   if (form.generateMode === 'subscription') {
@@ -1309,6 +1597,74 @@ const appendLinesToCustomRules = (lines) => {
   form.customRulesText = deduped.join("\n");
 };
 
+const buildRuleConflictNotes = (analysis) => {
+  const notes = [];
+  if (analysis.exactDuplicate) {
+    notes.push("这条规则已经在当前配置里了。");
+  }
+  if (analysis.sameTargetDifferentPolicy) {
+    notes.push("相同目标已经存在，只是策略不一样。");
+  }
+  if (analysis.narrowerMatches.length > 0) {
+    notes.push(`已有更精确规则：${analysis.narrowerMatches.join(" ｜ ")}`);
+  }
+  if (analysis.broaderMatches.length > 0) {
+    notes.push(`已有更宽泛规则：${analysis.broaderMatches.join(" ｜ ")}`);
+  }
+  return notes;
+};
+
+const rememberRecentRuleHelperEntry = ({ label, input, line }) => {
+  const normalizedLine = line.trim();
+  if (!normalizedLine) return;
+
+  recentRuleHelperEntries.value = [
+    { label, input, line: normalizedLine },
+    ...recentRuleHelperEntries.value.filter((entry) => entry.line !== normalizedLine),
+  ].slice(0, 10);
+  saveRecentRuleHelperEntries();
+};
+
+const appendRuleAssistantLine = ({ line, label, input }) => {
+  const normalizedLine = line.trim();
+  const analysis = analyzeRuleCandidate(normalizedLine, ruleCatalogLines.value);
+
+  if (analysis.exactDuplicate) {
+    ElMessage.info("这条规则已经在当前配置里了，不用重复塞。");
+    return false;
+  }
+
+  appendLinesToCustomRules([normalizedLine]);
+  rememberRecentRuleHelperEntry({
+    label: label || extractRuleDescriptor(normalizedLine)?.value || normalizedLine,
+    input: input || normalizedLine,
+    line: normalizedLine,
+  });
+  ElMessage.success("规则已加入自定义区，重新生成一下就能生效。");
+  return true;
+};
+
+const applyRuleHelperCandidate = (candidate) =>
+  appendRuleAssistantLine({
+    line: candidate.line,
+    label: `${candidate.type} · ${candidate.value}`,
+    input: ruleHelperInput.value || candidate.value,
+  });
+
+const applyRuleHelperSite = (site) =>
+  appendRuleAssistantLine({
+    line: site.line,
+    label: `${site.label} · ${site.policy}`,
+    input: site.domain,
+  });
+
+const reapplyRecentRuleEntry = (entry) =>
+  appendRuleAssistantLine({
+    line: entry.line,
+    label: entry.label,
+    input: entry.input,
+  });
+
 const appendRuleFromDraft = () => {
   if (!ruleDraft.type || !ruleDraft.value.trim() || !ruleDraft.policy) {
     ElMessage.warning("规则类型、匹配值、策略都得填，不然这玩意儿拼不出来。");
@@ -1443,6 +1799,7 @@ onMounted(async () => {
   syncViewportState();
   window.addEventListener("resize", syncViewportState);
   clearLegacyStorage();
+  recentRuleHelperEntries.value = loadRecentRuleHelperEntries();
 
   if (isDesktopShell) {
     try {
@@ -1533,7 +1890,8 @@ watch(currentWorkbenchMode, (mode) => {
   if (mode === "subscription" && activeWorkspaceTab.value === "landing") {
     activeWorkspaceTab.value = "nodes";
   }
-  ruleDraft.policy = mode === 'subscription' ? '🌐 代理出口' : landingPolicyName.value;
+  ruleDraft.policy = mode === "direct" ? landingPolicyName.value : "🌐 代理出口";
+  ruleHelperPolicy.value = RULE_ASSISTANT_DEFAULT_POLICY;
 }, { immediate: true });
 
 watch(landingPolicyName, (newName) => {
@@ -2286,7 +2644,14 @@ watch(yamlText, (value) => {
   align-items: start;
 }
 
+.fetch-support-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .fetch-action-card,
+.clash-import-card,
 .stage-note-card,
 .readonly-note-card,
 .strategy-config,
@@ -2302,6 +2667,102 @@ watch(yamlText, (value) => {
   flex-direction: column;
   gap: 10px;
   padding: 16px;
+}
+
+.clash-import-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-color: rgba(31, 42, 68, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 243, 236, 0.8));
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.05);
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    background 0.22s ease;
+}
+
+.clash-import-card:hover {
+  border-color: rgba(185, 43, 39, 0.16);
+  box-shadow: 0 16px 32px rgba(31, 42, 68, 0.07);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(249, 245, 239, 0.86));
+}
+
+.clash-import-header,
+.clash-import-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.clash-import-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clash-import-kicker,
+.fetch-action-kicker {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(31, 42, 68, 0.08);
+  color: var(--accent-600);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.clash-import-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clash-import-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(185, 43, 39, 0.08);
+  color: var(--vermillion-500);
+  font-size: 15px;
+}
+
+.clash-import-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink-800);
+}
+
+.clash-import-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-600);
+}
+
+.clash-import-note {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-600);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.clash-import-actions .helper-text {
+  margin-top: 0;
+  max-width: 520px;
 }
 
 .fetch-action-title {
@@ -2321,12 +2782,75 @@ watch(yamlText, (value) => {
   margin-top: auto;
 }
 
+.paste-collapse-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-700);
+}
+
+.paste-collapse-title .el-icon {
+  color: var(--accent-600);
+}
+
 .stage-note-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 14px 16px;
   margin-bottom: 14px;
+}
+
+.node-meta-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(185, 43, 39, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 243, 236, 0.78));
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.04);
+}
+
+.node-meta-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-meta-kicker {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(185, 43, 39, 0.08);
+  color: var(--vermillion-500);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.node-meta-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink-800);
+}
+
+.node-meta-desc {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-600);
+  max-width: 680px;
+}
+
+.node-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stage-note-card.mode-relay {
@@ -2595,6 +3119,143 @@ watch(yamlText, (value) => {
   border: 1px solid rgba(31, 42, 68, 0.08);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(249, 246, 239, 0.82));
   padding: 14px;
+}
+
+.rule-helper-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px dashed rgba(31, 42, 68, 0.12);
+}
+
+.rule-helper-header,
+.rule-helper-snippet-header,
+.rule-helper-recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.rule-helper-header > div,
+.rule-helper-snippet-header > div,
+.rule-helper-recent-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rule-helper-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(185, 43, 39, 0.08);
+  color: var(--vermillion-500);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rule-helper-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 10px;
+}
+
+.rule-helper-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(185, 43, 39, 0.18);
+  background: rgba(185, 43, 39, 0.04);
+  color: var(--ink-700);
+}
+
+.rule-helper-empty span {
+  color: var(--ink-600);
+  font-size: 12px;
+}
+
+.rule-helper-candidate-list,
+.rule-helper-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-helper-candidate,
+.rule-helper-recent-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(31, 42, 68, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.rule-helper-candidate.is-recommended {
+  border-color: rgba(185, 43, 39, 0.2);
+  box-shadow: 0 10px 24px rgba(185, 43, 39, 0.08);
+}
+
+.rule-helper-candidate.is-duplicate {
+  opacity: 0.72;
+}
+
+.rule-helper-candidate-main,
+.rule-helper-recent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rule-helper-candidate-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rule-helper-candidate-title {
+  font-size: 14px;
+  color: var(--ink-800);
+}
+
+.rule-helper-candidate-subtitle {
+  font-size: 12px;
+  color: var(--ink-600);
+  line-height: 1.6;
+}
+
+.rule-helper-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rule-helper-conflict-note {
+  font-size: 12px;
+  color: var(--ink-600);
+  line-height: 1.55;
+}
+
+.rule-helper-snippet-shell,
+.rule-helper-recent-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-helper-site-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .rule-builder-row {
@@ -2957,16 +3618,26 @@ watch(yamlText, (value) => {
   .selector-toolbar,
   .selector-toolbar-filters,
   .selector-toolbar-actions,
+  .node-meta-bar,
+  .node-meta-actions,
+  .clash-import-header,
+  .clash-import-actions,
   .workspace-tab-strip,
+  .rule-helper-header,
+  .rule-helper-snippet-header,
+  .rule-helper-recent-header,
   .rule-card-header,
   .rule-card-actions,
   .yaml-header,
+  .rule-helper-candidate,
+  .rule-helper-recent-item,
   .rule-builder-row,
   .rule-builder-row:last-of-type {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .rule-helper-input-row,
   .rule-builder-row,
   .rule-builder-row:last-of-type {
     display: flex;

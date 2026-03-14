@@ -2,8 +2,13 @@
 // 使用占位符 {{LANDING}} 表示落地节点专线，{{PROXY}} 表示通用代理出口
 // 生成配置时会自动替换为用户设置的策略组名称
 
-export const defaultRules = [
-  // ==================== 内网直连 ====================
+const buildDomainSuffixRules = (domains, policy) =>
+  domains.map((domain) => `DOMAIN-SUFFIX,${domain},${policy}`);
+
+const buildKeywordRules = (keywords, policy) =>
+  keywords.map((keyword) => `DOMAIN-KEYWORD,${keyword},${policy}`);
+
+const privateDirectRules = [
   "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
   "IP-CIDR,192.168.0.0/16,DIRECT",
   "IP-CIDR,10.0.0.0/8,DIRECT",
@@ -16,137 +21,123 @@ export const defaultRules = [
   "IP-CIDR6,::1/128,DIRECT,no-resolve",
   "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
   "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+  "IP-CIDR,8.154.20.44/32,DIRECT,no-resolve",
+  "IP-CIDR,47.110.145.64/32,DIRECT,no-resolve",
+  "IP-CIDR,47.96.0.3/32,DIRECT,no-resolve",
   "DOMAIN,localhost,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
+];
+
+const foreignAISuffixDomains = [
+  "anthropic.com",
+  "claude.ai",
+  "cursor.sh",
+  "cursor.com",
+  "anysphere.co",
+  "openai.com",
+  "chatgpt.com",
+  "oaistatic.com",
+  "oaiusercontent.com",
+  "openaiapi-site.azureedge.net",
+  "sora.com",
+  "openrouter.ai",
+  "perplexity.ai",
+  "pplx.ai",
+  "x.ai",
+  "grok.x.ai",
+  "grok.com",
+  "huggingface.co",
+  "hf.co",
+  "huggingface.tech",
+  "copilot.microsoft.com",
+  "copilot.githubusercontent.com",
+  "midjourney.com",
+  "mj.run",
+  "stability.ai",
+  "stablediffusionweb.com",
+  "dreamstudio.ai",
+  "clipdrop.co",
+  "runwayml.com",
+  "runway.com",
+  "poe.com",
+  "character.ai",
+  "replicate.com",
+  "replicate.delivery",
+  "cohere.ai",
+  "cohere.com",
+  "mistral.ai",
+  "chat.mistral.ai",
+  "meta.ai",
+  "llama.meta.com",
+  "ai.meta.com",
+  "notion.so",
+  "notion.site",
+  "jasper.ai",
+  "copy.ai",
+  "writesonic.com",
+  "rytr.me",
+  "grammarly.com",
+  "leonardo.ai",
+  "ideogram.ai",
+  "lexica.art",
+  "playground.com",
+  "civitai.com",
+  "elevenlabs.io",
+  "suno.ai",
+  "suno.com",
+  "pika.art",
+  "heygen.com",
+  "luma.ai",
+  "you.com",
+  "phind.com",
+  "consensus.app",
+  "elicit.org",
+  "together.ai",
+  "anyscale.com",
+  "fireworks.ai",
+  "groq.com",
+  "ai.google.dev",
+  "makersuite.google.com",
+  "generativelanguage.googleapis.com",
+  "deepmind.com",
+  "notebooklm.google.com",
+  "aistudio.google.com",
+  "v0.dev",
+  "windsurf.com",
+  "codeium.com",
+  "bolt.new",
+  "lovable.dev",
+  "fal.ai",
+  "deepinfra.com",
+];
+
+const foreignAIKeywordRules = [
+  "antigravity",
+  "anthropic",
+  "claude",
+  "copilot",
+  "gemini",
+];
+
+const domesticAIDirectDomains = [
+  "trae.ai",
+  "trae.com",
+  "doubao.com",
+  "kimi.ai",
+  "klingai.com",
+  "deepseek.com",
+  "moonshot.cn",
+  "minimax.io",
+];
+
+export const defaultRules = [
+  // ==================== 内网直连 ====================
+  ...privateDirectRules,
 
   // ==================== AI 服务 (走落地节点) ====================
-  // Claude / Anthropic
-  "DOMAIN-KEYWORD,antigravity,{{LANDING}}",
-  "DOMAIN-SUFFIX,anthropic.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,claude.ai,{{LANDING}}",
-  "DOMAIN-KEYWORD,anthropic,{{LANDING}}",
-  "DOMAIN-KEYWORD,claude,{{LANDING}}",
-
-  // Cursor (AI 编程)
-  "DOMAIN-SUFFIX,cursor.sh,{{LANDING}}",
-  "DOMAIN-SUFFIX,cursor.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,anysphere.co,{{LANDING}}",
-  "DOMAIN-SUFFIX,todesktop.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,auth0.com,{{LANDING}}",
-
-  // OpenAI / ChatGPT
-  "DOMAIN-SUFFIX,openai.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,chatgpt.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,oaistatic.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,oaiusercontent.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,openaiapi-site.azureedge.net,{{LANDING}}",
-  "DOMAIN-SUFFIX,sora.com,{{LANDING}}",
-
-  // Perplexity
-  "DOMAIN-SUFFIX,perplexity.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,pplx.ai,{{LANDING}}",
-
-  // xAI / Grok
-  "DOMAIN-SUFFIX,x.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,grok.x.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,grok.com,{{LANDING}}",
-
-  // Hugging Face
-  "DOMAIN-SUFFIX,huggingface.co,{{LANDING}}",
-  "DOMAIN-SUFFIX,hf.co,{{LANDING}}",
-  "DOMAIN-SUFFIX,huggingface.tech,{{LANDING}}",
-
-  // GitHub Copilot
-  "DOMAIN-SUFFIX,copilot.microsoft.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,copilot.githubusercontent.com,{{LANDING}}",
-  "DOMAIN-KEYWORD,copilot,{{LANDING}}",
-
-  // Midjourney (AI 绘画)
-  "DOMAIN-SUFFIX,midjourney.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,mj.run,{{LANDING}}",
-
-  // Stable Diffusion / Stability AI
-  "DOMAIN-SUFFIX,stability.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,stablediffusionweb.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,dreamstudio.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,clipdrop.co,{{LANDING}}",
-
-  // Runway (AI 视频)
-  "DOMAIN-SUFFIX,runwayml.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,runway.com,{{LANDING}}",
-
-  // Poe (AI 聚合平台)
-  "DOMAIN-SUFFIX,poe.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,quora.com,{{LANDING}}",
-
-  // Character.AI
-  "DOMAIN-SUFFIX,character.ai,{{LANDING}}",
-
-  // Replicate
-  "DOMAIN-SUFFIX,replicate.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,replicate.delivery,{{LANDING}}",
-
-  // Cohere
-  "DOMAIN-SUFFIX,cohere.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,cohere.com,{{LANDING}}",
-
-  // Mistral AI
-  "DOMAIN-SUFFIX,mistral.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,chat.mistral.ai,{{LANDING}}",
-
-  // Meta AI / Llama
-  "DOMAIN-SUFFIX,meta.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,llama.meta.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,ai.meta.com,{{LANDING}}",
-
-  // Notion AI
-  "DOMAIN-SUFFIX,notion.so,{{LANDING}}",
-  "DOMAIN-SUFFIX,notion.site,{{LANDING}}",
-
-  // AI 写作工具
-  "DOMAIN-SUFFIX,jasper.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,copy.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,writesonic.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,rytr.me,{{LANDING}}",
-  "DOMAIN-SUFFIX,grammarly.com,{{LANDING}}",
-
-  // Trae AI / ByteDance
-  "DOMAIN-SUFFIX,trae.ai,DIRECT",
-  "DOMAIN-SUFFIX,trae.com,DIRECT",
-  "DOMAIN-SUFFIX,doubao.com,DIRECT",
-
-  // Kimi / Moonshot (月之暗面)
-  "DOMAIN-SUFFIX,kimi.ai,DIRECT",
-
-  // AI 图像工具
-  "DOMAIN-SUFFIX,leonardo.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,ideogram.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,lexica.art,{{LANDING}}",
-  "DOMAIN-SUFFIX,playground.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,civitai.com,{{LANDING}}",
-
-  // AI 音频/视频工具
-  "DOMAIN-SUFFIX,elevenlabs.io,{{LANDING}}",
-  "DOMAIN-SUFFIX,suno.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,suno.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,pika.art,{{LANDING}}",
-  "DOMAIN-SUFFIX,heygen.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,luma.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,klingai.com,DIRECT",
-
-  // AI 搜索/研究
-  "DOMAIN-SUFFIX,you.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,phind.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,consensus.app,{{LANDING}}",
-  "DOMAIN-SUFFIX,elicit.org,{{LANDING}}",
-
-  // 其他 AI 平台
-  "DOMAIN-SUFFIX,together.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,anyscale.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,fireworks.ai,{{LANDING}}",
-  "DOMAIN-SUFFIX,groq.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,deepseek.com,DIRECT",
-  "DOMAIN-SUFFIX,moonshot.cn,DIRECT",
+  ...buildDomainSuffixRules(foreignAISuffixDomains, "{{LANDING}}"),
+  ...buildKeywordRules(foreignAIKeywordRules, "{{LANDING}}"),
+  ...buildDomainSuffixRules(domesticAIDirectDomains, "DIRECT"),
 
   // ==================== GitHub (走代理出口) ====================
   "DOMAIN-SUFFIX,github.com,{{PROXY}}",
@@ -227,68 +218,6 @@ export const defaultRules = [
   "DOMAIN-SUFFIX,ipleak.org,{{LANDING}}",
   "DOMAIN-SUFFIX,iphey.com,{{LANDING}}",
 
-  // ==================== Google 服务 (走落地节点) ====================
-  // Google 核心域名
-  "DOMAIN-SUFFIX,google.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googleapis.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,gstatic.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googleusercontent.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googlesyndication.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googletagmanager.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googletagservices.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,google-analytics.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googleadservices.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,googleads.g.doubleclick.net,{{LANDING}}",
-  "DOMAIN-SUFFIX,doubleclick.net,{{LANDING}}",
-  "DOMAIN-SUFFIX,gvt1.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,gvt2.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,gvt3.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,1e100.net,{{LANDING}}",
-
-  // Google AI / Gemini
-  "DOMAIN-KEYWORD,gemini,{{LANDING}}",
-  "DOMAIN-SUFFIX,bard.google.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,deepmind.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,ai.google.dev,{{LANDING}}",
-  "DOMAIN-SUFFIX,makersuite.google.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,generativelanguage.googleapis.com,{{LANDING}}",
-
-  // YouTube
-  "DOMAIN-SUFFIX,youtube.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,youtu.be,{{LANDING}}",
-  "DOMAIN-SUFFIX,googlevideo.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,ytimg.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,ggpht.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,youtube-nocookie.com,{{LANDING}}",
-
-  // Google Cloud / Firebase
-  "DOMAIN-SUFFIX,cloud.google.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,firebaseio.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,firebase.google.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,firebasestorage.googleapis.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,firebaseapp.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,crashlytics.com,{{LANDING}}",
-
-  // Google 其他服务
-  "DOMAIN-SUFFIX,android.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,appspot.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,go.dev,{{LANDING}}",
-  "DOMAIN-SUFFIX,golang.org,{{LANDING}}",
-  "DOMAIN-SUFFIX,googlesource.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,chromium.org,{{LANDING}}",
-  "DOMAIN-SUFFIX,chrome.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,withgoogle.com,{{LANDING}}",
-  "DOMAIN-SUFFIX,recaptcha.net,{{LANDING}}",
-
-  // Google FCM 推送 IP 段 (重要)
-  "IP-CIDR,142.250.0.0/15,{{LANDING}},no-resolve",
-  "IP-CIDR,172.217.0.0/16,{{LANDING}},no-resolve",
-  "IP-CIDR,216.58.192.0/19,{{LANDING}},no-resolve",
-  "IP-CIDR,74.125.0.0/16,{{LANDING}},no-resolve",
-
-  // Google 关键词兜底
-  "DOMAIN-KEYWORD,google,{{LANDING}}",
-
   // ==================== 国内直连 ====================
   "DOMAIN-SUFFIX,cn,DIRECT",
   "DOMAIN-KEYWORD,-cn,DIRECT",
@@ -302,47 +231,18 @@ export const defaultRules = [
 // 订阅整理模式默认规则 — 不依赖 {{LANDING}}，仅使用 {{PROXY}} 和 DIRECT
 export const subscriptionDefaultRules = [
   // ==================== 内网直连 ====================
-  "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
-  "IP-CIDR,192.168.0.0/16,DIRECT",
-  "IP-CIDR,10.0.0.0/8,DIRECT",
-  "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
-  "IP-CIDR,172.16.0.0/12,DIRECT",
-  "IP-CIDR,127.0.0.0/8,DIRECT",
-  "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
-  "IP-CIDR,198.18.0.0/15,DIRECT,no-resolve",
-  "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
-  "IP-CIDR6,::1/128,DIRECT,no-resolve",
-  "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
-  "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
-  "DOMAIN,localhost,DIRECT",
-  "DOMAIN-SUFFIX,local,DIRECT",
+  ...privateDirectRules,
 
   // ==================== 常用代理站点 ====================
   "DOMAIN-SUFFIX,github.com,{{PROXY}}",
   "DOMAIN-SUFFIX,githubusercontent.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,google.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,googleapis.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,gstatic.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,youtube.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,googlevideo.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,openai.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,chatgpt.com,{{PROXY}}",
-  "DOMAIN-SUFFIX,claude.ai,{{PROXY}}",
-  "DOMAIN-SUFFIX,anthropic.com,{{PROXY}}",
+  ...buildDomainSuffixRules(foreignAISuffixDomains, "{{PROXY}}"),
+  ...buildKeywordRules(foreignAIKeywordRules, "{{PROXY}}"),
 
   // ==================== 国内直连 ====================
-  // 国内域名直连兜底
+  ...buildDomainSuffixRules(domesticAIDirectDomains, "DIRECT"),
   "DOMAIN-SUFFIX,cn,DIRECT",
   "DOMAIN-KEYWORD,-cn,DIRECT",
-
-  // Trae AI / 豆包 / Kimi / DeepSeek — 国产 AI 直连
-  "DOMAIN-SUFFIX,trae.ai,DIRECT",
-  "DOMAIN-SUFFIX,doubao.com,DIRECT",
-  "DOMAIN-SUFFIX,kimi.ai,DIRECT",
-  "DOMAIN-SUFFIX,deepseek.com,DIRECT",
-  "DOMAIN-SUFFIX,moonshot.cn,DIRECT",
-
-  // GeoIP / GeoSite 中国直连
   "GEOIP,CN,DIRECT",
   "GEOSITE,CN,DIRECT",
 

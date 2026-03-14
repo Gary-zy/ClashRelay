@@ -47,10 +47,14 @@ test("中转模式单跳板会给落地节点注入 dialer-proxy", () => {
   assert.equal(result.ok, true);
   const landingProxy = result.config.proxies.at(-1);
   assert.equal(landingProxy["dialer-proxy"], "HK-A");
-  // 中转模式：代理出口只含落地节点和 DIRECT，不暴露裸跳板
   const proxyGroup = result.config["proxy-groups"].find((g) => g.name === "🌐 代理出口");
   assert.ok(proxyGroup);
-  assert.deepEqual(proxyGroup.proxies, ["落地节点", "DIRECT"]);
+  assert.ok(!proxyGroup.proxies.includes("落地节点"));
+  assert.ok(proxyGroup.proxies.includes("♻️ 自动选择"));
+  assert.ok(proxyGroup.proxies.includes("🛡️ 故障转移"));
+  assert.ok(proxyGroup.proxies.includes("⚖️ 负载均衡"));
+  assert.ok(proxyGroup.proxies.includes("HK-A"));
+  assert.ok(proxyGroup.proxies.includes("JP-B"));
 });
 
 test("中转模式多跳板会生成前置跳板组", () => {
@@ -73,6 +77,30 @@ test("中转模式多跳板会生成前置跳板组", () => {
   assert.equal(relayGroup.type, "fallback");
   assert.equal(relayGroup.interval, 60);
   assert.deepEqual(relayGroup.proxies, ["HK-A", "JP-B"]);
+  const proxyGroup = result.config["proxy-groups"].find((group) => group.name === "🌐 代理出口");
+  assert.ok(proxyGroup);
+  assert.ok(proxyGroup.proxies.includes("♻️ 自动选择"));
+  assert.ok(proxyGroup.proxies.includes("🛡️ 故障转移"));
+  assert.ok(proxyGroup.proxies.includes("⚖️ 负载均衡"));
+});
+
+test("中转模式会过滤当前订阅里不存在的悬空跳板名", () => {
+  const result = buildClashConfig({
+    form: createForm({
+      dialerProxyGroup: ["HK-A", "GHOST"],
+      dialerProxyType: "fallback",
+    }),
+    nodes: sampleNodes,
+    landingNode: null,
+    completeNode: identity,
+    completeNodes: identityList,
+  });
+
+  assert.equal(result.ok, true);
+  const relayGroup = result.config["proxy-groups"].find((group) => group.name === "🔀 前置跳板组");
+  assert.equal(relayGroup, undefined);
+  const landingProxy = result.config.proxies.at(-1);
+  assert.equal(landingProxy["dialer-proxy"], "HK-A");
 });
 
 test("直连模式不要求跳板且不会注入 dialer-proxy", () => {
@@ -88,6 +116,25 @@ test("直连模式不要求跳板且不会注入 dialer-proxy", () => {
   assert.equal(result.config.proxies.length, 1);
   assert.equal("dialer-proxy" in result.config.proxies[0], false);
   assert.deepEqual(result.config["proxy-groups"][1].proxies, ["落地节点", "DIRECT"]);
+});
+
+test("中转模式的 AI 规则走落地节点，漏网规则走代理出口", () => {
+  const result = buildClashConfig({
+    form: createForm({ dialerProxyGroup: ["HK-A"] }),
+    nodes: sampleNodes,
+    landingNode: null,
+    completeNode: identity,
+    completeNodes: identityList,
+  });
+
+  assert.equal(result.ok, true);
+  const landingGroup = result.config["proxy-groups"].find((group) => group.name === "🎯 落地节点");
+  const proxyGroup = result.config["proxy-groups"].find((group) => group.name === "🌐 代理出口");
+  assert.deepEqual(landingGroup.proxies, ["落地节点"]);
+  assert.ok(proxyGroup);
+  assert.ok(!proxyGroup.proxies.includes("落地节点"));
+  assert.ok(result.config.rules.includes("DOMAIN-SUFFIX,openai.com,🎯 落地节点"));
+  assert.ok(result.config.rules.includes("MATCH,🌐 代理出口"));
 });
 
 test("复杂协议手填会被明确拦截", () => {

@@ -6,6 +6,51 @@ import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 
 const HISTORY_KEY = "clashrelay_history";
 
+const normalizeImportedProxy = (node) => {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return null;
+  const name = typeof node.name === "string" ? node.name.trim() : "";
+  const type = typeof node.type === "string" ? node.type.trim() : "";
+  const server = typeof node.server === "string" ? node.server.trim() : "";
+  const port = Number(node.port);
+  if (!name || !type || !server || !Number.isFinite(port) || port <= 0) return null;
+  return {
+    ...node,
+    name,
+    type,
+    server,
+    port,
+  };
+};
+
+export const parseClashConfigNodes = (text) => {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { ok: false, reason: "empty" };
+  }
+
+  let data;
+  try {
+    data = yaml.load(trimmed);
+  } catch {
+    return { ok: false, reason: "invalid_yaml" };
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { ok: false, reason: "missing_proxies" };
+  }
+
+  if (!("proxies" in data) || !Array.isArray(data.proxies)) {
+    return { ok: false, reason: "missing_proxies" };
+  }
+
+  const nodes = data.proxies.map(normalizeImportedProxy).filter(Boolean);
+  if (nodes.length === 0) {
+    return { ok: false, reason: "empty_proxies" };
+  }
+
+  return { ok: true, nodes };
+};
+
 export const useSubscription = ({ form, nodes, status, saveConfig }) => {
   const isFetching = ref(false);
   const subscriptionHistory = ref([]);
@@ -60,17 +105,46 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
     } catch {}
   };
 
+  const applyImportedNodes = (importedNodes, successFormatter) => {
+    const nameCounts = new Map();
+    const finalNodes = [];
+
+    importedNodes.forEach((node) => {
+      const nextNode = { ...node };
+      let uniqueName = nextNode.name;
+      if (nameCounts.has(uniqueName)) {
+        const count = nameCounts.get(uniqueName) + 1;
+        nameCounts.set(uniqueName, count);
+        uniqueName = `${uniqueName} (${count - 1})`;
+        nextNode.name = uniqueName;
+      } else {
+        nameCounts.set(uniqueName, 1);
+      }
+      nextNode.latency = -1;
+      finalNodes.push(nextNode);
+    });
+
+    nodes.value = finalNodes;
+
+    const newNodeNames = new Set(finalNodes.map((node) => node.name));
+    const before = form.dialerProxyGroup.length;
+    form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => newNodeNames.has(name));
+    const pruned = before - form.dialerProxyGroup.length;
+
+    if (saveConfig) saveConfig();
+    const prunedNote = pruned > 0 ? `（已自动移除 ${pruned} 个失效跳板选择）` : "";
+    setStatus(successFormatter(finalNodes.length, prunedNote), "success");
+
+    return { ok: true, nodes: finalNodes, pruned };
+  };
+
   const parseSubscription = (text) => {
     const trimmed = text.trim();
-    try {
-      if (trimmed.includes("proxies:")) {
-        const data = yaml.load(trimmed);
-        if (data && Array.isArray(data.proxies)) {
-          return data.proxies;
-        }
+    if (trimmed.includes("proxies:")) {
+      const clashConfigResult = parseClashConfigNodes(trimmed);
+      if (clashConfigResult.ok) {
+        return clashConfigResult.nodes;
       }
-    } catch (error) {
-      // fall back to uri parsing
     }
     const decoded = tryDecodeBase64(trimmed);
     const content = decoded || trimmed;
@@ -159,38 +233,36 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
       return;
     }
 
-    const nameCounts = new Map();
-    const finalNodes = [];
-
-    parsed.forEach((node) => {
-      let uniqueName = node.name;
-      if (nameCounts.has(uniqueName)) {
-        const count = nameCounts.get(uniqueName) + 1;
-        nameCounts.set(uniqueName, count);
-        uniqueName = `${uniqueName} (${count - 1})`;
-        node.name = uniqueName;
-      } else {
-        nameCounts.set(uniqueName, 1);
-      }
-      finalNodes.push(node);
-    });
-
-    nodes.value = finalNodes;
-    nodes.value.forEach((node) => {
-      node.latency = -1;
-    });
-
-    // 裁剪 dialerProxyGroup：移除新订阅中已不存在的悬空节点名
-    const newNodeNames = new Set(finalNodes.map((n) => n.name));
-    const before = form.dialerProxyGroup.length;
-    form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => newNodeNames.has(name));
-    const pruned = before - form.dialerProxyGroup.length;
-
     saveSubscriptionHistory(form.subscriptionUrl.trim());
-    if (saveConfig) saveConfig();
     isFetching.value = false;
-    const prunedNote = pruned > 0 ? `（已自动移除 ${pruned} 个失效跳板选择）` : "";
-    setStatus(`成功解析 ${parsed.length} 个节点。${prunedNote}`, "success");
+    applyImportedNodes(parsed, (count, prunedNote) => `成功解析 ${count} 个节点。${prunedNote}`);
+  };
+
+  const importClashConfigText = (text) => {
+    setStatus("", "info");
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setStatus("请先粘贴 Clash 配置内容。", "warning");
+      return { ok: false, reason: "empty" };
+    }
+
+    const parsed = parseClashConfigNodes(trimmed);
+    if (!parsed.ok) {
+      const messageMap = {
+        invalid_yaml: "这段文本不是合法的 Clash YAML，先确认你复制的是完整配置。",
+        missing_proxies: "配置内容拿到了，但没看到 proxies 段，没法提取节点。",
+        empty_proxies: "配置里有 proxies，但没有可导入的有效节点。",
+        empty: "请先粘贴 Clash 配置内容。",
+      };
+      setStatus(messageMap[parsed.reason] || "Clash 配置解析失败。", "error");
+      return parsed;
+    }
+
+    return applyImportedNodes(
+      parsed.nodes,
+      (count, prunedNote) => `已从 Clash 配置中导入 ${count} 个节点。${prunedNote}`
+    );
   };
 
   return {
@@ -201,5 +273,6 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
     clearSubscriptionHistory,
     handleFetch,
     parseSubscription,
+    importClashConfigText,
   };
 };

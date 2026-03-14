@@ -223,7 +223,6 @@ export const buildClashConfig = ({
 
   const landingProxyName = form.socksAlias?.trim() || "落地节点";
   const landingGroupName = `🎯 ${landingProxyName}`;
-
   const completedNodes = form.isDirect ? [] : completeNodes(nodes);
   const proxyNames = completedNodes.map((node) => node.name);
 
@@ -245,6 +244,9 @@ export const buildClashConfig = ({
   const proxyGroupName = "🌐 代理出口";
   const completedLandingProxy = completeNode(landingProxy);
   const proxies = [...completedNodes.map(cleanProxy), cleanProxy(completedLandingProxy)];
+  const relayAutoSelectGroupName = "♻️ 自动选择";
+  const relayFallbackGroupName = "🛡️ 故障转移";
+  const relayLoadBalanceGroupName = "⚖️ 负载均衡";
 
   const customRulesFromText = parseRules(form.customRulesText || "").map((rule) =>
     replaceProxyGroupNames(rule, landingGroupName, proxyGroupName)
@@ -275,7 +277,6 @@ export const buildClashConfig = ({
   }
 
   if (proxyNames.length > 0 && !form.isDirect) {
-    // 中转模式：代理出口只能走落地节点（完整链路），不暴露裸跳板
     proxyGroups.push(
       {
         name: landingGroupName,
@@ -283,9 +284,38 @@ export const buildClashConfig = ({
         proxies: [landingProxyName],
       },
       {
+        name: relayAutoSelectGroupName,
+        type: "url-test",
+        proxies: [...proxyNames],
+        url: "http://www.gstatic.com/generate_204",
+        interval: 300,
+        tolerance: 50,
+      },
+      {
+        name: relayFallbackGroupName,
+        type: "fallback",
+        proxies: [...proxyNames],
+        url: "http://www.gstatic.com/generate_204",
+        interval: 180,
+      },
+      {
+        name: relayLoadBalanceGroupName,
+        type: "load-balance",
+        proxies: [...proxyNames],
+        url: "http://www.gstatic.com/generate_204",
+        interval: 300,
+        strategy: "consistent-hashing",
+      },
+      {
         name: proxyGroupName,
         type: "select",
-        proxies: [landingProxyName, "DIRECT"],
+        proxies: [
+          relayAutoSelectGroupName,
+          relayFallbackGroupName,
+          relayLoadBalanceGroupName,
+          ...proxyNames,
+          "DIRECT",
+        ],
       },
     );
   } else {

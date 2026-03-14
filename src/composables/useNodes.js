@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import { formatTime } from "../utils/helpers.js";
 import { desktopApi, isDesktopApp } from "../utils/desktop.js";
+import { isInformationalNode } from "../utils/nodeMetadata.js";
 
 const regionMap = {
   "香港": ["香港", "HK", "Hong Kong", "HongKong", "🇭🇰"],
@@ -21,6 +22,7 @@ export const useNodes = ({ form, status }) => {
   const nodeSortBy = ref("default");
   const activeNodeGroup = ref("all");
   const isTesting = ref(false);
+  const hideInformationalNodes = ref(true);
 
   const setStatus = (message, type) => {
     if (!status) return;
@@ -37,9 +39,18 @@ export const useNodes = ({ form, status }) => {
     return "其他";
   };
 
+  const informationalNodes = computed(() => nodes.value.filter((node) => isInformationalNode(node)));
+  const informationalNodeCount = computed(() => informationalNodes.value.length);
+
+  const visibleNodes = computed(() =>
+    hideInformationalNodes.value
+      ? nodes.value.filter((node) => !isInformationalNode(node))
+      : nodes.value
+  );
+
   const nodeGroups = computed(() => {
     const groups = {};
-    nodes.value.forEach((node) => {
+    visibleNodes.value.forEach((node) => {
       const region = getNodeRegion(node.name);
       if (!groups[region]) {
         groups[region] = { key: region, label: region, count: 0 };
@@ -50,7 +61,7 @@ export const useNodes = ({ form, status }) => {
   });
 
   const filteredNodes = computed(() => {
-    let result = [...nodes.value];
+    let result = [...visibleNodes.value];
 
     if (nodeSearch.value) {
       const searchLower = nodeSearch.value.toLowerCase();
@@ -199,7 +210,11 @@ export const useNodes = ({ form, status }) => {
     nodeSortBy,
     activeNodeGroup,
     isTesting,
+    hideInformationalNodes,
     getNodeRegion,
+    informationalNodes,
+    informationalNodeCount,
+    visibleNodes,
     nodeGroups,
     filteredNodes,
     displayNodes,
