@@ -704,10 +704,15 @@ const loadSavedConfig = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
-    return persistedKeys.reduce((acc, key) => {
+    const result = persistedKeys.reduce((acc, key) => {
       if (key in parsed) acc[key] = parsed[key];
       return acc;
     }, {});
+    // 生产环境下清除残留的 localhost 代理地址
+    if (!import.meta.env.DEV && result.proxyUrl && /localhost|127\.0\.0\.1/i.test(result.proxyUrl)) {
+      result.proxyUrl = "";
+    }
+    return result;
   } catch {
     return null;
   }
