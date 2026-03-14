@@ -223,18 +223,28 @@ export const buildClashConfig = ({
 
   const landingProxyName = form.socksAlias?.trim() || "落地节点";
   const landingGroupName = `🎯 ${landingProxyName}`;
-  const proxyGroupName = "🌐 代理出口";
-  const isSingleNode = form.dialerProxyGroup.length === 1;
-  const dialerProxyName = isSingleNode ? form.dialerProxyGroup[0] : "🔀 前置跳板组";
+
+  const completedNodes = form.isDirect ? [] : completeNodes(nodes);
+  const proxyNames = completedNodes.map((node) => node.name);
+
+  // 核心兜底：用实际节点名过滤跳板选择，杜绝悬空代理引用
+  const validNodeNames = new Set(proxyNames);
+  const validDialerGroup = form.isDirect ? [] : form.dialerProxyGroup.filter((name) => validNodeNames.has(name));
+
+  if (!form.isDirect && validDialerGroup.length === 0) {
+    return { ok: false, message: "选择的跳板节点在当前订阅中均不存在，请重新选择。", type: "warning" };
+  }
+
+  const isSingleNode = validDialerGroup.length === 1;
+  const dialerProxyName = isSingleNode ? validDialerGroup[0] : "🔀 前置跳板组";
   const landingProxy = {
     ...landingResult.landingProxy,
     ...(form.isDirect ? {} : { "dialer-proxy": dialerProxyName }),
   };
 
-  const completedNodes = form.isDirect ? [] : completeNodes(nodes);
+  const proxyGroupName = "🌐 代理出口";
   const completedLandingProxy = completeNode(landingProxy);
   const proxies = [...completedNodes.map(cleanProxy), cleanProxy(completedLandingProxy)];
-  const proxyNames = completedNodes.map((node) => node.name);
 
   const customRulesFromText = parseRules(form.customRulesText || "").map((rule) =>
     replaceProxyGroupNames(rule, landingGroupName, proxyGroupName)
@@ -245,11 +255,11 @@ export const buildClashConfig = ({
 
   const proxyGroups = [];
 
-  if (!form.isDirect && !isSingleNode && form.dialerProxyGroup.length > 0) {
+  if (!form.isDirect && !isSingleNode && validDialerGroup.length > 0) {
     const dialerGroup = {
       name: "🔀 前置跳板组",
       type: form.dialerProxyType,
-      proxies: [...form.dialerProxyGroup],
+      proxies: [...validDialerGroup],
     };
 
     if (form.dialerProxyType === "url-test" || form.dialerProxyType === "fallback") {
