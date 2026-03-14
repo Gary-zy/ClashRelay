@@ -477,17 +477,17 @@ export const useConfig = ({
         };
         if (username) node.username = decodeURIComponent(username);
         if (password) node.password = decodeURIComponent(password);
-      } else if (url.startsWith("http://") && url.includes("@")) {
-        const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(.+)$/);
+      } else if (url.startsWith("http://")) {
+        const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(\d+)\/?$/);
         if (!match) {
-          setStatus("http 链接格式不正确，正确格式：http://user:pass@host:port", "error");
+          setStatus("http 链接格式不正确，正确格式：http://host:port 或 http://user:pass@host:port", "error");
           return;
         }
 
         const [, username, password, host, portStr] = match;
         const port = parseInt(portStr, 10);
 
-        if (!isValidPort(port) || portStr !== String(port)) {
+        if (!isValidPort(port)) {
           setStatus(`端口 "${portStr}" 不是有效数字，请把 :${portStr} 换成真实端口。`, "error");
           return;
         }

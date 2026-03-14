@@ -627,7 +627,7 @@ import InkBamboo from "./components/decorations/InkBamboo.vue";
 import InkLoading from "./components/InkLoading.vue";
 import { useNodes } from "./composables/useNodes.js";
 import { useSubscription } from "./composables/useSubscription.js";
-import { useConfig } from "./composables/useConfig.js";
+import { useConfig, MANUAL_LANDING_TYPES } from "./composables/useConfig.js";
 import { highlightYaml } from "./utils/helpers.js";
 import { desktopApi, isDesktopApp } from "./utils/desktop.js";
 
@@ -832,6 +832,9 @@ const handleManualPaste = () => {
   });
   nodes.value = parsed;
   nodes.value.forEach((n) => { n.latency = -1; });
+  // 裁剪 dialerProxyGroup：移除新节点列表中已不存在的悬空名
+  const newNames = new Set(parsed.map((n) => n.name));
+  form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => newNames.has(name));
   if (saveConfig) saveConfig();
   manualSubscriptionText.value = "";
   status.message = `成功从粘贴内容解析 ${parsed.length} 个节点。`;
@@ -1447,6 +1450,10 @@ onMounted(async () => {
       if (savedDesktopState?.form) {
         Object.assign(form, savedDesktopState.form);
         lastSavedPath.value = savedDesktopState.lastSavedPath || "";
+        // 恢复复杂协议落地节点的解析对象
+        if (form.landingNodeUrl && !MANUAL_LANDING_TYPES.has(form.landingNodeType)) {
+          parseLandingNodeUrl();
+        }
         return;
       }
     } catch {}
@@ -1455,6 +1462,10 @@ onMounted(async () => {
   const savedConfig = loadSavedConfig();
   if (savedConfig) {
     Object.assign(form, savedConfig);
+    // 恢复复杂协议落地节点的解析对象
+    if (form.landingNodeUrl && !MANUAL_LANDING_TYPES.has(form.landingNodeType)) {
+      parseLandingNodeUrl();
+    }
     if (isDesktopShell) {
       desktopApi.saveState({
         version: DESKTOP_STATE_VERSION,
@@ -1474,6 +1485,35 @@ onBeforeUnmount(() => {
 });
 
 watch(form, saveConfig, { deep: true });
+
+// [P2] 关键配置变化时自动清空已生成的 YAML，防止导出过期配置
+watch(
+  () => [
+    form.generateMode,
+    form.isDirect,
+    form.landingNodeType,
+    form.socksServer,
+    form.socksPort,
+    form.socksAlias,
+    form.landingNodeUrl,
+    form.dialerProxyGroup,
+    form.dialerProxyType,
+    form.customRulesText,
+  ],
+  () => {
+    if (yamlText.value) {
+      yamlText.value = "";
+      previousYaml.value = "";
+    }
+  },
+  { deep: true }
+);
+watch(nodes, () => {
+  if (yamlText.value) {
+    yamlText.value = "";
+    previousYaml.value = "";
+  }
+});
 
 watch(activeStep, (step) => {
   if (workspaceTabs.value.some((tab) => tab.key === step)) {

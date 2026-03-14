@@ -180,10 +180,17 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
       node.latency = -1;
     });
 
+    // 裁剪 dialerProxyGroup：移除新订阅中已不存在的悬空节点名
+    const newNodeNames = new Set(finalNodes.map((n) => n.name));
+    const before = form.dialerProxyGroup.length;
+    form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => newNodeNames.has(name));
+    const pruned = before - form.dialerProxyGroup.length;
+
     saveSubscriptionHistory(form.subscriptionUrl.trim());
     if (saveConfig) saveConfig();
     isFetching.value = false;
-    setStatus(`成功解析 ${parsed.length} 个节点。`, "success");
+    const prunedNote = pruned > 0 ? `（已自动移除 ${pruned} 个失效跳板选择）` : "";
+    setStatus(`成功解析 ${parsed.length} 个节点。${prunedNote}`, "success");
   };
 
   return {
