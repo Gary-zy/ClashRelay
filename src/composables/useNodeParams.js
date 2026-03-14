@@ -8,7 +8,6 @@ const systemDefaults = {
   udp: true,
   tfo: false,
   skipCertVerify: true,
-  clientFingerprint: "chrome",
   vmessCipher: "auto",
   vmessAlterId: 0,
 };
@@ -16,6 +15,7 @@ const systemDefaults = {
 /**
  * 参数补全 Composable
  * 仅保留静默的协议默认值补全，不再暴露额外用户配置。
+ * client-fingerprint 已通过全局 global-client-fingerprint 配置，不再逐节点注入。
  */
 export const useNodeParams = () => {
   /**
@@ -34,10 +34,7 @@ export const useNodeParams = () => {
       result["skip-cert-verify"] = systemDefaults.skipCertVerify;
     }
 
-    // Client Fingerprint - 为 TLS 节点添加
-    if (result.tls && !isDefined(result["client-fingerprint"])) {
-      result["client-fingerprint"] = systemDefaults.clientFingerprint;
-    }
+    // 不再逐节点注入 client-fingerprint，依赖全局 global-client-fingerprint
 
     return result;
   };
@@ -59,6 +56,7 @@ export const useNodeParams = () => {
 
     vless: (node) => {
       const result = { ...node };
+      // VLESS flow 仍需显式指纹
       if (result.flow && !result["client-fingerprint"]) {
         result["client-fingerprint"] = "chrome";
       }
@@ -76,7 +74,7 @@ export const useNodeParams = () => {
     anytls: (node) => {
       const result = { ...node };
       if (!isDefined(result["client-fingerprint"])) {
-        result["client-fingerprint"] = systemDefaults.clientFingerprint;
+        result["client-fingerprint"] = "chrome";
       }
       return result;
     },

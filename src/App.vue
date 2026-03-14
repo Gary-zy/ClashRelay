@@ -141,6 +141,30 @@
                     {{ isFetching ? "正在获取..." : "获取节点" }}
                   </el-button>
                 </div>
+
+                <el-collapse class="paste-collapse">
+                  <el-collapse-item name="paste">
+                    <template #title>
+                      <span class="paste-collapse-title">📋 手动粘贴订阅内容（CORS 失败时用这个）</span>
+                    </template>
+                    <el-input
+                      v-model="manualSubscriptionText"
+                      type="textarea"
+                      :rows="5"
+                      placeholder="把订阅内容粘贴到这里（支持 Base64、YAML、逐行节点链接）"
+                    />
+                    <el-button
+                      type="primary"
+                      plain
+                      size="small"
+                      style="margin-top: 8px;"
+                      @click="handleManualPaste"
+                      :disabled="!manualSubscriptionText.trim()"
+                    >
+                      导入粘贴内容
+                    </el-button>
+                  </el-collapse-item>
+                </el-collapse>
               </div>
             </el-form>
           </div>
@@ -708,7 +732,7 @@ const clearLegacyStorage = () => {
 
 const formDefaults = {
   subscriptionUrl: "",
-  proxyUrl: "http://localhost:8787",
+  proxyUrl: import.meta.env.DEV ? "http://localhost:8787" : "",
   landingNodeUrl: "",
   landingNodeType: "socks5",
   socksServer: "",
@@ -770,12 +794,44 @@ const {
   querySubscriptionHistory,
   removeHistoryItem,
   handleFetch,
+  parseSubscription,
 } = useSubscription({
   form,
   nodes,
   status,
   saveConfig,
 });
+
+// 手动粘贴订阅内容（CORS 失败时的回退方案）
+const manualSubscriptionText = ref("");
+const handleManualPaste = () => {
+  const text = manualSubscriptionText.value.trim();
+  if (!text) return;
+  const parsed = parseSubscription(text);
+  if (!parsed.length) {
+    status.message = "粘贴的内容没有解析出节点，请检查格式。";
+    status.type = "error";
+    return;
+  }
+  // 去重节点名
+  const nameCounts = new Map();
+  parsed.forEach((node) => {
+    let name = node.name;
+    if (nameCounts.has(name)) {
+      const count = nameCounts.get(name) + 1;
+      nameCounts.set(name, count);
+      node.name = `${name} (${count - 1})`;
+    } else {
+      nameCounts.set(name, 1);
+    }
+  });
+  nodes.value = parsed;
+  nodes.value.forEach((n) => { n.latency = -1; });
+  if (saveConfig) saveConfig();
+  manualSubscriptionText.value = "";
+  status.message = `成功从粘贴内容解析 ${parsed.length} 个节点。`;
+  status.type = "success";
+};
 
 const {
   landingNode,

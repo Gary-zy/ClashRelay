@@ -47,7 +47,10 @@ test("中转模式单跳板会给落地节点注入 dialer-proxy", () => {
   assert.equal(result.ok, true);
   const landingProxy = result.config.proxies.at(-1);
   assert.equal(landingProxy["dialer-proxy"], "HK-A");
-  assert.equal(result.config["proxy-groups"][1].name, "🌐 代理出口");
+  // 中转模式：代理出口只含落地节点和 DIRECT，不暴露裸跳板
+  const proxyGroup = result.config["proxy-groups"].find((g) => g.name === "🌐 代理出口");
+  assert.ok(proxyGroup);
+  assert.deepEqual(proxyGroup.proxies, ["落地节点", "DIRECT"]);
 });
 
 test("中转模式多跳板会生成前置跳板组", () => {

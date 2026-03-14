@@ -265,6 +265,7 @@ export const buildClashConfig = ({
   }
 
   if (proxyNames.length > 0 && !form.isDirect) {
+    // 中转模式：代理出口只能走落地节点（完整链路），不暴露裸跳板
     proxyGroups.push(
       {
         name: landingGroupName,
@@ -274,31 +275,8 @@ export const buildClashConfig = ({
       {
         name: proxyGroupName,
         type: "select",
-        proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, landingProxyName, "DIRECT"],
+        proxies: [landingProxyName, "DIRECT"],
       },
-      {
-        name: "♻️ 自动选择",
-        type: "url-test",
-        proxies: [...proxyNames],
-        url: "http://www.gstatic.com/generate_204",
-        interval: 300,
-        tolerance: 50,
-      },
-      {
-        name: "🛡️ 故障转移",
-        type: "fallback",
-        proxies: [...proxyNames],
-        url: "http://www.gstatic.com/generate_204",
-        interval: 180,
-      },
-      {
-        name: "⚖️ 负载均衡",
-        type: "load-balance",
-        proxies: [...proxyNames],
-        url: "http://www.gstatic.com/generate_204",
-        interval: 300,
-        strategy: "consistent-hashing",
-      }
     );
   } else {
     proxyGroups.push(
@@ -322,6 +300,7 @@ export const buildClashConfig = ({
     mode: "rule",
     "log-level": "info",
     "external-controller": "127.0.0.1:9090",
+    "global-client-fingerprint": "chrome",
     dns: {
       enable: true,
       ipv6: false,
@@ -409,6 +388,7 @@ export const buildSubscriptionOnlyConfig = ({
     mode: "rule",
     "log-level": "info",
     "external-controller": "127.0.0.1:9090",
+    "global-client-fingerprint": "chrome",
     dns: {
       enable: true,
       ipv6: false,

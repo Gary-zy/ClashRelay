@@ -67,7 +67,10 @@ export function parseVmess(line, index) {
 
     if (json.tls === "tls") {
       node.tls = true;
-      if (json.sni) node.servername = json.sni;
+      if (json.sni) {
+        node.servername = json.sni;
+        node.sni = json.sni;
+      }
       if (json.allowInsecure === "0" || json.allowInsecure === 0 || json.verify_cert === true) {
         node["skip-cert-verify"] = false;
       } else {
@@ -91,8 +94,10 @@ export function parseVmess(line, index) {
       node["ws-opts"] = {
         path: json.path || "/",
       };
-      if (json.host) {
-        node["ws-opts"].headers = { Host: json.host };
+      // Host 优先用 host 参数，回退到 SNI
+      const wsHost = json.host || json.sni;
+      if (wsHost) {
+        node["ws-opts"].headers = { Host: wsHost };
       }
       if (json.ed) {
         node["ws-opts"]["max-early-data"] = Number(json.ed);
@@ -188,8 +193,12 @@ export function parseVless(line, index) {
       network: params.type || "tcp",
     };
 
-    if (params.sni) node.sni = params.sni;
-    if (params.servername) node.servername = params.servername;
+    // Meta 内核使用 servername 作为 TLS SNI，sni 是别名
+    const effectiveSni = params.sni || params.servername;
+    if (effectiveSni) {
+      node.servername = effectiveSni;
+      node.sni = effectiveSni;
+    }
 
     if (params.flow) node.flow = params.flow;
 
@@ -224,8 +233,12 @@ export function parseVless(line, index) {
     if (params.type === "ws") {
       node["ws-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        headers: params.host ? { Host: params.host } : undefined,
       };
+      // Host 优先用 host 参数，回退到 SNI
+      const wsHost = params.host || effectiveSni;
+      if (wsHost) {
+        node["ws-opts"].headers = { Host: wsHost };
+      }
       if (params.ed) {
         node["ws-opts"]["max-early-data"] = Number(params.ed);
         node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
@@ -244,8 +257,10 @@ export function parseVless(line, index) {
     if (params.type === "h2") {
       node["h2-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        host: params.host ? [params.host] : undefined,
       };
+      if (params.host) {
+        node["h2-opts"].host = [params.host];
+      }
     }
 
     if (params.type === "tcp" && params.headerType === "http") {
@@ -261,16 +276,20 @@ export function parseVless(line, index) {
       node.network = "httpupgrade";
       node["httpupgrade-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        host: params.host || undefined,
       };
+      if (params.host) {
+        node["httpupgrade-opts"].host = params.host;
+      }
     }
 
     if (params.type === "splithttp") {
       node.network = "splithttp";
       node["splithttp-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        host: params.host || undefined,
       };
+      if (params.host) {
+        node["splithttp-opts"].host = params.host;
+      }
     }
 
     return node;
@@ -304,9 +323,12 @@ export function parseTrojan(line, index) {
       node.tls = true;
     }
 
-    // SNI
-    if (params.sni) node.sni = params.sni;
-    if (params.peer) node.sni = params.peer;
+    // SNI - Meta 内核使用 servername
+    const effectiveSni = params.sni || params.peer;
+    if (effectiveSni) {
+      node.sni = effectiveSni;
+      node.servername = effectiveSni;
+    }
 
     // 证书验证
     if (node.tls || isReality || isXtls) {
@@ -355,8 +377,12 @@ export function parseTrojan(line, index) {
       node.network = "ws";
       node["ws-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        headers: params.host ? { Host: params.host } : undefined,
       };
+      // Host 优先用 host 参数，回退到 SNI
+      const wsHost = params.host || effectiveSni;
+      if (wsHost) {
+        node["ws-opts"].headers = { Host: wsHost };
+      }
       if (params.ed) {
         node["ws-opts"]["max-early-data"] = Number(params.ed);
         node["ws-opts"]["early-data-header-name"] = params.eh || "Sec-WebSocket-Protocol";
@@ -377,8 +403,10 @@ export function parseTrojan(line, index) {
       node.network = "h2";
       node["h2-opts"] = {
         path: decodeURIComponent(params.path || "/"),
-        host: params.host ? [params.host] : undefined,
       };
+      if (params.host) {
+        node["h2-opts"].host = [params.host];
+      }
     }
 
     return node;
@@ -405,8 +433,12 @@ export function parseAnyTLS(line, index) {
 
     if (!node.server || !node.port || !node.password) return null;
 
-    if (params.sni) node.sni = params.sni;
-    if (params.servername) node.sni = params.servername;
+    // SNI - Meta 内核也使用 servername
+    const effectiveSni = params.sni || params.servername;
+    if (effectiveSni) {
+      node.sni = effectiveSni;
+      node.servername = effectiveSni;
+    }
 
     if (params.alpn) {
       const alpn = decodeURIComponent(params.alpn)
@@ -575,13 +607,15 @@ export function parseHysteria(line, index) {
       type: "hysteria",
       server: url.hostname,
       port: Number(url.port),
-      "auth-str": params.auth || url.username || undefined,
+      "auth-str": params.auth || url.username || "",
       up: params.upmbps || params.up || "100",
       down: params.downmbps || params.down || "100",
     };
 
     if (params.peer || params.sni) {
-      node.sni = params.peer || params.sni;
+      const hystSni = params.peer || params.sni;
+      node.sni = hystSni;
+      node.servername = hystSni;
     }
 
     if (params.alpn) {
@@ -625,6 +659,7 @@ export function parseHysteria2(line, index) {
       server: url.hostname,
       port: Number(url.port) || 443,
       password: decodeURIComponent(url.username) || params.auth,
+      udp: true,
     };
 
     // 端口跳变 (mport 参数)
@@ -643,6 +678,7 @@ export function parseHysteria2(line, index) {
     // SNI
     if (params.sni) {
       node.sni = params.sni;
+      node.servername = params.sni;
     }
 
     // 混淆
@@ -690,11 +726,13 @@ export function parseTUIC(line, index) {
       port: Number(url.port) || 443,
       uuid: url.username,
       password: decodeURIComponent(url.password) || params.password,
+      udp: true,
     };
 
     // SNI
     if (params.sni) {
       node.sni = params.sni;
+      node.servername = params.sni;
     }
 
     // ALPN
