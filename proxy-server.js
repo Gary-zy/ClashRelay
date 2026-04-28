@@ -1,6 +1,7 @@
 import http from "http";
 import https from "https";
 import net from "net";
+import { fileURLToPath } from "url";
 
 const PORT = Number(process.env.PORT) || 8787;
 
@@ -18,6 +19,19 @@ const send = (res, statusCode, body, contentType = "text/plain; charset=utf-8") 
   res.end(body);
 };
 
+export const resolveRedirectUrl = (targetUrl, location) => {
+  if (!location) return null;
+  try {
+    const resolved = new URL(location, targetUrl);
+    if (!["http:", "https:"].includes(resolved.protocol)) {
+      return null;
+    }
+    return resolved.toString();
+  } catch {
+    return null;
+  }
+};
+
 const requestWithRedirect = (targetUrl, res, redirectCount = 0) => {
   if (redirectCount > 3) {
     send(res, 502, "Too many redirects");
@@ -32,7 +46,12 @@ const requestWithRedirect = (targetUrl, res, redirectCount = 0) => {
         send(res, 502, "Redirect location missing");
         return;
       }
-      requestWithRedirect(location, res, redirectCount + 1);
+      const nextUrl = resolveRedirectUrl(targetUrl, location);
+      if (!nextUrl) {
+        send(res, 502, "Invalid redirect location");
+        return;
+      }
+      requestWithRedirect(nextUrl, res, redirectCount + 1);
       return;
     }
 
@@ -54,7 +73,7 @@ const configStore = new Map();
 
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
-const server = http.createServer((req, res) => {
+export const createRelayProxyServer = () => http.createServer((req, res) => {
   // Handle CORS for all requests
   if (req.method === "OPTIONS") {
     setCors(res);
@@ -188,7 +207,12 @@ const server = http.createServer((req, res) => {
   requestWithRedirect(parsed.toString(), res);
 });
 
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`RelayBox proxy server listening on http://localhost:${PORT}`);
-});
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isMainModule) {
+  const server = createRelayProxyServer();
+  server.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`RelayBox proxy server listening on http://localhost:${PORT}`);
+  });
+}

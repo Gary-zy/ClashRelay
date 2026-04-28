@@ -11,6 +11,9 @@ const isValidPort = (value) => {
   return Number.isInteger(port) && port > 0 && port <= 65535;
 };
 
+const normalizeParsedHost = (value) =>
+  value.startsWith("[") && value.endsWith("]") ? value.slice(1, -1) : value;
+
 export const getFetchErrorMessage = ({ error, responseStatus, usedProxy, errorKind }) => {
   if (responseStatus) {
     if (responseStatus === 401 || responseStatus === 403) {
@@ -310,6 +313,7 @@ export const buildClashConfig = ({
         name: proxyGroupName,
         type: "select",
         proxies: [
+          landingGroupName,
           relayAutoSelectGroupName,
           relayFallbackGroupName,
           relayLoadBalanceGroupName,
@@ -328,7 +332,7 @@ export const buildClashConfig = ({
       {
         name: proxyGroupName,
         type: "select",
-        proxies: [landingProxyName, "DIRECT"],
+        proxies: [landingGroupName, "DIRECT"],
       }
     );
   }
@@ -494,14 +498,14 @@ export const useConfig = ({
       landingNode.value = null;
 
       if (url.startsWith("socks5://") || url.startsWith("socks5h://") || url.startsWith("socks://")) {
-        const match = url.match(/^(?:socks5h?|socks):\/\/(?:([^:]+):([^@]+)@)?([^:]+):(.+)$/);
-        if (!match) {
+        const parsedUrl = new URL(url);
+        const port = parseInt(parsedUrl.port, 10);
+        if (!parsedUrl.hostname || !parsedUrl.port) {
           setStatus("socks5 链接格式不正确，正确格式：socks5://user:pass@host:port", "error");
           return;
         }
-
-        const [, username, password, host, portStr] = match;
-        const port = parseInt(portStr, 10);
+        const host = normalizeParsedHost(parsedUrl.hostname);
+        const portStr = parsedUrl.port;
 
         if (!isValidPort(port) || portStr !== String(port)) {
           setStatus(`端口 "${portStr}" 不是有效数字，请把 :${portStr} 换成真实端口。`, "error");
@@ -515,17 +519,17 @@ export const useConfig = ({
           port,
           udp: true,
         };
-        if (username) node.username = decodeURIComponent(username);
-        if (password) node.password = decodeURIComponent(password);
+        if (parsedUrl.username) node.username = decodeURIComponent(parsedUrl.username);
+        if (parsedUrl.password) node.password = decodeURIComponent(parsedUrl.password);
       } else if (url.startsWith("http://")) {
-        const match = url.match(/^http:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+):(\d+)\/?$/);
-        if (!match) {
+        const parsedUrl = new URL(url);
+        const port = parseInt(parsedUrl.port, 10);
+        if (!parsedUrl.hostname || !parsedUrl.port) {
           setStatus("http 链接格式不正确，正确格式：http://host:port 或 http://user:pass@host:port", "error");
           return;
         }
-
-        const [, username, password, host, portStr] = match;
-        const port = parseInt(portStr, 10);
+        const host = normalizeParsedHost(parsedUrl.hostname);
+        const portStr = parsedUrl.port;
 
         if (!isValidPort(port)) {
           setStatus(`端口 "${portStr}" 不是有效数字，请把 :${portStr} 换成真实端口。`, "error");
@@ -538,8 +542,8 @@ export const useConfig = ({
           server: host,
           port,
         };
-        if (username) node.username = decodeURIComponent(username);
-        if (password) node.password = decodeURIComponent(password);
+        if (parsedUrl.username) node.username = decodeURIComponent(parsedUrl.username);
+        if (parsedUrl.password) node.password = decodeURIComponent(parsedUrl.password);
       } else {
         node = parseProxyLine(url, 0);
       }

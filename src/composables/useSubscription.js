@@ -140,14 +140,16 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
 
   const parseSubscription = (text) => {
     const trimmed = text.trim();
-    if (trimmed.includes("proxies:")) {
-      const clashConfigResult = parseClashConfigNodes(trimmed);
+    const decoded = tryDecodeBase64(trimmed);
+    const content = decoded || trimmed;
+
+    if (content.includes("proxies:")) {
+      const clashConfigResult = parseClashConfigNodes(content);
       if (clashConfigResult.ok) {
         return clashConfigResult.nodes;
       }
     }
-    const decoded = tryDecodeBase64(trimmed);
-    const content = decoded || trimmed;
+
     const lines = content
       .split(/\r?\n/)
       .map((line) => line.trim())

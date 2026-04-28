@@ -97,3 +97,30 @@ proxies:
   assert.match(status.message, /已从 Clash 配置中导入 2 个节点/);
 });
 
+test("手动粘贴支持 Base64 编码的 Clash YAML", () => {
+  const nodes = ref([]);
+  const status = { message: "", type: "" };
+  const form = createForm();
+  const { parseSubscription } = useSubscription({
+    form,
+    nodes,
+    status,
+  });
+
+  const encoded = Buffer.from(`
+proxies:
+  - name: IPv6-Test
+    type: ss
+    server: 2001:db8::8
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+`).toString("base64");
+
+  const parsed = parseSubscription(encoded);
+
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].name, "IPv6-Test");
+  assert.equal(parsed[0].server, "2001:db8::8");
+  assert.equal(parsed[0].port, 443);
+});

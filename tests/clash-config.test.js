@@ -5,7 +5,9 @@ import {
   buildSubscriptionOnlyConfig,
   buildLandingProxyFromForm,
   getFetchErrorMessage,
+  useConfig,
 } from "../src/composables/useConfig.js";
+import { ref } from "vue";
 
 const identity = (value) => ({ ...value });
 const identityList = (values) => values.map((value) => ({ ...value }));
@@ -49,7 +51,7 @@ test("中转模式单跳板会给落地节点注入 dialer-proxy", () => {
   assert.equal(landingProxy["dialer-proxy"], "HK-A");
   const proxyGroup = result.config["proxy-groups"].find((g) => g.name === "🌐 代理出口");
   assert.ok(proxyGroup);
-  assert.ok(!proxyGroup.proxies.includes("落地节点"));
+  assert.equal(proxyGroup.proxies[0], "🎯 落地节点");
   assert.ok(proxyGroup.proxies.includes("♻️ 自动选择"));
   assert.ok(proxyGroup.proxies.includes("🛡️ 故障转移"));
   assert.ok(proxyGroup.proxies.includes("⚖️ 负载均衡"));
@@ -115,10 +117,10 @@ test("直连模式不要求跳板且不会注入 dialer-proxy", () => {
   assert.equal(result.ok, true);
   assert.equal(result.config.proxies.length, 1);
   assert.equal("dialer-proxy" in result.config.proxies[0], false);
-  assert.deepEqual(result.config["proxy-groups"][1].proxies, ["落地节点", "DIRECT"]);
+  assert.deepEqual(result.config["proxy-groups"][1].proxies, ["🎯 落地节点", "DIRECT"]);
 });
 
-test("中转模式的 AI 规则走落地节点，漏网规则走代理出口", () => {
+test("中转模式的 AI 规则走落地节点，漏网规则默认也走落地链路", () => {
   const result = buildClashConfig({
     form: createForm({ dialerProxyGroup: ["HK-A"] }),
     nodes: sampleNodes,
@@ -132,7 +134,7 @@ test("中转模式的 AI 规则走落地节点，漏网规则走代理出口", (
   const proxyGroup = result.config["proxy-groups"].find((group) => group.name === "🌐 代理出口");
   assert.deepEqual(landingGroup.proxies, ["落地节点"]);
   assert.ok(proxyGroup);
-  assert.ok(!proxyGroup.proxies.includes("落地节点"));
+  assert.equal(proxyGroup.proxies[0], "🎯 落地节点");
   assert.ok(result.config.rules.includes("DOMAIN-SUFFIX,openai.com,🎯 落地节点"));
   assert.ok(result.config.rules.includes("MATCH,🌐 代理出口"));
 });
@@ -149,6 +151,51 @@ test("复杂协议手填会被明确拦截", () => {
 
   assert.equal(result.ok, false);
   assert.match(result.message, /仅支持通过节点链接解析导入/);
+});
+
+test("手填 socks5 IPv6 落地链接能被正确解析", () => {
+  const form = createForm({
+    landingNodeUrl: "socks5://user:pass@[2001:db8::10]:1080",
+  });
+  const status = { message: "", type: "" };
+  const { landingNode, parseLandingNodeUrl } = useConfig({
+    form,
+    nodes: ref([]),
+    status,
+    yamlText: ref(""),
+    previousYaml: ref(""),
+  });
+
+  parseLandingNodeUrl();
+
+  assert.equal(status.type, "success");
+  assert.equal(landingNode.value.server, "2001:db8::10");
+  assert.equal(landingNode.value.port, 1080);
+  assert.equal(landingNode.value.username, "user");
+  assert.equal(landingNode.value.password, "pass");
+});
+
+test("手填 http IPv6 落地链接能被正确解析", () => {
+  const form = createForm({
+    landingNodeType: "http",
+    landingNodeUrl: "http://user:pass@[2001:db8::20]:8080",
+  });
+  const status = { message: "", type: "" };
+  const { landingNode, parseLandingNodeUrl } = useConfig({
+    form,
+    nodes: ref([]),
+    status,
+    yamlText: ref(""),
+    previousYaml: ref(""),
+  });
+
+  parseLandingNodeUrl();
+
+  assert.equal(status.type, "success");
+  assert.equal(landingNode.value.server, "2001:db8::20");
+  assert.equal(landingNode.value.port, 8080);
+  assert.equal(landingNode.value.username, "user");
+  assert.equal(landingNode.value.password, "pass");
 });
 
 test("自定义规则会排在默认规则前面且去重", () => {

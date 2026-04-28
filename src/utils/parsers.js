@@ -35,6 +35,35 @@ export const decodeVmessBase64 = (value) => {
   }
 };
 
+const stripIpv6Brackets = (value) =>
+  value.startsWith("[") && value.endsWith("]") ? value.slice(1, -1) : value;
+
+export const parseServerPort = (value) => {
+  if (!value || typeof value !== "string") return { server: "", port: "" };
+
+  if (value.startsWith("[")) {
+    const closingBracket = value.indexOf("]");
+    if (closingBracket < 0 || value[closingBracket + 1] !== ":") {
+      return { server: "", port: "" };
+    }
+
+    return {
+      server: stripIpv6Brackets(value.slice(0, closingBracket + 1)),
+      port: value.slice(closingBracket + 2),
+    };
+  }
+
+  const separatorIndex = value.lastIndexOf(":");
+  if (separatorIndex <= 0) {
+    return { server: "", port: "" };
+  }
+
+  return {
+    server: value.slice(0, separatorIndex),
+    port: value.slice(separatorIndex + 1),
+  };
+};
+
 export function parseProxyLine(line, index) {
   if (line.startsWith("vmess://")) return parseVmess(line, index);
   if (line.startsWith("vless://")) return parseVless(line, index);
@@ -484,7 +513,7 @@ export function parseSS(line, index) {
       const colonIdx = decoded.indexOf(":");
       method = decoded.substring(0, colonIdx);
       password = decoded.substring(colonIdx + 1);
-      [server, port] = serverPart.split(":");
+      ({ server, port } = parseServerPort(serverPart));
     } else {
       const decoded = tryDecodeBase64(main) || atob(main);
       const atIdx = decoded.lastIndexOf("@");
@@ -493,7 +522,7 @@ export function parseSS(line, index) {
       const colonIdx = userinfo.indexOf(":");
       method = userinfo.substring(0, colonIdx);
       password = userinfo.substring(colonIdx + 1);
-      [server, port] = serverPart.split(":");
+      ({ server, port } = parseServerPort(serverPart));
     }
 
     if (!password || !server || !port) {
