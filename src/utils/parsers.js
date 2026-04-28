@@ -38,6 +38,30 @@ export const decodeVmessBase64 = (value) => {
 const stripIpv6Brackets = (value) =>
   value.startsWith("[") && value.endsWith("]") ? value.slice(1, -1) : value;
 
+const normalizeUrlHostname = (value) => stripIpv6Brackets(value || "");
+
+const decodeURIComponentSafe = (value) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+const parseBooleanParam = (value) => {
+  if (value === true || value === "true" || value === "1") return true;
+  if (value === false || value === "false" || value === "0") return false;
+  return Boolean(value);
+};
+
+const applySkipCertVerify = (node, params, names = ["allowInsecure", "insecure", "allow_insecure"]) => {
+  const matchedName = names.find((name) => hasOwn(params, name));
+  if (!matchedName) return;
+  node["skip-cert-verify"] = parseBooleanParam(params[matchedName]);
+};
+
 export const parseServerPort = (value) => {
   if (!value || typeof value !== "string") return { server: "", port: "" };
 
@@ -91,7 +115,6 @@ export function parseVmess(line, index) {
       uuid: json.id,
       alterId: Number(json.aid || 0),
       cipher: json.scy || "auto",
-      udp: true,
     };
 
     if (json.tls === "tls") {
@@ -100,10 +123,12 @@ export function parseVmess(line, index) {
         node.servername = json.sni;
         node.sni = json.sni;
       }
-      if (json.allowInsecure === "0" || json.allowInsecure === 0 || json.verify_cert === true) {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
+      if ("allowInsecure" in json || "verify_cert" in json) {
+        if (json.allowInsecure === "0" || json.allowInsecure === 0 || json.verify_cert === true) {
+          node["skip-cert-verify"] = false;
+        } else {
+          node["skip-cert-verify"] = true;
+        }
       }
       if (json.alpn) {
         node.alpn = Array.isArray(json.alpn) ? json.alpn : json.alpn.split(",");
@@ -214,10 +239,9 @@ export function parseVless(line, index) {
     const node = {
       name,
       type: "vless",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port),
       uuid: url.username,
-      udp: true,
       tls: isTls,
       network: params.type || "tcp",
     };
@@ -232,11 +256,7 @@ export function parseVless(line, index) {
     if (params.flow) node.flow = params.flow;
 
     if (isTls) {
-      if (params.allowInsecure === "0" || params.insecure === "0") {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
-      }
+      applySkipCertVerify(node, params, ["allowInsecure", "insecure"]);
     }
 
     if (params.fp) {
@@ -341,10 +361,9 @@ export function parseTrojan(line, index) {
     const node = {
       name,
       type: "trojan",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port),
       password: decodeURIComponent(url.username),
-      udp: true,
     };
 
     // TLS 设置
@@ -361,11 +380,7 @@ export function parseTrojan(line, index) {
 
     // 证书验证
     if (node.tls || isReality || isXtls) {
-      if (params.allowInsecure === "0" || params.insecure === "0") {
-        node["skip-cert-verify"] = false;
-      } else {
-        node["skip-cert-verify"] = true;
-      }
+      applySkipCertVerify(node, params, ["allowInsecure", "insecure"]);
     }
 
     // 客户端指纹
@@ -454,11 +469,12 @@ export function parseAnyTLS(line, index) {
     const node = {
       name,
       type: "anytls",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port),
       password,
-      udp: params.udp ? params.udp !== "0" && params.udp !== "false" : true,
     };
+
+    if (hasOwn(params, "udp")) node.udp = parseBooleanParam(params.udp);
 
     if (!node.server || !node.port || !node.password) return null;
 
@@ -480,10 +496,7 @@ export function parseAnyTLS(line, index) {
     const clientFingerprint = params.fp || params["client-fingerprint"];
     if (clientFingerprint) node["client-fingerprint"] = clientFingerprint;
 
-    const insecure = params.allowInsecure ?? params.insecure;
-    if (insecure !== undefined) {
-      node["skip-cert-verify"] = !(insecure === "0" || insecure === "false");
-    }
+    applySkipCertVerify(node, params, ["allowInsecure", "insecure"]);
 
     return node;
   } catch (error) {
@@ -508,8 +521,12 @@ export function parseSS(line, index) {
     let method, password, server, port;
 
     if (main.includes("@")) {
-      const [userinfoPart, serverPart] = main.split("@");
-      const decoded = tryDecodeBase64(userinfoPart) || atob(userinfoPart);
+      const atIdx = main.lastIndexOf("@");
+      const userinfoPart = main.substring(0, atIdx);
+      const serverPart = main.substring(atIdx + 1);
+      const decoded = tryDecodeBase64(userinfoPart) || (
+        userinfoPart.includes(":") ? decodeURIComponentSafe(userinfoPart) : atob(userinfoPart)
+      );
       const colonIdx = decoded.indexOf(":");
       method = decoded.substring(0, colonIdx);
       password = decoded.substring(colonIdx + 1);
@@ -542,7 +559,6 @@ export function parseSS(line, index) {
       port: Number(port),
       cipher: method,
       password,
-      udp: true,
     };
 
     if (queryParams.plugin) {
@@ -617,7 +633,6 @@ export function parseSSR(line, index) {
       "protocol-param": protocolParam,
       obfs,
       "obfs-param": obfsParam,
-      udp: true,
     };
   } catch (error) {
     console.warn("SSR parsing error:", error);
@@ -634,7 +649,7 @@ export function parseHysteria(line, index) {
     const node = {
       name,
       type: "hysteria",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port),
       "auth-str": params.auth || url.username || "",
       up: params.upmbps || params.up || "100",
@@ -658,11 +673,7 @@ export function parseHysteria(line, index) {
       node["obfs-password"] = params.obfsParam;
     }
 
-    if (params.insecure === "0" || params.allowInsecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
+    applySkipCertVerify(node, params, ["allowInsecure", "insecure"]);
 
     if (params.fp) {
       node["fingerprint"] = params.fp;
@@ -685,10 +696,9 @@ export function parseHysteria2(line, index) {
     const node = {
       name,
       type: "hysteria2",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port) || 443,
       password: decodeURIComponent(url.username) || params.auth,
-      udp: true,
     };
 
     // 端口跳变 (mport 参数)
@@ -719,11 +729,7 @@ export function parseHysteria2(line, index) {
     }
 
     // 证书验证
-    if (params.insecure === "0" || params.allowInsecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
+    applySkipCertVerify(node, params, ["allowInsecure", "insecure"]);
 
     // 指纹
     if (params.fp || params.pinSHA256) {
@@ -751,11 +757,10 @@ export function parseTUIC(line, index) {
     const node = {
       name,
       type: "tuic",
-      server: url.hostname,
+      server: normalizeUrlHostname(url.hostname),
       port: Number(url.port) || 443,
       uuid: url.username,
       password: decodeURIComponent(url.password) || params.password,
-      udp: true,
     };
 
     // SNI
@@ -782,11 +787,7 @@ export function parseTUIC(line, index) {
     }
 
     // 证书验证
-    if (params.insecure === "0" || params.allowInsecure === "0" || params.allow_insecure === "0") {
-      node["skip-cert-verify"] = false;
-    } else {
-      node["skip-cert-verify"] = true;
-    }
+    applySkipCertVerify(node, params, ["allowInsecure", "insecure", "allow_insecure"]);
 
     // 禁用 SNI
     if (params.disable_sni === "1" || params["disable-sni"] === "1") {

@@ -25,6 +25,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test
+
+      - name: Verify Clash config
+        run: npm run verify:clash
+
       - name: Build
         run: npm run build
 

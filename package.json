@@ -10,6 +10,8 @@
     "build:desktop": "vite build --mode desktop",
     "preview": "vite preview",
     "test": "node --test",
+    "verify:clash": "node scripts/verify-mihomo.mjs",
+    "verify:all": "npm test && npm run build && npm run verify:clash",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

@@ -1,0 +1,9 @@
+ss://YWVzLTEyOC1nY206cHc=@ss-base64.example.com:443#SS%20Base64
+ss://aes-128-gcm:pa%40ss@ss-plain.example.com:8443#SS%20Plain
+ss://YWVzLTEyOC1nY206cHc=@ss-plugin.example.com:443?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dwww.example.com#SS%20Plugin
+vmess://eyJ2IjoiMiIsInBzIjoiVk1lc3MgV1MiLCJhZGQiOiJ2bWVzcy5leGFtcGxlLmNvbSIsInBvcnQiOiI0NDMiLCJpZCI6IjExMTExMTExLTExMTEtMTExMS0xMTExLTExMTExMTExMTExMSIsImFpZCI6IjAiLCJzY3kiOiJhdXRvIiwibmV0Ijoid3MiLCJ0eXBlIjoibm9uZSIsImhvc3QiOiJjZG4uZXhhbXBsZS5jb20iLCJwYXRoIjoiL3dzIiwidGxzIjoidGxzIiwic25pIjoic25pLmV4YW1wbGUuY29tIiwiZnAiOiJjaHJvbWUifQ==
+vless://22222222-2222-2222-2222-222222222222@vless.example.com:443?encryption=none&security=reality&sni=www.example.com&fp=chrome&pbk=public-key&sid=abcd&type=grpc&serviceName=svc#VLESS%20Reality
+trojan://trojan-pass@trojan.example.com:443?security=tls&sni=trojan-sni.example.com&type=ws&host=cdn.example.com&path=%2Ftrojan#Trojan%20WS
+hysteria2://hy2-pass@hy2.example.com:443?sni=hy2-sni.example.com&obfs=salamander&obfs-password=obfs-pass#Hysteria2
+tuic://33333333-3333-3333-3333-333333333333:tuic-pass@tuic.example.com:443?sni=tuic-sni.example.com&congestion_control=bbr#TUIC
+vless://44444444-4444-4444-4444-444444444444@[2001:db8::10]:443?encryption=none&security=tls&type=ws&path=%2Fipv6#VLESS%20IPv6

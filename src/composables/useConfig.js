@@ -3,6 +3,8 @@ import yaml from "js-yaml";
 import { defaultRules, subscriptionDefaultRules, fakeIpFilter } from "../config/defaultConfig.js";
 import { parseProxyLine, parseRules } from "../utils/parsers.js";
 import { useNodeParams } from "./useNodeParams.js";
+import { validateClashConfig } from "../utils/clashConfigValidator.js";
+import { cleanProxyForExport } from "../utils/proxySanitizer.js";
 
 export const MANUAL_LANDING_TYPES = new Set(["socks5", "http"]);
 
@@ -167,15 +169,6 @@ const dedupeRules = (rules) => {
   });
 };
 
-const cleanProxy = (node) => {
-  if (!node) return node;
-  const cleaned = { ...node };
-  delete cleaned.latency;
-  delete cleaned.lastCheck;
-  delete cleaned.status;
-  return cleaned;
-};
-
 const splitRuleByTopLevelCommas = (rule) => {
   const parts = [];
   let depth = 0;
@@ -229,6 +222,14 @@ export const buildClashConfig = ({
   const completedNodes = form.isDirect ? [] : completeNodes(nodes);
   const proxyNames = completedNodes.map((node) => node.name);
 
+  if (!form.isDirect && proxyNames.includes(landingProxyName)) {
+    return {
+      ok: false,
+      message: `落地节点别名 "${landingProxyName}" 和订阅节点名冲突，请换一个别名。`,
+      type: "error",
+    };
+  }
+
   // 核心兜底：用实际节点名过滤跳板选择，杜绝悬空代理引用
   const validNodeNames = new Set(proxyNames);
   const validDialerGroup = form.isDirect ? [] : form.dialerProxyGroup.filter((name) => validNodeNames.has(name));
@@ -246,7 +247,10 @@ export const buildClashConfig = ({
 
   const proxyGroupName = "🌐 代理出口";
   const completedLandingProxy = completeNode(landingProxy);
-  const proxies = [...completedNodes.map(cleanProxy), cleanProxy(completedLandingProxy)];
+  const proxies = [
+    ...completedNodes.map((node) => cleanProxyForExport(node, { preserveDialerProxy: false })),
+    cleanProxyForExport(completedLandingProxy, { preserveDialerProxy: true }),
+  ];
   const relayAutoSelectGroupName = "♻️ 自动选择";
   const relayFallbackGroupName = "🛡️ 故障转移";
   const relayLoadBalanceGroupName = "⚖️ 负载均衡";
@@ -343,8 +347,6 @@ export const buildClashConfig = ({
     "bind-address": "*",
     mode: "rule",
     "log-level": "info",
-    "external-controller": "127.0.0.1:9090",
-    "global-client-fingerprint": "chrome",
     dns: {
       enable: true,
       ipv6: false,
@@ -371,6 +373,11 @@ export const buildClashConfig = ({
     rules: dedupeRules([...customRulesFromText, ...builtInRules]),
   };
 
+  const validation = validateClashConfig(config);
+  if (!validation.ok) {
+    return { ok: false, message: validation.errors[0], type: "error", errors: validation.errors };
+  }
+
   return { ok: true, config };
 };
 
@@ -385,7 +392,7 @@ export const buildSubscriptionOnlyConfig = ({
 
   const proxyGroupName = "🌐 代理出口";
   const completedNodes = completeNodes(nodes);
-  const proxies = completedNodes.map(cleanProxy);
+  const proxies = completedNodes.map((node) => cleanProxyForExport(node, { preserveDialerProxy: false }));
   const proxyNames = completedNodes.map((node) => node.name);
   const customRulesFromText = parseRules(form.customRulesText || "").map((rule) =>
     sanitizeRuleForSubscription(rule, proxyGroupName)
@@ -431,8 +438,6 @@ export const buildSubscriptionOnlyConfig = ({
     "bind-address": "*",
     mode: "rule",
     "log-level": "info",
-    "external-controller": "127.0.0.1:9090",
-    "global-client-fingerprint": "chrome",
     dns: {
       enable: true,
       ipv6: false,
@@ -458,6 +463,11 @@ export const buildSubscriptionOnlyConfig = ({
     "proxy-groups": proxyGroups,
     rules: dedupeRules([...customRulesFromText, ...builtInRules]),
   };
+
+  const validation = validateClashConfig(config);
+  if (!validation.ok) {
+    return { ok: false, message: validation.errors[0], type: "error", errors: validation.errors };
+  }
 
   return { ok: true, config };
 };

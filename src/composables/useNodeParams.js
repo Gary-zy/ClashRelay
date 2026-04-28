@@ -1,25 +1,27 @@
 import { isDefined } from "../utils/tribool.js";
+import { cleanProxyForExport } from "../utils/proxySanitizer.js";
 
 /**
- * 系统默认值 - 参考 Clash Verge 的默认行为
- * 这些参数会静默应用，用户无需配置
+ * RelayBox 自建落地节点的默认值。
+ * 订阅节点不走这套补全，避免和 Clash Verge 解析出的节点参数不一致。
  */
 const systemDefaults = {
   udp: true,
-  tfo: false,
-  skipCertVerify: true,
   vmessCipher: "auto",
   vmessAlterId: 0,
 };
 
 /**
- * 参数补全 Composable
- * 仅保留静默的协议默认值补全，不再暴露额外用户配置。
- * client-fingerprint 已通过全局 global-client-fingerprint 配置，不再逐节点注入。
+ * 参数处理 Composable
+ * 订阅节点 preserve-first，仅清理 UI 运行态字段。
+ * 只有 RelayBox 自建落地节点才做必要默认值补全。
  */
 export const useNodeParams = () => {
+  const normalizeSubscriptionNodeForExport = (node) =>
+    cleanProxyForExport(node, { preserveDialerProxy: false });
+
   /**
-   * 通用参数补全 - 静默应用
+   * 落地节点通用参数补全 - 只用于 RelayBox 自建落地节点。
    */
   const commonConstruct = (node) => {
     const result = { ...node };
@@ -28,13 +30,6 @@ export const useNodeParams = () => {
     if (!isDefined(result.udp)) {
       result.udp = systemDefaults.udp;
     }
-
-    // Skip Cert Verify - 默认开启（与 Clash Verge 一致）
-    if (!isDefined(result["skip-cert-verify"])) {
-      result["skip-cert-verify"] = systemDefaults.skipCertVerify;
-    }
-
-    // 不再逐节点注入 client-fingerprint，依赖全局 global-client-fingerprint
 
     return result;
   };
@@ -101,9 +96,9 @@ export const useNodeParams = () => {
   };
 
   /**
-   * 统一补全单个节点（静默运行）
+   * 统一补全 RelayBox 自建落地节点（静默运行）
    */
-  const completeNode = (rawNode) => {
+  const buildLandingNodeForExport = (rawNode) => {
     let node = { ...rawNode };
 
     // 1. 通用参数补全
@@ -119,12 +114,15 @@ export const useNodeParams = () => {
   };
 
   /**
-   * 批量补全节点
+   * 兼容旧调用：订阅节点批量导出只清理运行态字段，不补默认参数。
    */
-  const completeNodes = (nodes) => nodes.map(completeNode);
+  const completeNode = buildLandingNodeForExport;
+  const completeNodes = (nodes) => nodes.map(normalizeSubscriptionNodeForExport);
 
   return {
     completeNode,
     completeNodes,
+    normalizeSubscriptionNodeForExport,
+    buildLandingNodeForExport,
   };
 };

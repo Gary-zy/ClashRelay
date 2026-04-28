@@ -815,6 +815,7 @@ import { defaultRules, subscriptionDefaultRules } from "./config/defaultConfig.j
 import { highlightYaml } from "./utils/helpers.js";
 import { desktopApi, isDesktopApp } from "./utils/desktop.js";
 import { countInformationalNodes } from "./utils/nodeMetadata.js";
+import { dedupeProxyNames } from "./utils/proxySanitizer.js";
 import {
   analyzeRuleCandidate,
   buildRulePolicyOptions,
@@ -1042,22 +1043,10 @@ const handleManualPaste = () => {
     status.type = "error";
     return;
   }
-  // 去重节点名
-  const nameCounts = new Map();
-  parsed.forEach((node) => {
-    let name = node.name;
-    if (nameCounts.has(name)) {
-      const count = nameCounts.get(name) + 1;
-      nameCounts.set(name, count);
-      node.name = `${name} (${count - 1})`;
-    } else {
-      nameCounts.set(name, 1);
-    }
-  });
-  nodes.value = parsed;
+  nodes.value = dedupeProxyNames(parsed);
   nodes.value.forEach((n) => { n.latency = -1; });
   // 裁剪 dialerProxyGroup：移除新节点列表中已不存在的悬空名
-  const newNames = new Set(parsed.map((n) => n.name));
+  const newNames = new Set(nodes.value.map((n) => n.name));
   form.dialerProxyGroup = form.dialerProxyGroup.filter((name) => newNames.has(name));
   if (saveConfig) saveConfig();
   manualSubscriptionText.value = "";
@@ -1352,6 +1341,15 @@ const ruleDraftPlaceholder = computed(() => {
 });
 const ruleValidationState = computed(() => {
   const issues = [];
+  const availablePolicies = new Set([
+    "{{LANDING}}",
+    "{{PROXY}}",
+    "DIRECT",
+    "REJECT",
+    "REJECT-DROP",
+    "PASS",
+    ...rulePolicyOptions.value.map((option) => option.value),
+  ]);
 
   customRuleLines.value.forEach((line, index) => {
     const parts = splitRuleByTopLevelCommas(line);
@@ -1365,6 +1363,8 @@ const ruleValidationState = computed(() => {
     if (type === "MATCH") {
       if (parts.length < 2 || !parts[1]?.trim()) {
         issues.push({ line: index + 1, message: "MATCH 规则至少要有策略字段。" });
+      } else if (!availablePolicies.has(parts[1].trim())) {
+        issues.push({ line: index + 1, message: `策略 "${parts[1].trim()}" 当前不存在。` });
       }
       return;
     }
@@ -1380,6 +1380,8 @@ const ruleValidationState = computed(() => {
 
     if (!parts[2]?.trim()) {
       issues.push({ line: index + 1, message: "策略字段为空。" });
+    } else if (!availablePolicies.has(parts[2].trim())) {
+      issues.push({ line: index + 1, message: `策略 "${parts[2].trim()}" 当前不存在。` });
     }
   });
 

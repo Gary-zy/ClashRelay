@@ -3,26 +3,11 @@ import yaml from "js-yaml";
 import { parseProxyLine, tryDecodeBase64 } from "../utils/parsers.js";
 import { getFetchErrorMessage } from "./useConfig.js";
 import { desktopApi, isDesktopApp } from "../utils/desktop.js";
+import { dedupeProxyNames, sanitizeImportedProxy } from "../utils/proxySanitizer.js";
 
 const HISTORY_KEY = "clashrelay_history";
 
-const normalizeImportedProxy = (node) => {
-  if (!node || typeof node !== "object" || Array.isArray(node)) return null;
-  const name = typeof node.name === "string" ? node.name.trim() : "";
-  const type = typeof node.type === "string" ? node.type.trim() : "";
-  const server = typeof node.server === "string" ? node.server.trim() : "";
-  const port = Number(node.port);
-  if (!name || !type || !server || !Number.isFinite(port) || port <= 0) return null;
-  return {
-    ...node,
-    name,
-    type,
-    server,
-    port,
-  };
-};
-
-export const parseClashConfigNodes = (text) => {
+export const parseClashConfigNodes = (text, { preserveDialerProxy = false } = {}) => {
   const trimmed = text.trim();
   if (!trimmed) {
     return { ok: false, reason: "empty" };
@@ -43,7 +28,9 @@ export const parseClashConfigNodes = (text) => {
     return { ok: false, reason: "missing_proxies" };
   }
 
-  const nodes = data.proxies.map(normalizeImportedProxy).filter(Boolean);
+  const nodes = data.proxies
+    .map((node) => sanitizeImportedProxy(node, { preserveDialerProxy }))
+    .filter(Boolean);
   if (nodes.length === 0) {
     return { ok: false, reason: "empty_proxies" };
   }
@@ -106,23 +93,10 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
   };
 
   const applyImportedNodes = (importedNodes, successFormatter) => {
-    const nameCounts = new Map();
-    const finalNodes = [];
-
-    importedNodes.forEach((node) => {
-      const nextNode = { ...node };
-      let uniqueName = nextNode.name;
-      if (nameCounts.has(uniqueName)) {
-        const count = nameCounts.get(uniqueName) + 1;
-        nameCounts.set(uniqueName, count);
-        uniqueName = `${uniqueName} (${count - 1})`;
-        nextNode.name = uniqueName;
-      } else {
-        nameCounts.set(uniqueName, 1);
-      }
-      nextNode.latency = -1;
-      finalNodes.push(nextNode);
-    });
+    const finalNodes = dedupeProxyNames(importedNodes).map((node) => ({
+      ...node,
+      latency: -1,
+    }));
 
     nodes.value = finalNodes;
 

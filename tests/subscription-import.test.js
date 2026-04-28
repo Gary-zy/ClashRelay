@@ -124,3 +124,35 @@ proxies:
   assert.equal(parsed[0].server, "2001:db8::8");
   assert.equal(parsed[0].port, 443);
 });
+
+test("作为订阅节点导入 Clash YAML 时会移除旧 dialer-proxy", () => {
+  const result = parseClashConfigNodes(`
+proxies:
+  - name: Chained
+    type: ss
+    server: chained.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+    dialer-proxy: old-group
+`);
+
+  assert.equal(result.ok, true);
+  assert.equal("dialer-proxy" in result.nodes[0], false);
+});
+
+test("作为 golden fixture 读取 Clash YAML 时可保留旧 dialer-proxy", () => {
+  const result = parseClashConfigNodes(`
+proxies:
+  - name: Chained
+    type: ss
+    server: chained.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+    dialer-proxy: old-group
+`, { preserveDialerProxy: true });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.nodes[0]["dialer-proxy"], "old-group");
+});
