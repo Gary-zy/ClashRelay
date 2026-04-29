@@ -2,10 +2,10 @@ const informationalNodePatterns = [
   /^剩余流量[:：]/i,
   /^距离下次重置剩余[:：]/i,
   /^套餐到期[:：]/i,
-  /^🪧/u,
-  /官网\s*[:：]/i,
+  /^🪧\s*\S/u,
+  /^官网\s*[:：]/i,
   /不可用请软件内更新订阅/i,
-  /问题排查/i,
+  /^问题排查$/,
 ];
 
 export const isInformationalNodeName = (name) => {

@@ -36,3 +36,19 @@ test("URL 解析协议的 IPv6 server 不保留方括号", () => {
 
   assert.equal(node.server, "2001:db8::10");
 });
+
+test("Hysteria/TUIC 显式非法端口会被拒绝，缺省端口才默认 443", () => {
+  const invalidLines = [
+    "hysteria://host:0?auth=x#bad-hysteria",
+    "hysteria2://pass@host:0#bad-hysteria2",
+    "tuic://uuid:pass@host:0#bad-tuic",
+  ];
+
+  invalidLines.forEach((line, index) => {
+    assert.equal(parseProxyLine(line, index), null);
+  });
+
+  assert.equal(parseProxyLine("hysteria://host?auth=x#ok-hysteria", 0).port, 443);
+  assert.equal(parseProxyLine("hysteria2://pass@host#ok-hysteria2", 1).port, 443);
+  assert.equal(parseProxyLine("tuic://uuid:pass@host#ok-tuic", 2).port, 443);
+});

@@ -5,8 +5,42 @@ import { parseProxyLine, parseRules } from "../utils/parsers.js";
 import { useNodeParams } from "./useNodeParams.js";
 import { validateClashConfig } from "../utils/clashConfigValidator.js";
 import { cleanProxyForExport } from "../utils/proxySanitizer.js";
+import { splitRuleByTopLevelCommas } from "../utils/ruleParser.js";
 
 export const MANUAL_LANDING_TYPES = new Set(["socks5", "http"]);
+
+// 共享配置壳层：DNS、mixed-port、基础设置
+const buildBaseConfig = ({ proxies, proxyGroups, rules }) => ({
+  "mixed-port": 7890,
+  "allow-lan": true,
+  "bind-address": "*",
+  mode: "rule",
+  "log-level": "info",
+  dns: {
+    enable: true,
+    ipv6: false,
+    "use-hosts": true,
+    "enhanced-mode": "fake-ip",
+    "default-nameserver": ["223.5.5.5", "119.29.29.29"],
+    "fake-ip-range": "198.18.0.1/16",
+    "fake-ip-filter": fakeIpFilter,
+    nameserver: ["https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"],
+    fallback: [
+      "https://doh.dns.sb/dns-query",
+      "https://dns.cloudflare.com/dns-query",
+      "https://dns.twnic.tw/dns-query",
+      "tls://8.8.4.4:853",
+    ],
+    "fallback-filter": {
+      geoip: true,
+      "geoip-code": "CN",
+      ipcidr: ["240.0.0.0/4", "0.0.0.0/32"],
+    },
+  },
+  proxies,
+  "proxy-groups": proxyGroups,
+  rules: dedupeRules(rules),
+});
 
 const isValidPort = (value) => {
   const port = Number(value);
@@ -152,12 +186,27 @@ export const buildLandingProxyFromForm = ({ form, landingNode }) => {
   };
 };
 
-const replaceProxyGroupNames = (rule, landingGroupName, proxyGroupName) =>
-  rule
+const replaceProxyGroupNames = (rule, landingGroupName, proxyGroupName) => {
+  // First handle template placeholders in the entire rule
+  let result = rule
     .replace(/\{\{LANDING\}\}/g, landingGroupName)
-    .replace(/\{\{PROXY\}\}/g, proxyGroupName)
-    .replace(/[^,]*其他外网/g, proxyGroupName)
-    .replace(/,Proxy$/g, `,${proxyGroupName}`);
+    .replace(/\{\{PROXY\}\}/g, proxyGroupName);
+
+  // Then only replace policy field (last comma-separated segment) for "其他外网" and "Proxy"
+  const parts = splitRuleByTopLevelCommas(result);
+  if (parts.length >= 2) {
+    const policyIndex = parts.length - 1;
+    let policy = parts[policyIndex];
+    if (/其他外网/.test(policy)) {
+      policy = proxyGroupName;
+    } else if (/^Proxy$/.test(policy.trim())) {
+      policy = proxyGroupName;
+    }
+    parts[policyIndex] = policy;
+    result = parts.join(",");
+  }
+  return result;
+};
 
 const dedupeRules = (rules) => {
   const seen = new Set();
@@ -167,24 +216,6 @@ const dedupeRules = (rules) => {
     seen.add(normalized);
     return true;
   });
-};
-
-const splitRuleByTopLevelCommas = (rule) => {
-  const parts = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let i = 0; i < rule.length; i++) {
-    if (rule[i] === "(") depth++;
-    else if (rule[i] === ")" && depth > 0) depth--;
-    else if (rule[i] === "," && depth === 0) {
-      parts.push(rule.substring(start, i));
-      start = i + 1;
-    }
-  }
-
-  parts.push(rule.substring(start));
-  return parts;
 };
 
 const sanitizeRuleForSubscription = (rule, proxyGroupName) => {
@@ -341,37 +372,11 @@ export const buildClashConfig = ({
     );
   }
 
-  const config = {
-    "mixed-port": 7890,
-    "allow-lan": true,
-    "bind-address": "*",
-    mode: "rule",
-    "log-level": "info",
-    dns: {
-      enable: true,
-      ipv6: false,
-      "use-hosts": true,
-      "enhanced-mode": "fake-ip",
-      "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-      "fake-ip-range": "198.18.0.1/16",
-      "fake-ip-filter": fakeIpFilter,
-      nameserver: ["https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"],
-      fallback: [
-        "https://doh.dns.sb/dns-query",
-        "https://dns.cloudflare.com/dns-query",
-        "https://dns.twnic.tw/dns-query",
-        "tls://8.8.4.4:853",
-      ],
-      "fallback-filter": {
-        geoip: true,
-        "geoip-code": "CN",
-        ipcidr: ["240.0.0.0/4", "0.0.0.0/32"],
-      },
-    },
+  const config = buildBaseConfig({
     proxies,
-    "proxy-groups": proxyGroups,
-    rules: dedupeRules([...customRulesFromText, ...builtInRules]),
-  };
+    proxyGroups,
+    rules: [...customRulesFromText, ...builtInRules],
+  });
 
   const validation = validateClashConfig(config);
   if (!validation.ok) {
@@ -432,37 +437,11 @@ export const buildSubscriptionOnlyConfig = ({
     },
   ];
 
-  const config = {
-    "mixed-port": 7890,
-    "allow-lan": true,
-    "bind-address": "*",
-    mode: "rule",
-    "log-level": "info",
-    dns: {
-      enable: true,
-      ipv6: false,
-      "use-hosts": true,
-      "enhanced-mode": "fake-ip",
-      "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-      "fake-ip-range": "198.18.0.1/16",
-      "fake-ip-filter": fakeIpFilter,
-      nameserver: ["https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"],
-      fallback: [
-        "https://doh.dns.sb/dns-query",
-        "https://dns.cloudflare.com/dns-query",
-        "https://dns.twnic.tw/dns-query",
-        "tls://8.8.4.4:853",
-      ],
-      "fallback-filter": {
-        geoip: true,
-        "geoip-code": "CN",
-        ipcidr: ["240.0.0.0/4", "0.0.0.0/32"],
-      },
-    },
+  const config = buildBaseConfig({
     proxies,
-    "proxy-groups": proxyGroups,
-    rules: dedupeRules([...customRulesFromText, ...builtInRules]),
-  };
+    proxyGroups,
+    rules: [...customRulesFromText, ...builtInRules],
+  });
 
   const validation = validateClashConfig(config);
   if (!validation.ok) {

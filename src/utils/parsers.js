@@ -53,7 +53,8 @@ const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key
 const parseBooleanParam = (value) => {
   if (value === true || value === "true" || value === "1") return true;
   if (value === false || value === "false" || value === "0") return false;
-  return Boolean(value);
+  // 未知值默认返回 false，避免安全敏感参数（如 allowInsecure）被误判为 true
+  return false;
 };
 
 const applySkipCertVerify = (node, params, names = ["allowInsecure", "insecure", "allow_insecure"]) => {
@@ -62,30 +63,45 @@ const applySkipCertVerify = (node, params, names = ["allowInsecure", "insecure",
   node["skip-cert-verify"] = parseBooleanParam(params[matchedName]);
 };
 
+// Validate port is an integer in 1-65535; returns 0 if invalid
+const validatePort = (value) => {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return 0;
+  return port;
+};
+
+const validatePortOrDefault = (value, defaultPort) => {
+  if (value === "" || value === undefined || value === null) return defaultPort;
+  return validatePort(value);
+};
+
 export const parseServerPort = (value) => {
   if (!value || typeof value !== "string") return { server: "", port: "" };
+
+  let server, portStr;
 
   if (value.startsWith("[")) {
     const closingBracket = value.indexOf("]");
     if (closingBracket < 0 || value[closingBracket + 1] !== ":") {
       return { server: "", port: "" };
     }
-
-    return {
-      server: stripIpv6Brackets(value.slice(0, closingBracket + 1)),
-      port: value.slice(closingBracket + 2),
-    };
+    server = stripIpv6Brackets(value.slice(0, closingBracket + 1));
+    portStr = value.slice(closingBracket + 2);
+  } else {
+    const separatorIndex = value.lastIndexOf(":");
+    if (separatorIndex <= 0) {
+      return { server: "", port: "" };
+    }
+    server = value.slice(0, separatorIndex);
+    portStr = value.slice(separatorIndex + 1);
   }
 
-  const separatorIndex = value.lastIndexOf(":");
-  if (separatorIndex <= 0) {
-    return { server: "", port: "" };
-  }
+  // Validate port is a non-empty string of digits representing 1-65535
+  if (!portStr || !/^\d+$/.test(portStr)) return { server: "", port: "" };
+  const portNum = Number(portStr);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) return { server: "", port: "" };
 
-  return {
-    server: value.slice(0, separatorIndex),
-    port: value.slice(separatorIndex + 1),
-  };
+  return { server, port: portStr };
 };
 
 export function parseProxyLine(line, index) {
@@ -116,6 +132,11 @@ export function parseVmess(line, index) {
       alterId: Number(json.aid || 0),
       cipher: json.scy || "auto",
     };
+
+    // Validate required fields
+    if (!node.server || !node.uuid || !Number.isInteger(node.port) || node.port < 1 || node.port > 65535) {
+      return null;
+    }
 
     if (json.tls === "tls") {
       node.tls = true;
@@ -240,8 +261,8 @@ export function parseVless(line, index) {
       name,
       type: "vless",
       server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port),
-      uuid: url.username,
+      port: validatePort(url.port),
+      uuid: decodeURIComponent(url.username),
       tls: isTls,
       network: params.type || "tcp",
     };
@@ -341,6 +362,7 @@ export function parseVless(line, index) {
       }
     }
 
+    if (!node.server || !node.port) return null;
     return node;
   } catch (error) {
     return null;
@@ -362,7 +384,7 @@ export function parseTrojan(line, index) {
       name,
       type: "trojan",
       server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port),
+      port: validatePort(url.port),
       password: decodeURIComponent(url.username),
     };
 
@@ -453,6 +475,7 @@ export function parseTrojan(line, index) {
       }
     }
 
+    if (!node.server || !node.port || !node.password) return null;
     return node;
   } catch (error) {
     return null;
@@ -470,7 +493,7 @@ export function parseAnyTLS(line, index) {
       name,
       type: "anytls",
       server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port),
+      port: validatePort(url.port),
       password,
     };
 
@@ -528,6 +551,10 @@ export function parseSS(line, index) {
         userinfoPart.includes(":") ? decodeURIComponentSafe(userinfoPart) : atob(userinfoPart)
       );
       const colonIdx = decoded.indexOf(":");
+      if (colonIdx === -1) {
+        console.warn("SS parsing failed: missing method:password separator");
+        return null;
+      }
       method = decoded.substring(0, colonIdx);
       password = decoded.substring(colonIdx + 1);
       ({ server, port } = parseServerPort(serverPart));
@@ -537,12 +564,16 @@ export function parseSS(line, index) {
       const userinfo = decoded.substring(0, atIdx);
       const serverPart = decoded.substring(atIdx + 1);
       const colonIdx = userinfo.indexOf(":");
+      if (colonIdx === -1) {
+        console.warn("SS parsing failed: missing method:password separator");
+        return null;
+      }
       method = userinfo.substring(0, colonIdx);
       password = userinfo.substring(colonIdx + 1);
       ({ server, port } = parseServerPort(serverPart));
     }
 
-    if (!password || !server || !port) {
+    if (!method || !password || !server || !port) {
       console.warn("SS parsing failed: missing required fields", {
         method,
         password,
@@ -622,11 +653,14 @@ export function parseSSR(line, index) {
       }
     }
 
+    const validatedPort = validatePort(port);
+    if (!server || !validatedPort) return null;
+
     return {
       name,
       type: "ssr",
       server,
-      port: Number(port),
+      port: validatedPort,
       cipher: method,
       password,
       protocol,
@@ -645,12 +679,16 @@ export function parseHysteria(line, index) {
     const url = new URL(line);
     const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
+    const port = validatePortOrDefault(url.port, 443);
+    const server = normalizeUrlHostname(url.hostname);
+
+    if (!server || !port) return null;
 
     const node = {
       name,
       type: "hysteria",
-      server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port),
+      server,
+      port,
       "auth-str": params.auth || url.username || "",
       up: params.upmbps || params.up || "100",
       down: params.downmbps || params.down || "100",
@@ -692,12 +730,16 @@ export function parseHysteria2(line, index) {
     const url = new URL(normalizedLine);
     const name = decodeURIComponent(url.hash.replace("#", "")) || `hysteria2-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
+    const port = validatePortOrDefault(url.port, 443);
+    const server = normalizeUrlHostname(url.hostname);
+
+    if (!server || !port) return null;
 
     const node = {
       name,
       type: "hysteria2",
-      server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port) || 443,
+      server,
+      port,
       password: decodeURIComponent(url.username) || params.auth,
     };
 
@@ -753,12 +795,16 @@ export function parseTUIC(line, index) {
     const url = new URL(line);
     const name = decodeURIComponent(url.hash.replace("#", "")) || `tuic-${index + 1}`;
     const params = Object.fromEntries(url.searchParams.entries());
+    const port = validatePortOrDefault(url.port, 443);
+    const server = normalizeUrlHostname(url.hostname);
+
+    if (!server || !port) return null;
 
     const node = {
       name,
       type: "tuic",
-      server: normalizeUrlHostname(url.hostname),
-      port: Number(url.port) || 443,
+      server,
+      port,
       uuid: url.username,
       password: decodeURIComponent(url.password) || params.password,
     };

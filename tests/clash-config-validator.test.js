@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   getAvailablePolicies,
+  getRulePolicy,
   validateClashConfig,
 } from "../src/utils/clashConfigValidator.js";
 
@@ -37,4 +38,14 @@ test("配置健康校验能发现重复名和悬空引用", () => {
   assert.ok(result.errors.some((error) => error.includes("重复代理名")));
   assert.ok(result.errors.some((error) => error.includes("代理组 🌐 代理出口 引用了不存在的策略 不存在的策略")));
   assert.ok(result.errors.some((error) => error.includes("规则引用了不存在的策略 不存在的策略")));
+});
+
+test("规则策略字段会 trim 常见手写空格", () => {
+  const config = baseConfig();
+  config["proxy-groups"].push({ name: "G", type: "select", proxies: ["HK-A"] });
+  config.rules = ["MATCH, G", "DOMAIN, example.com, G"];
+
+  assert.equal(getRulePolicy("MATCH, G"), "G");
+  assert.equal(getRulePolicy("DOMAIN, example.com, G"), "G");
+  assert.equal(validateClashConfig(config).ok, true);
 });

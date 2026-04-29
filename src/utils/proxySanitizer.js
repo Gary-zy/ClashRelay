@@ -30,7 +30,7 @@ export const sanitizeImportedProxy = (node, { preserveDialerProxy = false } = {}
   const type = typeof node.type === "string" ? node.type.trim() : "";
   const server = typeof node.server === "string" ? normalizeProxyHost(node.server.trim()) : "";
   const port = Number(node.port);
-  if (!name || !type || !server || !Number.isFinite(port) || port <= 0) return null;
+  if (!name || !type || !server || !Number.isInteger(port) || port < 1 || port > 65535) return null;
 
   return cleanProxyForExport(
     {
@@ -45,18 +45,18 @@ export const sanitizeImportedProxy = (node, { preserveDialerProxy = false } = {}
 };
 
 export const dedupeProxyNames = (nodes) => {
-  const nameCounts = new Map();
+  const usedNames = new Set();
   return nodes.map((node) => {
     const nextNode = { ...node };
     let uniqueName = nextNode.name;
-    if (nameCounts.has(uniqueName)) {
-      const count = nameCounts.get(uniqueName) + 1;
-      nameCounts.set(uniqueName, count);
-      uniqueName = `${uniqueName} (${count - 1})`;
-      nextNode.name = uniqueName;
-    } else {
-      nameCounts.set(uniqueName, 1);
+    if (usedNames.has(uniqueName)) {
+      let count = 1;
+      while (usedNames.has(`${uniqueName} (${count})`)) {
+        count++;
+      }
+      nextNode.name = `${uniqueName} (${count})`;
     }
+    usedNames.add(nextNode.name);
     return nextNode;
   });
 };

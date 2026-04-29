@@ -1,19 +1,209 @@
 import http from "http";
 import https from "https";
 import net from "net";
+import dns from "dns";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 
 const PORT = Number(process.env.PORT) || 8787;
 
-const setCors = (res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+// IPv4 私有/保留地址前缀
+const IPV4_PRIVATE_PREFIXES = [
+  [0, 0, 0, 0],       // 0.0.0.0/8
+  [10, 0, 0, 0],      // 10.0.0.0/8
+  [100, 64, 0, 0],    // 100.64.0.0/10 (CGNAT)
+  [127, 0, 0, 0],     // 127.0.0.0/8
+  [169, 254, 0, 0],   // 169.254.0.0/16
+  [172, 16, 0, 0],    // 172.16.0.0/12
+  [192, 0, 0, 0],     // 192.0.0.0/24 (IETF)
+  [192, 0, 2, 0],     // 192.0.2.0/24 (TEST-NET-1)
+  [192, 88, 99, 0],   // 192.88.99.0/24
+  [192, 168, 0, 0],   // 192.168.0.0/16
+  [198, 18, 0, 0],    // 198.18.0.0/15 (benchmarking)
+  [198, 51, 100, 0],  // 198.51.100.0/24 (TEST-NET-2)
+  [203, 0, 113, 0],   // 203.0.113.0/24 (TEST-NET-3)
+  [224, 0, 0, 0],     // 224.0.0.0/4 (multicast)
+  [240, 0, 0, 0],     // 240.0.0.0/4 (reserved)
+  [255, 255, 255, 255], // 255.255.255.255
+];
+
+const IPV4_PREFIX_MASKS = [
+  8, 8, 10, 8, 16, 12, 24, 24, 24, 16, 15, 24, 24, 4, 4, 32,
+];
+
+// 解析 IPv4 地址为 4 元组
+const parseIPv4 = (str) => {
+  const parts = str.split(".").map(Number);
+  if (parts.length !== 4 || parts.some(p => !Number.isInteger(p) || p < 0 || p > 255)) return null;
+  return parts;
+};
+
+// 检查 IPv4 地址是否为私有/保留
+const isIPv4Private = (ip) => {
+  const parsed = typeof ip === "string" ? parseIPv4(ip) : ip;
+  if (!parsed) return false;
+  for (let i = 0; i < IPV4_PRIVATE_PREFIXES.length; i++) {
+    const prefix = IPV4_PRIVATE_PREFIXES[i];
+    const mask = IPV4_PREFIX_MASKS[i];
+    const shift = 32 - mask;
+    if (((parsed[0] << 24 | parsed[1] << 16 | parsed[2] << 8 | parsed[3]) >>> shift) ===
+        ((prefix[0] << 24 | prefix[1] << 16 | prefix[2] << 8 | prefix[3]) >>> shift)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// 归一化 IP 地址：处理 IPv4-mapped IPv6、方括号、localhost
+// 返回 { type: "ipv4"|"ipv6"|"hostname"|"blocked", address }
+const normalizeIP = (input) => {
+  if (!input) return { type: "blocked" };
+  // Strip IPv6 zone ID (e.g., fe80::1%eth0 → fe80::1) before validation
+  let clean = input.replace(/^\[|\]$/g, "").replace(/%.*$/, "").toLowerCase();
+
+  if (clean === "localhost") return { type: "blocked" };
+
+  const version = net.isIP(clean);
+  if (version === 0) return { type: "hostname" }; // 不是 IP，是域名
+
+  if (version === 4) {
+    return { type: "ipv4", address: clean };
+  }
+
+  // IPv6：检查是否为 IPv4-mapped IPv6
+  // ::ffff:x.x.x.x 或 ::ffff:xxxx:xxxx（含展开形式）
+  let m;
+  // 点分十进制形式
+  m = clean.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i)
+   || clean.match(/^0:0:0:0:0:ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (m) return { type: "ipv4", address: m[1] };
+
+  // 十六进制形式 (::ffff:7f00:1 等)
+  m = clean.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i)
+   || clean.match(/^0:0:0:0:0:ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (m) {
+    const hi = parseInt(m[1], 16);
+    const lo = parseInt(m[2], 16);
+    if (hi <= 0xffff && lo <= 0xffff) {
+      const ipv4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+      return { type: "ipv4", address: ipv4 };
+    }
+  }
+
+  // ::1 (回环)
+  if (clean === "::1" || clean === "0:0:0:0:0:0:0:1") return { type: "blocked" };
+
+  // 纯 IPv6 私有/链路本地地址：fc00::/7 与 fe80::/10
+  const firstHextet = parseInt(clean.split(":")[0] || "0", 16);
+  if ((firstHextet & 0xfe00) === 0xfc00) return { type: "blocked" };
+  if ((firstHextet & 0xffc0) === 0xfe80) return { type: "blocked" };
+
+  // ::0
+  if (clean === "::" || clean === "0:0:0:0:0:0:0:0") return { type: "blocked" };
+
+  return { type: "ipv6", address: clean };
+};
+
+// 统一的 SSRF 地址检查
+const isPrivateOrReserved = (input) => {
+  const result = normalizeIP(input);
+  if (result.type === "blocked") return true;
+  if (result.type === "ipv4") return isIPv4Private(result.address);
+  if (result.type === "ipv6") return false; // 非私有前缀的公网 IPv6 放行
+  return false; // hostname 由 DNS lookup 阶段检查
+};
+
+// 受控 DNS lookup：在解析的那一刻检查 IP，消除 TOCTOU 窗口
+// 用作 http/https agent 的 lookup 函数
+const safeLookup = (hostname, options, callback) => {
+  // 如果 hostname 本身就是 IP 或 localhost 等，先做正则预检
+  if (isPrivateOrReserved(hostname)) {
+    callback(new Error("SSRF blocked: hostname matches private IP pattern"));
+    return;
+  }
+
+  // 调用系统 DNS 解析
+  dns.lookup(hostname, { all: true, family: 0 }, (err, addresses) => {
+    if (err) {
+      callback(err);
+      return;
+    }
+
+    // 检查所有解析结果
+    for (const { address } of addresses) {
+      if (isPrivateOrReserved(address)) {
+        callback(new Error(`SSRF blocked: resolved to private IP ${address}`));
+        return;
+      }
+    }
+
+    // 全部通过，返回第一个地址（与默认 lookup 行为一致）
+    const first = addresses[0];
+    callback(null, first.address, first.family);
+  });
+};
+
+// 使用受控 lookup 的 agent，防止 DNS rebinding
+const safeHttpAgent = new http.Agent({ lookup: safeLookup });
+const safeHttpsAgent = new https.Agent({ lookup: safeLookup });
+
+// CORS 白名单
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:8787",
+  "http://127.0.0.1:8787",
+]);
+
+const checkCors = (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    sendSafe(res, req, 403, "Origin not allowed");
+    return false;
+  }
+  return true;
+};
+
+const setCors = (res, req) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (!origin) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
   res.setHeader("Cache-Control", "no-store");
 };
 
-const send = (res, statusCode, body, contentType = "text/plain; charset=utf-8") => {
-  setCors(res);
+// 请求体大小限制（1MB）
+const MAX_BODY_SIZE = 1024 * 1024;
+
+const readBody = (req) => new Promise((resolve, reject) => {
+  let body = "";
+  let size = 0;
+  let oversized = false;
+
+  req.on("data", chunk => {
+    if (oversized) return;
+    size += chunk.length;
+    if (size > MAX_BODY_SIZE) {
+      oversized = true;
+      reject(new Error("Request body too large"));
+      return;
+    }
+    body += chunk;
+  });
+
+  req.on("end", () => {
+    if (!oversized) resolve(body);
+  });
+
+  req.on("error", reject);
+});
+
+const sendSafe = (res, req, statusCode, body, contentType = "text/plain; charset=utf-8") => {
+  setCors(res, req);
   res.statusCode = statusCode;
   res.setHeader("Content-Type", contentType);
   res.end(body);
@@ -32,78 +222,142 @@ export const resolveRedirectUrl = (targetUrl, location) => {
   }
 };
 
-const requestWithRedirect = (targetUrl, res, redirectCount = 0) => {
+const requestWithRedirect = (targetUrl, res, req, redirectCount = 0) => {
   if (redirectCount > 3) {
-    send(res, 502, "Too many redirects");
+    sendSafe(res, req, 502, "Too many redirects");
     return;
   }
 
-  const handler = targetUrl.startsWith("https") ? https : http;
-  const req = handler.get(targetUrl, (upstream) => {
+  // 正则预检（快速拒绝明显私有地址）
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(targetUrl);
+  } catch {
+    sendSafe(res, req, 502, "Invalid redirect URL");
+    return;
+  }
+  if (isPrivateOrReserved(parsedTarget.hostname)) {
+    sendSafe(res, req, 403, "Access to private/reserved IP addresses is not allowed");
+    return;
+  }
+
+  // 使用受控 agent 发起请求，DNS 解析在连接建立时进行并检查
+  const isHttps = targetUrl.startsWith("https");
+  const handler = isHttps ? https : http;
+  const agent = isHttps ? safeHttpsAgent : safeHttpAgent;
+
+  const upstreamReq = handler.get(targetUrl, { agent }, (upstream) => {
     if ([301, 302, 307, 308].includes(upstream.statusCode)) {
       const location = upstream.headers.location;
       if (!location) {
-        send(res, 502, "Redirect location missing");
+        sendSafe(res, req, 502, "Redirect location missing");
         return;
       }
       const nextUrl = resolveRedirectUrl(targetUrl, location);
       if (!nextUrl) {
-        send(res, 502, "Invalid redirect location");
+        sendSafe(res, req, 502, "Invalid redirect location");
         return;
       }
-      requestWithRedirect(nextUrl, res, redirectCount + 1);
+      requestWithRedirect(nextUrl, res, req, redirectCount + 1);
       return;
     }
 
-    setCors(res);
+    setCors(res, req);
     res.statusCode = upstream.statusCode || 200;
     if (upstream.headers["content-type"]) {
       res.setHeader("Content-Type", upstream.headers["content-type"]);
     }
+
+    // Limit upstream response size to 10MB to prevent memory exhaustion
+    const MAX_RESPONSE_SIZE = 10 * 1024 * 1024;
+    let totalBytes = 0;
+    upstream.on("data", (chunk) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_RESPONSE_SIZE) {
+        upstream.destroy();
+        if (!res.headersSent) {
+          sendSafe(res, req, 502, "Upstream response too large");
+        } else {
+          res.end();
+        }
+      }
+    });
     upstream.pipe(res);
+
+    upstream.on("error", (err) => {
+      console.error("Upstream stream error:", err.message);
+      if (!res.headersSent) {
+        sendSafe(res, req, 502, "Upstream stream error");
+      } else {
+        res.end();
+      }
+    });
   });
 
-  req.on("error", (err) => {
-    console.error("Upstream request failed:", targetUrl, err.message);
-    send(res, 502, `Upstream request failed: ${err.message}`);
+  upstreamReq.setTimeout(30000, () => {
+    upstreamReq.destroy();
+    if (!res.headersSent) {
+      sendSafe(res, req, 504, "Upstream request timed out");
+    }
+  });
+
+  upstreamReq.on("error", (err) => {
+    console.error("Upstream request failed:", err.message);
+    if (!res.headersSent) {
+      // SSRF 拦截的错误信息
+      if (err.message.startsWith("SSRF blocked")) {
+        sendSafe(res, req, 403, "Access to private/reserved IP addresses is not allowed");
+      } else {
+        sendSafe(res, req, 502, "Upstream request failed");
+      }
+    }
   });
 };
 
 const configStore = new Map();
+const MAX_CONFIG_STORE_SIZE = 1000;
 
-const generateId = () => Math.random().toString(36).substring(2, 10);
+const generateId = () => crypto.randomUUID().replace(/-/g, "").substring(0, 16);
 
-export const createRelayProxyServer = () => http.createServer((req, res) => {
-  // Handle CORS for all requests
+export const createRelayProxyServer = () => http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
-    setCors(res);
+    setCors(res, req);
     res.statusCode = 204;
     res.end();
     return;
   }
 
+  if (!checkCors(req, res)) return;
+
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  // Health check
   if (url.pathname === "/health") {
-    send(res, 200, "ok");
+    sendSafe(res, req, 200, "ok");
     return;
   }
 
   // Config Upload (POST)
   if (url.pathname === "/config/upload" && req.method === "POST") {
-    let body = "";
-    req.on("data", chunk => { body += chunk; });
-    req.on("end", () => {
+    try {
+      if (configStore.size >= MAX_CONFIG_STORE_SIZE) {
+        sendSafe(res, req, 503, JSON.stringify({ error: "Config store full, try again later" }), "application/json");
+        return;
+      }
+
+      const body = await readBody(req);
       const id = generateId();
       configStore.set(id, body);
-      // Auto cleanup after 10 minutes
       setTimeout(() => configStore.delete(id), 10 * 60 * 1000);
-      
-      // 使用 127.0.0.1 确保 Clash 客户端能正确访问
+
       const configUrl = `http://127.0.0.1:${PORT}/config/${id}`;
-      send(res, 200, JSON.stringify({ id, url: configUrl }), "application/json");
-    });
+      sendSafe(res, req, 200, JSON.stringify({ id, url: configUrl }), "application/json");
+    } catch (err) {
+      if (err.message === "Request body too large") {
+        sendSafe(res, req, 413, JSON.stringify({ error: "Request body too large" }), "application/json");
+      } else {
+        sendSafe(res, req, 400, JSON.stringify({ error: "Failed to upload config" }), "application/json");
+      }
+    }
     return;
   }
 
@@ -112,99 +366,167 @@ export const createRelayProxyServer = () => http.createServer((req, res) => {
   if (configMatch && req.method === "GET") {
     const id = configMatch[1];
     if (configStore.has(id)) {
-      send(res, 200, configStore.get(id), "text/yaml; charset=utf-8");
+      sendSafe(res, req, 200, configStore.get(id), "text/yaml; charset=utf-8");
     } else {
-      send(res, 404, "Config not found or expired");
+      sendSafe(res, req, 404, "Config not found or expired");
     }
     return;
   }
 
-  // Ping test (POST) - 测试节点延迟
-  // 通过 TCP 连接测试节点可达性，并估算延迟
-  // 注意：这是 TCP 握手时间的估算，真实代理延迟会更高
+  // Ping test (POST)
   if (url.pathname === "/ping" && req.method === "POST") {
-    let body = "";
-    req.on("data", chunk => { body += chunk; });
-    req.on("end", () => {
-      try {
-        const { server: targetServer, port } = JSON.parse(body);
-        if (!targetServer || !port) {
-          send(res, 400, JSON.stringify({ error: "Missing server or port" }), "application/json");
+    try {
+      const body = await readBody(req);
+      const { server: targetServer, port } = JSON.parse(body);
+      if (!targetServer || !port) {
+        sendSafe(res, req, 400, JSON.stringify({ error: "Missing server or port" }), "application/json");
+        return;
+      }
+
+      const parsedPort = Number(port);
+      if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+        sendSafe(res, req, 400, JSON.stringify({ error: "Invalid port" }), "application/json");
+        return;
+      }
+
+      // 正则预检
+      if (isPrivateOrReserved(targetServer)) {
+        sendSafe(res, req, 403, JSON.stringify({ error: "Access to private/reserved IP addresses is not allowed" }), "application/json");
+        return;
+      }
+
+      // DNS 解析检查（在 TCP 连接前）
+      dns.lookup(targetServer, { all: true, family: 0 }, (dnsErr, addresses) => {
+        if (dnsErr) {
+          sendSafe(res, req, 400, JSON.stringify({ error: "DNS resolution failed" }), "application/json");
           return;
         }
-        
-        // 使用 TCP 连接测试
-        const socket = new net.Socket();
-        const startTime = Date.now();
+
+        const blocked = addresses.some(({ address }) => isPrivateOrReserved(address));
+        if (blocked) {
+          sendSafe(res, req, 403, JSON.stringify({ error: "Access to private/reserved IP addresses is not allowed" }), "application/json");
+          return;
+        }
+
+        // DNS 检查通过，用已校验的解析结果直接连接，避免 TOCTOU
+        const resolvedIp = addresses[0].address;
+
+        // 多次 TCP 连接取最小值，消除网络抖动
+        const ROUNDS = 3;
+        const TIMEOUT = 5000;
+        const results = [];
+        let completed = 0;
         let responded = false;
-        
-        socket.setTimeout(5000);
-        
-        socket.connect(Number(port), targetServer, () => {
+
+        const tryConnect = () => {
           if (responded) return;
-          responded = true;
-          const tcpTime = Date.now() - startTime;
-          socket.destroy();
-          
-          // TCP 握手时间 = 1 RTT
-          // 代理延迟估算 = TCP 时间 × 3（连接 + 请求 + 响应的往返）
-          // 加上一个基准延迟来模拟协议开销
-          const estimatedLatency = Math.round(tcpTime * 3 + 20);
-          
-          send(res, 200, JSON.stringify({ 
-            latency: estimatedLatency, 
-            tcpTime: tcpTime,
-            status: "ok" 
-          }), "application/json");
-        });
-        
-        socket.on("error", () => {
-          if (responded) return;
-          responded = true;
-          socket.destroy();
-          send(res, 200, JSON.stringify({ latency: -2, status: "unreachable" }), "application/json");
-        });
-        
-        socket.on("timeout", () => {
-          if (responded) return;
-          responded = true;
-          socket.destroy();
-          send(res, 200, JSON.stringify({ latency: -2, status: "timeout" }), "application/json");
-        });
-        
-      } catch (error) {
-        send(res, 400, JSON.stringify({ error: "Invalid request body" }), "application/json");
+          const socket = new net.Socket();
+          const startTime = Date.now();
+
+          socket.setTimeout(TIMEOUT);
+
+          socket.connect(parsedPort, resolvedIp, () => {
+            const tcpTime = Date.now() - startTime;
+            socket.destroy();
+            results.push(tcpTime);
+            completed++;
+            if (completed < ROUNDS) {
+              tryConnect();
+            } else if (!responded) {
+              responded = true;
+              const bestTcp = Math.min(...results);
+              sendSafe(res, req, 200, JSON.stringify({
+                latency: bestTcp,
+                status: "ok"
+              }), "application/json");
+            }
+          });
+
+          socket.on("timeout", () => {
+            socket.destroy();
+            completed++;
+            if (completed < ROUNDS) {
+              tryConnect();
+            } else if (!responded) {
+              responded = true;
+              if (results.length > 0) {
+                const bestTcp = Math.min(...results);
+                sendSafe(res, req, 200, JSON.stringify({
+                  latency: bestTcp,
+                  status: "ok"
+                }), "application/json");
+              } else {
+                sendSafe(res, req, 200, JSON.stringify({ latency: -2, status: "timeout" }), "application/json");
+              }
+            }
+          });
+
+          socket.on("error", () => {
+            socket.destroy();
+            completed++;
+            if (completed < ROUNDS) {
+              tryConnect();
+            } else if (!responded) {
+              responded = true;
+              if (results.length > 0) {
+                const bestTcp = Math.min(...results);
+                sendSafe(res, req, 200, JSON.stringify({
+                  latency: bestTcp,
+                  status: "ok"
+                }), "application/json");
+              } else {
+                sendSafe(res, req, 200, JSON.stringify({ latency: -2, status: "unreachable" }), "application/json");
+              }
+            }
+          });
+        };
+
+        tryConnect();
+      });
+
+    } catch (err) {
+      if (err.message === "Request body too large") {
+        sendSafe(res, req, 413, JSON.stringify({ error: "Request body too large" }), "application/json");
+      } else {
+        sendSafe(res, req, 400, JSON.stringify({ error: "Invalid request body" }), "application/json");
       }
-    });
+    }
     return;
   }
 
   // Proxy Fetch
   if (url.pathname !== "/fetch") {
-    send(res, 404, "Not Found");
+    sendSafe(res, req, 404, "Not Found");
     return;
   }
 
   const target = url.searchParams.get("url");
   if (!target) {
-    send(res, 400, "Missing url parameter");
+    sendSafe(res, req, 400, "Missing url parameter");
     return;
   }
 
   let parsed;
   try {
     parsed = new URL(target);
-  } catch (error) {
-    send(res, 400, "Invalid url");
+  } catch {
+    sendSafe(res, req, 400, "Invalid url");
     return;
   }
 
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    send(res, 400, "Only http/https supported");
+    sendSafe(res, req, 400, "Only http/https supported");
     return;
   }
 
-  requestWithRedirect(parsed.toString(), res);
+  // 正则预检
+  if (isPrivateOrReserved(parsed.hostname)) {
+    sendSafe(res, req, 403, "Access to private/reserved IP addresses is not allowed");
+    return;
+  }
+
+  // 直接发起请求，DNS 检查在 safeLookup 中进行（无 TOCTOU 窗口）
+  requestWithRedirect(parsed.toString(), res, req);
 });
 
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -212,7 +534,21 @@ const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === proce
 if (isMainModule) {
   const server = createRelayProxyServer();
   server.listen(PORT, () => {
-    // eslint-disable-next-line no-console
     console.log(`RelayBox proxy server listening on http://localhost:${PORT}`);
   });
+
+  const gracefulShutdown = (signal) => {
+    console.log(`Received ${signal}, shutting down gracefully...`);
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.log("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }

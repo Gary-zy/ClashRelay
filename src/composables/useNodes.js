@@ -148,6 +148,8 @@ export const useNodes = ({ form, status }) => {
   };
 
   const testNodeLatency = async (node) => {
+    if (!node.server || !node.port) return -2;
+
     if (isDesktopApp()) {
       try {
         const data = await desktopApi.pingNode(node.server, Number(node.port));
@@ -191,13 +193,32 @@ export const useNodes = ({ form, status }) => {
       node.latency = null;
     });
 
-    const testPromises = nodes.value.map(async (node) => {
-      const latency = await testNodeLatency(node);
-      node.latency = latency;
-      node.name = node.name.replace(/\s*\(\d+ms\)$/, "").replace(/\s*\(超时\)$/, "");
-    });
+    // 并发限制：最多同时测试 10 个节点，避免请求风暴
+    const CONCURRENCY_LIMIT = 10;
+    const queue = [...nodes.value];
+    const running = new Set();
 
-    await Promise.all(testPromises);
+    const runNext = async () => {
+      while (queue.length > 0 && running.size < CONCURRENCY_LIMIT) {
+        const node = queue.shift();
+        const promise = testNodeLatency(node).then((latency) => {
+          node.latency = latency;
+          node.name = node.name.replace(/\s*\(\d+ms\)$/, "").replace(/\s*\(超时\)$/, "");
+        }).catch(() => {
+          node.latency = -2;
+        }).finally(() => {
+          running.delete(promise);
+        });
+        running.add(promise);
+      }
+
+      if (running.size > 0) {
+        await Promise.race(running);
+        await runNext();
+      }
+    };
+
+    await runNext();
 
     isTesting.value = false;
     const successCount = nodes.value.filter((n) => n.latency > 0).length;

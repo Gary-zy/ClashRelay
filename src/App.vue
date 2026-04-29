@@ -824,6 +824,7 @@ import {
   RULE_ASSISTANT_DEFAULT_POLICY,
   RULE_ASSISTANT_SITE_GROUPS,
 } from "./utils/ruleAssistant.js";
+import { splitRuleByTopLevelCommas } from "./utils/ruleParser.js";
 
 const OnboardingWizard = defineAsyncComponent(() => import("./components/OnboardingWizard.vue"));
 
@@ -954,6 +955,16 @@ const saveRecentRuleHelperEntries = () => {
   } catch {}
 };
 
+// Safely copy only known form keys to prevent prototype pollution
+const assignFormSafely = (target, source) => {
+  const allowedKeys = new Set(Object.keys(formDefaults));
+  for (const key of Object.keys(source)) {
+    if (allowedKeys.has(key) && Object.prototype.hasOwnProperty.call(source, key)) {
+      target[key] = source[key];
+    }
+  }
+};
+
 const formDefaults = {
   subscriptionUrl: "",
   proxyUrl: import.meta.env.DEV ? "http://localhost:8787" : "",
@@ -1001,7 +1012,8 @@ const {
   testAllNodesLatency,
 } = useNodes({ form, status });
 
-const saveConfig = () => {
+let localStorageTimer = null;
+const persistConfigNow = () => {
   try {
     const payload = persistedKeys.reduce((acc, key) => {
       acc[key] = Array.isArray(form[key]) ? [...form[key]] : form[key];
@@ -1009,6 +1021,15 @@ const saveConfig = () => {
     }, {});
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {}
+};
+
+const saveConfig = () => {
+  // Debounce localStorage writes to avoid excessive I/O on rapid changes
+  if (localStorageTimer) window.clearTimeout(localStorageTimer);
+  localStorageTimer = window.setTimeout(() => {
+    localStorageTimer = null;
+    persistConfigNow();
+  }, 300);
 
   if (!isDesktopShell) return;
   if (saveConfigTimer) window.clearTimeout(saveConfigTimer);
@@ -1162,23 +1183,6 @@ const rulePolicyGroups = computed(() =>
   })
 );
 const rulePolicyOptions = computed(() => rulePolicyGroups.value.flatMap((group) => group.options));
-const splitRuleByTopLevelCommas = (line) => {
-  const parts = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === "(") depth++;
-    else if (line[i] === ")" && depth > 0) depth--;
-    else if (line[i] === "," && depth === 0) {
-      parts.push(line.slice(start, i));
-      start = i + 1;
-    }
-  }
-
-  parts.push(line.slice(start));
-  return parts;
-};
 const customRuleLines = computed(() =>
   form.customRulesText
     .split(/\r?\n/)
@@ -1807,7 +1811,7 @@ onMounted(async () => {
     try {
       const savedDesktopState = await desktopApi.loadState();
       if (savedDesktopState?.form) {
-        Object.assign(form, savedDesktopState.form);
+        assignFormSafely(form, savedDesktopState.form);
         lastSavedPath.value = savedDesktopState.lastSavedPath || "";
         // 恢复复杂协议落地节点的解析对象
         if (form.landingNodeUrl && !MANUAL_LANDING_TYPES.has(form.landingNodeType)) {
@@ -1820,7 +1824,7 @@ onMounted(async () => {
 
   const savedConfig = loadSavedConfig();
   if (savedConfig) {
-    Object.assign(form, savedConfig);
+    assignFormSafely(form, savedConfig);
     // 恢复复杂协议落地节点的解析对象
     if (form.landingNodeUrl && !MANUAL_LANDING_TYPES.has(form.landingNodeType)) {
       parseLandingNodeUrl();
@@ -1841,6 +1845,11 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener("resize", syncViewportState);
   if (saveConfigTimer) window.clearTimeout(saveConfigTimer);
+  if (localStorageTimer) {
+    window.clearTimeout(localStorageTimer);
+    localStorageTimer = null;
+    persistConfigNow();
+  }
 });
 
 watch(form, saveConfig, { deep: true });

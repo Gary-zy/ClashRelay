@@ -1,3 +1,5 @@
+import { splitRuleByTopLevelCommas } from "./ruleParser.js";
+
 const URL_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//;
 const GENERIC_HOST_PREFIXES = new Set([
   "www",
@@ -114,23 +116,7 @@ export const buildRulePolicyOptions = ({ mode, landingPolicyName }) => {
   ];
 };
 
-export const splitRuleByTopLevelCommas = (line) => {
-  const parts = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === "(") depth++;
-    else if (line[i] === ")" && depth > 0) depth--;
-    else if (line[i] === "," && depth === 0) {
-      parts.push(line.slice(start, i));
-      start = i + 1;
-    }
-  }
-
-  parts.push(line.slice(start));
-  return parts;
-};
+export { splitRuleByTopLevelCommas } from "./ruleParser.js";
 
 const normalizeHost = (value) => value.trim().toLowerCase().replace(/\.$/, "");
 
