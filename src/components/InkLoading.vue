@@ -38,9 +38,9 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(253, 251, 247, 0.92); /* 背景更实一点，突出墨色 */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(31, 42, 68, 0.04), transparent 32%),
+    linear-gradient(135deg, rgba(253, 251, 247, 0.96), rgba(247, 243, 235, 0.94));
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -65,7 +65,7 @@
 
 .blob {
   position: absolute;
-  background: #1f2a44; /* 深墨色 */
+  background: var(--accent-600);
   border-radius: 50%;
   opacity: 0.9;
 }
@@ -87,7 +87,7 @@
   left: 50%;
   width: 45px;
   height: 45px;
-  background: #2d3a5f; /* 稍浅的墨色 */
+  background: var(--accent-500);
   animation: orbit-1 3s ease-in-out infinite;
 }
 
@@ -96,7 +96,7 @@
   left: 50%;
   width: 35px;
   height: 35px;
-  background: #1f2a44;
+  background: var(--accent-600);
   animation: orbit-2 4s ease-in-out infinite reverse;
 }
 
@@ -105,7 +105,7 @@
   left: 50%;
   width: 25px;
   height: 25px;
-  background: #53607d;
+  background: var(--accent-400);
   animation: orbit-3 2.5s ease-in-out infinite;
 }
 
@@ -135,7 +135,7 @@
   font-family: "Noto Serif SC", serif;
   font-size: 18px;
   letter-spacing: 8px; /* 宽字距 */
-  color: #1f2a44;
+  color: var(--accent-600);
   font-weight: 500;
   margin-top: -30px; /* 拉近文字与墨团 */
   padding-left: 8px; /* 修正 letter-spacing 造成的偏移 */

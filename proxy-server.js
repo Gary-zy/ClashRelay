@@ -4,8 +4,13 @@ import net from "net";
 import dns from "dns";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
+import { readFile, stat } from "fs/promises";
+import { dirname, extname, join, normalize, resolve, sep } from "path";
+import { createMihomoService, normalizeBenchmarkRequest } from "./src/server/mihomoBenchmark.js";
 
 const PORT = Number(process.env.PORT) || 8787;
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const STATIC_DIR = process.env.STATIC_DIR || join(MODULE_DIR, "dist");
 
 // IPv4 私有/保留地址前缀
 const IPV4_PRIVATE_PREFIXES = [
@@ -113,6 +118,20 @@ const isPrivateOrReserved = (input) => {
   return false; // hostname 由 DNS lookup 阶段检查
 };
 
+export const resolveSafeLookupResult = (addresses, options = {}) => {
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    throw new Error("DNS lookup returned no addresses");
+  }
+
+  for (const { address } of addresses) {
+    if (isPrivateOrReserved(address)) {
+      throw new Error(`SSRF blocked: resolved to private IP ${address}`);
+    }
+  }
+
+  return options.all ? addresses : addresses[0];
+};
+
 // 受控 DNS lookup：在解析的那一刻检查 IP，消除 TOCTOU 窗口
 // 用作 http/https agent 的 lookup 函数
 const safeLookup = (hostname, options, callback) => {
@@ -129,17 +148,16 @@ const safeLookup = (hostname, options, callback) => {
       return;
     }
 
-    // 检查所有解析结果
-    for (const { address } of addresses) {
-      if (isPrivateOrReserved(address)) {
-        callback(new Error(`SSRF blocked: resolved to private IP ${address}`));
-        return;
+    try {
+      const result = resolveSafeLookupResult(addresses, options);
+      if (options?.all) {
+        callback(null, result);
+      } else {
+        callback(null, result.address, result.family);
       }
+    } catch (error) {
+      callback(error);
     }
-
-    // 全部通过，返回第一个地址（与默认 lookup 行为一致）
-    const first = addresses[0];
-    callback(null, first.address, first.family);
   });
 };
 
@@ -157,7 +175,15 @@ const ALLOWED_ORIGINS = new Set([
 
 const checkCors = (req, res) => {
   const origin = req.headers.origin;
-  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+  const sameOrigin = origin && req.headers.host && (() => {
+    try {
+      return new URL(origin).host === req.headers.host;
+    } catch {
+      return false;
+    }
+  })();
+
+  if (origin && !ALLOWED_ORIGINS.has(origin) && !sameOrigin) {
     sendSafe(res, req, 403, "Origin not allowed");
     return false;
   }
@@ -166,7 +192,15 @@ const checkCors = (req, res) => {
 
 const setCors = (res, req) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  const sameOrigin = origin && req.headers.host && (() => {
+    try {
+      return new URL(origin).host === req.headers.host;
+    } catch {
+      return false;
+    }
+  })();
+
+  if (origin && (ALLOWED_ORIGINS.has(origin) || sameOrigin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   } else if (!origin) {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -207,6 +241,62 @@ const sendSafe = (res, req, statusCode, body, contentType = "text/plain; charset
   res.statusCode = statusCode;
   res.setHeader("Content-Type", contentType);
   res.end(body);
+};
+
+const CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+};
+
+const STATIC_BASE_PATH = "/ClashRelay";
+
+const normalizeStaticPathname = (pathname) => {
+  if (pathname === STATIC_BASE_PATH) return "/";
+  if (pathname.startsWith(`${STATIC_BASE_PATH}/`)) {
+    return pathname.slice(STATIC_BASE_PATH.length) || "/";
+  }
+  return pathname;
+};
+
+const tryServeStatic = async (req, res, pathname) => {
+  if (!["GET", "HEAD"].includes(req.method)) return false;
+  if (pathname.startsWith("/fetch") || pathname.startsWith("/ping") || pathname.startsWith("/config") || pathname.startsWith("/mihomo")) {
+    return false;
+  }
+
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(normalizeStaticPathname(pathname));
+  } catch {
+    return false;
+  }
+
+  const cleanPath = normalize(decodedPath).replace(/^(\.\.[/\\])+/, "");
+  const staticRoot = resolve(STATIC_DIR);
+  const candidate = cleanPath === "/" ? join(staticRoot, "index.html") : join(staticRoot, cleanPath);
+  const resolved = resolve(candidate);
+  if (resolved !== staticRoot && !resolved.startsWith(`${staticRoot}${sep}`)) return false;
+
+  try {
+    const fileStat = await stat(resolved);
+    const filePath = fileStat.isDirectory() ? join(resolved, "index.html") : resolved;
+    const body = await readFile(filePath);
+    sendSafe(res, req, 200, req.method === "HEAD" ? "" : body, CONTENT_TYPES[extname(filePath)] || "application/octet-stream");
+    return true;
+  } catch {
+    try {
+      const body = await readFile(join(STATIC_DIR, "index.html"));
+      sendSafe(res, req, 200, req.method === "HEAD" ? "" : body, "text/html; charset=utf-8");
+      return true;
+    } catch {
+      return false;
+    }
+  }
 };
 
 export const resolveRedirectUrl = (targetUrl, location) => {
@@ -319,7 +409,16 @@ const MAX_CONFIG_STORE_SIZE = 1000;
 
 const generateId = () => crypto.randomUUID().replace(/-/g, "").substring(0, 16);
 
-export const createRelayProxyServer = () => http.createServer(async (req, res) => {
+const isAuthorized = (req, token) => {
+  if (!token) return false;
+  const header = req.headers.authorization || "";
+  return header === `Bearer ${token}` || req.headers["x-relaybox-token"] === token;
+};
+
+export const createRelayProxyServer = ({
+  mihomoService = createMihomoService(),
+  relayboxToken = process.env.RELAYBOX_TOKEN || "",
+} = {}) => http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     setCors(res, req);
     res.statusCode = 204;
@@ -333,6 +432,49 @@ export const createRelayProxyServer = () => http.createServer(async (req, res) =
 
   if (url.pathname === "/health") {
     sendSafe(res, req, 200, "ok");
+    return;
+  }
+
+  if (url.pathname === "/mihomo/check" && req.method === "POST") {
+    if (!isAuthorized(req, relayboxToken)) {
+      sendSafe(res, req, 401, JSON.stringify({ error: "Unauthorized" }), "application/json");
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(await readBody(req));
+      const yamlText = String(payload.yamlText || "").trim();
+      if (!yamlText) {
+        sendSafe(res, req, 400, JSON.stringify({ error: "Missing yamlText" }), "application/json");
+        return;
+      }
+      const result = await mihomoService.checkConfig({ yamlText });
+      sendSafe(res, req, 200, JSON.stringify(result), "application/json");
+    } catch (error) {
+      if (error.message === "Request body too large") {
+        sendSafe(res, req, 413, JSON.stringify({ error: "Request body too large" }), "application/json");
+      } else {
+        sendSafe(res, req, 400, JSON.stringify({ error: error.message || "Invalid request body" }), "application/json");
+      }
+    }
+    return;
+  }
+
+  if (url.pathname === "/mihomo/benchmark" && req.method === "POST") {
+    if (!isAuthorized(req, relayboxToken)) {
+      sendSafe(res, req, 401, JSON.stringify({ error: "Unauthorized" }), "application/json");
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(await readBody(req));
+      const normalized = normalizeBenchmarkRequest(payload);
+      const result = await mihomoService.benchmarkPolicies(normalized);
+      sendSafe(res, req, result.ok === false ? 503 : 200, JSON.stringify(result), "application/json");
+    } catch (error) {
+      const status = error.message === "Request body too large" ? 413 : 400;
+      sendSafe(res, req, status, JSON.stringify({ error: error.message || "Invalid request body" }), "application/json");
+    }
     return;
   }
 
@@ -491,6 +633,10 @@ export const createRelayProxyServer = () => http.createServer(async (req, res) =
         sendSafe(res, req, 400, JSON.stringify({ error: "Invalid request body" }), "application/json");
       }
     }
+    return;
+  }
+
+  if (await tryServeStatic(req, res, url.pathname)) {
     return;
   }
 

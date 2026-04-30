@@ -158,6 +158,56 @@ proxies:
   assert.match(status.message, /已融合导入 1 个日本节点/);
 });
 
+test("融合导入可先预览最终节点名和自动跳板选择，确认后才写入", () => {
+  const nodes = ref([
+    { name: "US - Node", type: "ss", server: "old.example.com", port: 443, cipher: "aes-128-gcm", password: "pw", latency: -1 },
+  ]);
+  const status = { message: "", type: "" };
+  let saved = 0;
+  const form = createForm({ dialerProxyGroup: ["US - Node"] });
+  const { previewMergedClashConfigText, commitMergedClashConfigPreview } = useSubscription({
+    form,
+    nodes,
+    status,
+    saveConfig: () => {
+      saved += 1;
+    },
+  });
+
+  const preview = previewMergedClashConfigText({
+    text: `
+proxies:
+  - name: Node
+    type: ss
+    server: us-new.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+`,
+    sourceName: "美国",
+    sourcePrefix: "US",
+  });
+
+  assert.equal(preview.ok, true);
+  assert.equal(saved, 0);
+  assert.deepEqual(nodes.value.map((node) => node.name), ["US - Node"]);
+  assert.deepEqual(preview.summary, {
+    sourceName: "美国",
+    sourcePrefix: "US",
+    importCount: 1,
+  });
+  assert.deepEqual(preview.nodes.map((node) => node.name), ["US - Node (1)"]);
+  assert.deepEqual(preview.autoSelectNames, ["US - Node (1)"]);
+
+  const committed = commitMergedClashConfigPreview(preview);
+
+  assert.equal(committed.ok, true);
+  assert.equal(saved, 1);
+  assert.deepEqual(nodes.value.map((node) => node.name), ["US - Node", "US - Node (1)"]);
+  assert.deepEqual(form.dialerProxyGroup, ["US - Node", "US - Node (1)"]);
+  assert.match(status.message, /已融合导入 1 个美国节点/);
+});
+
 test("融合导入空来源名称会明确拦截", () => {
   const nodes = ref([]);
   const status = { message: "", type: "" };

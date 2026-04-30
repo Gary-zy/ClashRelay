@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "file": "relaybox-merged-us-jp.yaml",
+  "dataDir": "/Users/zhangyang/Library/Application Support/io.github.clash-verge-rev.clash-verge-rev",
+  "finishedAt": "2026-04-30T05:00:33.403Z",
+  "results": [
+    {
+      "name": "🌐 代理出口",
+      "status": "ok",
+      "delayMs": 283,
+      "attempts": [
+        399,
+        193,
+        283
+      ],
+      "exitIp": "64.83.46.69",
+      "country": "JP",
+      "colo": "NRT",
+      "rawTrace": {
+        "ip": "64.83.46.69",
+        "colo": "NRT",
+        "loc": "JP",
+        "tls": "TLSv1.3",
+        "warp": "off"
+      }
+    },
+    {
+      "name": "🇺🇸 美国",
+      "status": "ok",
+      "delayMs": 740,
+      "attempts": [
+        null,
+        740,
+        674
+      ],
+      "exitIp": "154.217.235.32",
+      "country": "US",
+      "colo": "SJC",
+      "rawTrace": {
+        "ip": "154.217.235.32",
+        "colo": "SJC",
+        "loc": "US",
+        "tls": "TLSv1.3",
+        "warp": "off"
+      }
+    },
+    {
+      "name": "🇯🇵 日本",
+      "status": "ok",
+      "delayMs": 419,
+      "attempts": [
+        419,
+        195,
+        489
+      ],
+      "exitIp": "64.83.46.69",
+      "country": "JP",
+      "colo": "NRT",
+      "rawTrace": {
+        "ip": "64.83.46.69",
+        "colo": "NRT",
+        "loc": "JP",
+        "tls": "TLSv1.3",
+        "warp": "off"
+      }
+    }
+  ]
+}

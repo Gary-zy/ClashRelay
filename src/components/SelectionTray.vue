@@ -6,16 +6,18 @@
       </div>
       <div class="tray-tags-wrapper">
         <div class="tray-tags">
-          <span
+          <button
             v-for="node in selectedNodes"
             :key="node.name"
+            type="button"
             class="node-tag"
             @click="$emit('remove', node.name)"
             :title="node.name"
+            :aria-label="`移除跳板节点 ${node.name}`"
           >
             <span class="tag-text">{{ node.name }}</span>
-            <span class="tag-close">&times;</span>
-          </span>
+            <span class="tag-close" aria-hidden="true">&times;</span>
+          </button>
         </div>
       </div>
       <el-button size="small" text @click="$emit('clear')" class="tray-clear">
@@ -48,18 +50,21 @@ defineEmits(["remove", "clear"]);
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: rgba(253, 251, 247, 0.6); /* 更淡的背景，突出标签 */
+  background: rgba(253, 251, 247, 0.68);
   border: 1px dashed var(--line-200);
   border-radius: 10px;
   margin-bottom: 16px;
-  height: 52px; /* 稍微增加高度以容纳不规则标签 */
-  transition: all 0.3s ease;
+  min-height: 52px;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .selection-tray:hover {
   background: rgba(253, 251, 247, 0.9);
   border-color: var(--line-300);
-  box-shadow: 0 4px 12px rgba(31, 42, 68, 0.05); /* 悬浮时的微微浮起感 */
+  box-shadow: inset 0 0 0 1px rgba(31, 42, 68, 0.04);
 }
 
 .tray-info {
@@ -80,15 +85,15 @@ defineEmits(["remove", "clear"]);
   min-width: 0;
   overflow: hidden;
   position: relative;
-  mask-image: linear-gradient(to right, black 90%, transparent 100%); /* 边缘柔和消失 */
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
 }
 
 .tray-tags {
   display: flex;
-  gap: 8px; /* 增加间距 */
+  gap: 8px;
   overflow-x: auto;
-  padding: 4px 0; /* 给上下阴影留空间 */
+  padding: 4px 0;
   padding-right: 24px;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -101,38 +106,40 @@ defineEmits(["remove", "clear"]);
 
 /* 核心：不规则墨块标签 */
 .node-tag {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  /* 淡墨晕染背景 */
-  background: rgba(31, 42, 68, 0.08); /* 淡墨 */
-  color: var(--ink-900); /* 浓墨文字 */
-  
-  /* 不规则轮廓 - 模拟这一笔画出来的感觉 */
+  background: rgba(31, 42, 68, 0.08);
+  color: var(--ink-900);
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  border: 1px solid rgba(31, 42, 68, 0.15); /* 极细的焦墨边缘 */
-  
+  border: 1px solid rgba(31, 42, 68, 0.15);
   font-family: "Noto Serif SC", serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
   flex-shrink: 0;
   max-width: 160px;
   position: relative;
-  overflow: visible; /* 允许朱砂印稍微溢出 */
-
-  /* 入场动画 - 墨滴扩散 */
-  animation: ink-spread 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+  overflow: visible;
+  animation: ink-settle 0.2s ease-out backwards;
 }
 
-/* 悬停效果 - 墨色加深 */
 .node-tag:hover {
   background: rgba(31, 42, 68, 0.12);
   border-color: var(--ink-400);
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 8px rgba(31, 42, 68, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(31, 42, 68, 0.05);
+}
+
+.node-tag:focus-visible {
+  outline: 2px solid rgba(185, 43, 39, 0.45);
+  outline-offset: 2px;
 }
 
 .tag-text {
@@ -151,23 +158,24 @@ defineEmits(["remove", "clear"]);
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: transparent; /* 默认透明 */
+  background: transparent;
   color: var(--ink-400);
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
   margin-right: -4px;
 }
 
-/* 悬停时显示朱砂印 */
 .node-tag:hover .tag-close {
-  background: #b92b27; /* 朱砂红 */
+  background: var(--vermillion-500);
   color: rgba(255, 255, 255, 0.9);
-  transform: rotate(90deg); /* 旋转出现 */
   box-shadow: 0 2px 4px rgba(185, 43, 39, 0.3);
 }
 
 .node-tag:active {
-  transform: scale(0.96);
+  background: rgba(185, 43, 39, 0.08);
 }
 
 .tray-clear {
@@ -177,7 +185,7 @@ defineEmits(["remove", "clear"]);
 }
 
 .tray-clear:hover {
-  color: #b92b27; /* 清空也用朱砂红提示 */
+  color: var(--vermillion-500);
   background: rgba(185, 43, 39, 0.08);
 }
 
@@ -189,32 +197,21 @@ defineEmits(["remove", "clear"]);
   font-size: 13px;
   width: 100%;
   font-family: "Noto Serif SC", serif;
-  font-style: italic; /* 斜体增加书卷气 */
+  font-style: italic;
 }
 
 .placeholder-icon {
   font-size: 16px;
-  animation: bounce 2s infinite;
   color: var(--accent-400);
 }
 
-@keyframes ink-spread {
-  0% { 
+@keyframes ink-settle {
+  0% {
     opacity: 0;
-    transform: scale(0.3);
-    border-radius: 50%; /* 从一个圆点开始 */
   }
-  100% { 
+  100% {
     opacity: 1;
-    transform: scale(1);
-    /* 结束时变成不规则形状，由CSS类定义 */
   }
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-  40% {transform: translateY(-3px);}
-  60% {transform: translateY(-1.5px);}
 }
 
 </style>

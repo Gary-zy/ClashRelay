@@ -1,0 +1,233 @@
+mixed-port: 7890
+allow-lan: true
+bind-address: '*'
+mode: rule
+log-level: info
+dns:
+  enable: true
+  ipv6: false
+  use-hosts: true
+  enhanced-mode: fake-ip
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - '*.lan'
+    - '*.local'
+    - localhost
+    - '*.localhost'
+    - '*.test'
+    - '*.invalid'
+    - '*.example'
+    - time.*.com
+    - ntp.*.com
+    - '*.ntp.org.cn'
+    - +.stun.*.*
+    - +.stun.*.*.*
+    - '*.msftconnecttest.com'
+    - '*.msftncsi.com'
+    - '*.srv.nintendo.net'
+    - '*.stun.playstation.net'
+    - xbox.*.microsoft.com
+    - '*.xboxlive.com'
+    - '*.battlenet.com.cn'
+    - '*.logon.battlenet.com.cn'
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  fallback:
+    - https://doh.dns.sb/dns-query
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.twnic.tw/dns-query
+    - tls://8.8.4.4:853
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+      - 0.0.0.0/32
+proxies:
+  - name: US - US-VPS
+    type: vless
+    server: 154.217.235.32
+    port: 24443
+    uuid: 913f1e35-5a95-4690-868b-9c61a0553e2b
+    udp: true
+    tls: true
+    servername: www.microsoft.com
+    client-fingerprint: chrome
+    flow: xtls-rprx-vision
+    network: tcp
+    reality-opts:
+      public-key: N_FVe69qBimSOHwRee52fhwghSonMe5sSh_hOdZ4Uws
+      short-id: 03e6e034d74b162b
+  - name: JP - 日本-HY2-64.83.46.69
+    type: hysteria2
+    server: 64.83.46.69
+    port: 24443
+    password: DN6sFoL9Sn8OvePZSxy57ZG9oUsjFWQc
+    skip-cert-verify: true
+    alpn:
+      - h3
+proxy-groups:
+  - name: 🌐 代理出口
+    type: select
+    proxies:
+      - 🇯🇵 日本
+      - 🇺🇸 美国
+      - ♻️ 自动选择
+      - 🛡️ 故障转移
+      - ⚖️ 负载均衡
+      - US - US-VPS
+      - JP - 日本-HY2-64.83.46.69
+      - DIRECT
+  - name: 🇺🇸 美国
+    type: select
+    proxies:
+      - US - US-VPS
+  - name: 🇯🇵 日本
+    type: select
+    proxies:
+      - JP - 日本-HY2-64.83.46.69
+  - name: ♻️ 自动选择
+    type: url-test
+    proxies:
+      - US - US-VPS
+      - JP - 日本-HY2-64.83.46.69
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+  - name: 🛡️ 故障转移
+    type: fallback
+    proxies:
+      - US - US-VPS
+      - JP - 日本-HY2-64.83.46.69
+    url: http://www.gstatic.com/generate_204
+    interval: 180
+  - name: ⚖️ 负载均衡
+    type: load-balance
+    proxies:
+      - US - US-VPS
+      - JP - 日本-HY2-64.83.46.69
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    strategy: consistent-hashing
+rules:
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,198.18.0.0/15,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,8.154.20.44/32,DIRECT,no-resolve
+  - IP-CIDR,47.110.145.64/32,DIRECT,no-resolve
+  - IP-CIDR,47.96.0.3/32,DIRECT,no-resolve
+  - DOMAIN,localhost,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,github.com,🌐 代理出口
+  - DOMAIN-SUFFIX,githubusercontent.com,🌐 代理出口
+  - DOMAIN-SUFFIX,anthropic.com,🌐 代理出口
+  - DOMAIN-SUFFIX,claude.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,cursor.sh,🌐 代理出口
+  - DOMAIN-SUFFIX,cursor.com,🌐 代理出口
+  - DOMAIN-SUFFIX,anysphere.co,🌐 代理出口
+  - DOMAIN-SUFFIX,openai.com,🌐 代理出口
+  - DOMAIN-SUFFIX,chatgpt.com,🌐 代理出口
+  - DOMAIN-SUFFIX,oaistatic.com,🌐 代理出口
+  - DOMAIN-SUFFIX,oaiusercontent.com,🌐 代理出口
+  - DOMAIN-SUFFIX,openaiapi-site.azureedge.net,🌐 代理出口
+  - DOMAIN-SUFFIX,sora.com,🌐 代理出口
+  - DOMAIN-SUFFIX,openrouter.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,perplexity.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,pplx.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,x.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,grok.x.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,grok.com,🌐 代理出口
+  - DOMAIN-SUFFIX,huggingface.co,🌐 代理出口
+  - DOMAIN-SUFFIX,hf.co,🌐 代理出口
+  - DOMAIN-SUFFIX,huggingface.tech,🌐 代理出口
+  - DOMAIN-SUFFIX,copilot.microsoft.com,🌐 代理出口
+  - DOMAIN-SUFFIX,copilot.githubusercontent.com,🌐 代理出口
+  - DOMAIN-SUFFIX,midjourney.com,🌐 代理出口
+  - DOMAIN-SUFFIX,mj.run,🌐 代理出口
+  - DOMAIN-SUFFIX,stability.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,stablediffusionweb.com,🌐 代理出口
+  - DOMAIN-SUFFIX,dreamstudio.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,clipdrop.co,🌐 代理出口
+  - DOMAIN-SUFFIX,runwayml.com,🌐 代理出口
+  - DOMAIN-SUFFIX,runway.com,🌐 代理出口
+  - DOMAIN-SUFFIX,poe.com,🌐 代理出口
+  - DOMAIN-SUFFIX,character.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,replicate.com,🌐 代理出口
+  - DOMAIN-SUFFIX,replicate.delivery,🌐 代理出口
+  - DOMAIN-SUFFIX,cohere.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,cohere.com,🌐 代理出口
+  - DOMAIN-SUFFIX,mistral.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,chat.mistral.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,meta.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,llama.meta.com,🌐 代理出口
+  - DOMAIN-SUFFIX,ai.meta.com,🌐 代理出口
+  - DOMAIN-SUFFIX,notion.so,🌐 代理出口
+  - DOMAIN-SUFFIX,notion.site,🌐 代理出口
+  - DOMAIN-SUFFIX,jasper.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,copy.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,writesonic.com,🌐 代理出口
+  - DOMAIN-SUFFIX,rytr.me,🌐 代理出口
+  - DOMAIN-SUFFIX,grammarly.com,🌐 代理出口
+  - DOMAIN-SUFFIX,leonardo.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,ideogram.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,lexica.art,🌐 代理出口
+  - DOMAIN-SUFFIX,playground.com,🌐 代理出口
+  - DOMAIN-SUFFIX,civitai.com,🌐 代理出口
+  - DOMAIN-SUFFIX,elevenlabs.io,🌐 代理出口
+  - DOMAIN-SUFFIX,suno.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,suno.com,🌐 代理出口
+  - DOMAIN-SUFFIX,pika.art,🌐 代理出口
+  - DOMAIN-SUFFIX,heygen.com,🌐 代理出口
+  - DOMAIN-SUFFIX,luma.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,you.com,🌐 代理出口
+  - DOMAIN-SUFFIX,phind.com,🌐 代理出口
+  - DOMAIN-SUFFIX,consensus.app,🌐 代理出口
+  - DOMAIN-SUFFIX,elicit.org,🌐 代理出口
+  - DOMAIN-SUFFIX,together.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,anyscale.com,🌐 代理出口
+  - DOMAIN-SUFFIX,fireworks.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,groq.com,🌐 代理出口
+  - DOMAIN-SUFFIX,ai.google.dev,🌐 代理出口
+  - DOMAIN-SUFFIX,makersuite.google.com,🌐 代理出口
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,🌐 代理出口
+  - DOMAIN-SUFFIX,deepmind.com,🌐 代理出口
+  - DOMAIN-SUFFIX,notebooklm.google.com,🌐 代理出口
+  - DOMAIN-SUFFIX,aistudio.google.com,🌐 代理出口
+  - DOMAIN-SUFFIX,v0.dev,🌐 代理出口
+  - DOMAIN-SUFFIX,windsurf.com,🌐 代理出口
+  - DOMAIN-SUFFIX,codeium.com,🌐 代理出口
+  - DOMAIN-SUFFIX,bolt.new,🌐 代理出口
+  - DOMAIN-SUFFIX,lovable.dev,🌐 代理出口
+  - DOMAIN-SUFFIX,fal.ai,🌐 代理出口
+  - DOMAIN-SUFFIX,deepinfra.com,🌐 代理出口
+  - DOMAIN-KEYWORD,antigravity,🌐 代理出口
+  - DOMAIN-KEYWORD,anthropic,🌐 代理出口
+  - DOMAIN-KEYWORD,claude,🌐 代理出口
+  - DOMAIN-KEYWORD,copilot,🌐 代理出口
+  - DOMAIN-KEYWORD,gemini,🌐 代理出口
+  - DOMAIN-SUFFIX,trae.ai,DIRECT
+  - DOMAIN-SUFFIX,trae.com,DIRECT
+  - DOMAIN-SUFFIX,doubao.com,DIRECT
+  - DOMAIN-SUFFIX,kimi.ai,DIRECT
+  - DOMAIN-SUFFIX,klingai.com,DIRECT
+  - DOMAIN-SUFFIX,deepseek.com,DIRECT
+  - DOMAIN-SUFFIX,moonshot.cn,DIRECT
+  - DOMAIN-SUFFIX,minimax.io,DIRECT
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - DOMAIN-KEYWORD,-cn,DIRECT
+  - GEOIP,CN,DIRECT
+  - GEOSITE,CN,DIRECT
+  - MATCH,🌐 代理出口

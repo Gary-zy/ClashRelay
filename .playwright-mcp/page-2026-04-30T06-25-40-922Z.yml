@@ -1,0 +1,196 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]:
+        - generic [ref=e8]:
+          - generic:
+            - generic: 张
+            - generic: 扬
+            - generic: 出
+            - generic: 品
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: RelayBox for macOS
+          - generic [ref=e18]: 朱印 · 链路
+        - heading "Clash 配置生成器" [level=1] [ref=e19]
+    - generic [ref=e20]:
+      - generic [ref=e21]: Clash YAML
+      - button "使用指南" [ref=e22] [cursor=pointer]:
+        - generic [ref=e23]:
+          - img [ref=e25]
+          - text: 使用指南
+  - generic [ref=e27]: 订阅、节点、落地和导出都拆进独立工作区，主流程在桌面端横着走，不再纵向修仙。
+  - img
+  - dialog [ref=e29]:
+    - generic [active] [ref=e30]:
+      - banner [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - img [ref=e35]
+            - generic [ref=e38]: Clash 配置生成器
+          - button "跳过引导" [ref=e39] [cursor=pointer]:
+            - generic [ref=e40]: 跳过引导
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - img [ref=e49]
+            - generic [ref=e52]: 欢迎
+          - generic [ref=e53]:
+            - img [ref=e58]
+            - generic [ref=e61]: 订阅
+          - generic [ref=e62]:
+            - img [ref=e67]
+            - generic [ref=e71]: 节点
+          - generic [ref=e72]:
+            - img [ref=e77]
+            - generic [ref=e80]: 落地
+          - generic [ref=e81]:
+            - img [ref=e85]
+            - generic [ref=e88]: 完成
+        - generic [ref=e90]:
+          - img [ref=e93]
+          - heading "欢迎使用 Clash 配置生成器" [level=2] [ref=e96]
+          - paragraph [ref=e97]:
+            - text: 这个工具只做一件事：把订阅节点、跳板选择和落地节点整理成
+            - strong [ref=e98]: 一份干净的 Clash 配置
+            - text: 。
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - img [ref=e102]
+              - generic [ref=e105]: Clash Only
+            - generic [ref=e106]:
+              - img [ref=e108]
+              - generic [ref=e110]: 直连 / 中转
+            - generic [ref=e111]:
+              - img [ref=e113]
+              - generic [ref=e115]: 默认规则
+            - generic [ref=e116]:
+              - img [ref=e118]
+              - generic [ref=e121]: 一键导出
+      - contentinfo [ref=e122]:
+        - generic [ref=e123]:
+          - generic [ref=e124] [cursor=pointer]:
+            - generic [ref=e125]:
+              - checkbox "下次不再显示"
+            - generic [ref=e127]: 下次不再显示
+          - button "开始了解" [ref=e129] [cursor=pointer]:
+            - generic [ref=e130]: 开始了解
+  - generic [ref=e131]:
+    - generic [ref=e132]:
+      - generic [ref=e133]:
+        - generic [ref=e134]: 朱印 · 链路
+        - strong [ref=e135]: 落地节点模式
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - generic [ref=e138]: 进度
+          - strong [ref=e139]: 0 / 4
+        - generic [ref=e140]:
+          - generic [ref=e141]: 下一步
+          - strong [ref=e142]: 拉取订阅
+        - generic [ref=e143]:
+          - generic [ref=e144]: 输出
+          - strong [ref=e145]: Clash YAML
+      - generic [ref=e146]:
+        - button "链路 落地节点模式" [pressed] [ref=e147] [cursor=pointer]:
+          - generic [ref=e148]: 链路
+          - generic [ref=e149]: 落地节点模式
+        - button "直出 直连模式" [ref=e150] [cursor=pointer]:
+          - generic [ref=e151]: 直出
+          - generic [ref=e152]: 直连模式
+        - button "整理 订阅整理模式" [ref=e153] [cursor=pointer]:
+          - generic [ref=e154]: 整理
+          - generic [ref=e155]: 订阅整理模式
+    - main [ref=e156]:
+      - tablist "配置工作区" [ref=e158]:
+        - tab "01 订阅 进行中" [selected] [ref=e159] [cursor=pointer]:
+          - generic [ref=e160]: "01"
+          - generic [ref=e161]: 订阅
+          - generic [ref=e162]: 进行中
+        - tab "02 节点 待处理" [ref=e163] [cursor=pointer]:
+          - generic [ref=e164]: "02"
+          - generic [ref=e165]: 节点
+          - generic [ref=e166]: 待处理
+        - tab "03 落地 待处理" [ref=e167] [cursor=pointer]:
+          - generic [ref=e168]: "03"
+          - generic [ref=e169]: 落地
+          - generic [ref=e170]: 待处理
+        - tab "04 导出 待处理" [ref=e171] [cursor=pointer]:
+          - generic [ref=e172]: "04"
+          - generic [ref=e173]: 导出
+          - generic [ref=e174]: 待处理
+      - generic [ref=e175]:
+        - generic [ref=e176]:
+          - generic [ref=e177]: "1"
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - generic [ref=e180]: 获取订阅节点
+              - generic [ref=e181]: 进行中
+            - generic [ref=e182]: 先把订阅节点拉进来，后面的筛选、跳板和导出才有东西可用。
+        - generic [ref=e184]:
+          - generic [ref=e185]:
+            - generic [ref=e186]: 机场订阅地址
+            - generic [ref=e187]:
+              - combobox [ref=e188]:
+                - textbox "机场订阅地址" [ref=e191]:
+                  - /placeholder: https://example.com/subscription
+              - generic [ref=e192]: 点击输入框可查看历史记录；如果订阅站不放 CORS，或者别人只给你 Clash Verge 里的完整配置，也别在这一步硬杠。
+          - generic [ref=e193]:
+            - generic [ref=e194]:
+              - generic [ref=e195]:
+                - generic [ref=e196]: 本地订阅代理地址（可选）
+                - generic [ref=e197]:
+                  - textbox "本地订阅代理地址（可选）" [ref=e200]:
+                    - /placeholder: http://localhost:8787
+                  - generic [ref=e201]: 仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。
+              - generic [ref=e202]:
+                - generic [ref=e203]:
+                  - generic [ref=e204]:
+                    - generic [ref=e205]: 替代路线
+                    - generic [ref=e206]:
+                      - img [ref=e208]
+                      - strong [ref=e210]: 从 Clash Verge 粘贴配置
+                    - generic [ref=e211]: 网页直拉订阅跨域时，就让别人先导进 Clash Verge，再把完整配置全选复制回来。
+                  - generic [ref=e212]: 只提取节点，不继承原分组和规则
+                - textbox "把 Clash Verge 里的完整配置文本粘贴到这里" [ref=e214]
+                - generic [ref=e215]:
+                  - generic [ref=e216]: 适合已经在客户端里导入成功，但网页这边因为跨域拉不到订阅的场景。
+                  - button "导入 Clash 配置节点" [disabled] [ref=e217]:
+                    - generic [ref=e218]: 导入 Clash 配置节点
+              - generic [ref=e219]:
+                - generic [ref=e220]:
+                  - generic [ref=e221]:
+                    - generic [ref=e222]: 融合路线
+                    - generic [ref=e223]:
+                      - img [ref=e225]
+                      - strong [ref=e227]: 追加融合 Clash 配置
+                    - generic [ref=e228]: 美国、日本这些自建节点分批贴进来，不覆盖旧节点，自动按来源做分组。
+                  - generic [ref=e229]: 只追加 proxies，默认选为跳板
+                - generic [ref=e230]:
+                  - generic [ref=e231]:
+                    - generic [ref=e232]: 来源名称
+                    - textbox "来源名称" [ref=e236]:
+                      - /placeholder: 美国 / 日本
+                  - generic [ref=e237]:
+                    - generic [ref=e238]: 节点前缀（可选）
+                    - textbox "节点前缀（可选）" [ref=e242]:
+                      - /placeholder: US / JP，不填则用来源名称
+                - textbox "把这一份 Clash Verge 完整配置粘贴到这里" [ref=e244]
+                - generic [ref=e245]:
+                  - generic [ref=e246]: 例：来源填“美国”、前缀填“US”，节点会变成 US - 原节点名。
+                  - button "生成导入预览" [disabled] [ref=e247]:
+                    - generic [ref=e248]: 生成导入预览
+              - button "手动粘贴订阅内容（CORS 失败时用这个）" [ref=e251] [cursor=pointer]:
+                - generic [ref=e253]:
+                  - img [ref=e255]
+                  - text: 手动粘贴订阅内容（CORS 失败时用这个）
+                - img [ref=e258]
+            - generic [ref=e260]:
+              - generic [ref=e261]: 下一步
+              - strong [ref=e262]: 先把订阅节点拉进来
+              - generic [ref=e263]: 后面的模式切换、节点筛选和规则导出都得靠这一步开张。
+              - button "获取节点" [ref=e264] [cursor=pointer]:
+                - generic [ref=e265]: 获取节点
+  - generic [ref=e266]:
+    - text: Clash 配置生成器 ·
+    - link "GitHub" [ref=e267] [cursor=pointer]:
+      - /url: https://github.com/Gary-zy/ClashRelay

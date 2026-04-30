@@ -6,8 +6,6 @@ import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 import { dedupeProxyNames, sanitizeImportedProxy } from "../utils/proxySanitizer.js";
 import { applySourceToNodes } from "../utils/nodeSources.js";
 
-const HISTORY_KEY = "clashrelay_history";
-
 export const parseClashConfigNodes = (text, { preserveDialerProxy = false } = {}) => {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -41,56 +39,11 @@ export const parseClashConfigNodes = (text, { preserveDialerProxy = false } = {}
 
 export const useSubscription = ({ form, nodes, status, saveConfig }) => {
   const isFetching = ref(false);
-  const subscriptionHistory = ref([]);
 
   const setStatus = (message, type) => {
     if (!status) return;
     status.message = message;
     status.type = type;
-  };
-
-  const loadSubscriptionHistory = () => {
-    try {
-      const saved = localStorage.getItem(HISTORY_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveSubscriptionHistory = (url) => {
-    if (!url) return;
-    try {
-      let history = loadSubscriptionHistory();
-      history = history.filter((h) => h !== url);
-      history.unshift(url);
-      history = history.slice(0, 5);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-      subscriptionHistory.value = history;
-    } catch {}
-  };
-
-  subscriptionHistory.value = loadSubscriptionHistory();
-
-  const querySubscriptionHistory = (query, cb) => {
-    const results = query
-      ? subscriptionHistory.value.filter((url) => url.toLowerCase().includes(query.toLowerCase()))
-      : subscriptionHistory.value;
-    cb(results.map((url) => ({ value: url })));
-  };
-
-  const removeHistoryItem = (url) => {
-    subscriptionHistory.value = subscriptionHistory.value.filter((h) => h !== url);
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(subscriptionHistory.value));
-    } catch {}
-  };
-
-  const clearSubscriptionHistory = () => {
-    subscriptionHistory.value = [];
-    try {
-      localStorage.removeItem(HISTORY_KEY);
-    } catch {}
   };
 
   const applyImportedNodes = (importedNodes, successFormatter) => {
@@ -137,7 +90,7 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
 
     if (!form.subscriptionUrl.trim()) {
       setStatus("请输入订阅地址。", "warning");
-      return;
+      return { ok: false, reason: "empty_url" };
     }
 
     isFetching.value = true;
@@ -163,7 +116,7 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
             }),
             response.status >= 500 ? "warning" : "error"
           );
-          return;
+          return { ok: false, reason: "http_error", responseStatus };
         }
         text = response.text;
       } else {
@@ -179,7 +132,7 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
             }),
             response.status >= 500 ? "warning" : "error"
           );
-          return;
+          return { ok: false, reason: "http_error", responseStatus };
         }
         text = await response.text();
       }
@@ -194,25 +147,24 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
         }),
         "warning"
       );
-      return;
+      return { ok: false, reason: "fetch_error", error };
     }
 
     if (!text) {
       isFetching.value = false;
       setStatus("订阅内容为空。", "warning");
-      return;
+      return { ok: false, reason: "empty_response" };
     }
 
     const parsed = parseSubscription(text);
     if (!parsed.length) {
       isFetching.value = false;
       setStatus("订阅内容拿到了，但没解析出节点。大概率是订阅格式不对，或者返回的不是节点列表。", "error");
-      return;
+      return { ok: false, reason: "empty_nodes" };
     }
 
-    saveSubscriptionHistory(form.subscriptionUrl.trim());
     isFetching.value = false;
-    applyImportedNodes(parsed, (count, prunedNote) => `成功解析 ${count} 个节点。${prunedNote}`);
+    return applyImportedNodes(parsed, (count, prunedNote) => `成功解析 ${count} 个节点。${prunedNote}`);
   };
 
   const importClashConfigText = (text) => {
@@ -245,6 +197,12 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
   const importMergedClashConfigText = ({ text, sourceName, sourcePrefix }) => {
     setStatus("", "info");
 
+    const preview = previewMergedClashConfigText({ text, sourceName, sourcePrefix });
+    if (!preview.ok) return preview;
+    return commitMergedClashConfigPreview(preview);
+  };
+
+  const previewMergedClashConfigText = ({ text, sourceName, sourcePrefix }) => {
     const sourced = applySourceToNodes([], { sourceName, sourcePrefix });
     if (!sourced.ok) {
       setStatus("请先填写来源名称，比如 美国 或 日本。", "warning");
@@ -275,7 +233,6 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
       return sourceResult;
     }
 
-    const existingCount = nodes.value.length;
     const finalNodes = dedupeProxyNames([
       ...nodes.value,
       ...sourceResult.nodes.map((node) => ({
@@ -283,30 +240,44 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
         latency: -1,
       })),
     ]);
-    const importedNodes = finalNodes.slice(existingCount);
+    const importedNodes = finalNodes.slice(nodes.value.length);
 
-    nodes.value = finalNodes;
-    importedNodes.forEach((node) => {
-      if (!form.dialerProxyGroup.includes(node.name)) {
-        form.dialerProxyGroup.push(node.name);
+    return {
+      ok: true,
+      summary: {
+        sourceName: sourceResult.nodes[0]?.sourceName || "",
+        sourcePrefix: sourceResult.nodes[0]?.sourcePrefix || "",
+        importCount: importedNodes.length,
+      },
+      nodes: importedNodes,
+      nextNodes: finalNodes,
+      autoSelectNames: importedNodes.map((node) => node.name),
+    };
+  };
+
+  const commitMergedClashConfigPreview = (preview) => {
+    if (!preview?.ok) return preview || { ok: false, reason: "missing_preview" };
+
+    nodes.value = preview.nextNodes;
+    preview.autoSelectNames.forEach((nodeName) => {
+      if (!form.dialerProxyGroup.includes(nodeName)) {
+        form.dialerProxyGroup.push(nodeName);
       }
     });
 
     if (saveConfig) saveConfig();
-    setStatus(`已融合导入 ${importedNodes.length} 个${sourceResult.nodes[0]?.sourceName || ""}节点，并自动选为前置跳板。`, "success");
+    setStatus(`已融合导入 ${preview.nodes.length} 个${preview.summary.sourceName || ""}节点，并自动选为前置跳板。`, "success");
 
-    return { ok: true, nodes: importedNodes };
+    return { ok: true, nodes: preview.nodes };
   };
 
   return {
     isFetching,
-    subscriptionHistory,
-    querySubscriptionHistory,
-    removeHistoryItem,
-    clearSubscriptionHistory,
     handleFetch,
     parseSubscription,
     importClashConfigText,
     importMergedClashConfigText,
+    previewMergedClashConfigText,
+    commitMergedClashConfigPreview,
   };
 };

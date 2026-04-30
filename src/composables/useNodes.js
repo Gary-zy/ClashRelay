@@ -103,7 +103,7 @@ export const useNodes = ({ form, status }) => {
     return filteredNodes.value.filter((node) => getNodeGroup(node).key === activeNodeGroup.value);
   });
 
-  const handleNodeRowClick = (row) => {
+  const toggleNodeSelection = (row) => {
     if (form.isDirect) return;
     const index = form.dialerProxyGroup.indexOf(row.name);
     if (index > -1) {
@@ -150,9 +150,9 @@ export const useNodes = ({ form, status }) => {
     node.name.replace(/\s*\(\d+ms\)$/, "").replace(/\s*\(超时\)$/, "");
 
   const getLatencyColor = (latency) => {
-    if (latency < 100) return "#67c23a";
-    if (latency < 200) return "#e6a23c";
-    return "#f56c6c";
+    if (latency < 100) return "var(--status-ok)";
+    if (latency < 200) return "var(--status-warning)";
+    return "var(--status-danger)";
   };
 
   const testNodeLatency = async (node) => {
@@ -248,7 +248,7 @@ export const useNodes = ({ form, status }) => {
     nodeGroups,
     filteredNodes,
     displayNodes,
-    handleNodeRowClick,
+    toggleNodeSelection,
     selectAllNodes,
     invertSelection,
     clearSelection,

@@ -5,6 +5,7 @@ import {
   buildSubscriptionOnlyConfig,
   buildLandingProxyFromForm,
   getFetchErrorMessage,
+  OUTPUT_TARGETS,
   useConfig,
 } from "../src/composables/useConfig.js";
 import { ref } from "vue";
@@ -29,6 +30,7 @@ const createForm = (overrides = {}) => ({
   urlTestLazy: false,
   customRulesText: "",
   isDirect: false,
+  outputTarget: "clash",
   ...overrides,
 });
 
@@ -89,6 +91,31 @@ test("中转模式多跳板会生成前置跳板组", () => {
   assert.ok(proxyGroup.proxies.includes("♻️ 自动选择"));
   assert.ok(proxyGroup.proxies.includes("🛡️ 故障转移"));
   assert.ok(proxyGroup.proxies.includes("⚖️ 负载均衡"));
+});
+
+test("Shadowrocket 导出目标复用 YAML 链路并保留 dialer-proxy", () => {
+  const form = createForm({
+    outputTarget: OUTPUT_TARGETS.SHADOWROCKET,
+    dialerProxyGroup: ["HK-A", "JP-B"],
+    dialerProxyType: "fallback",
+  });
+  const status = { message: "", type: "" };
+  const yamlText = ref("");
+  const previousYaml = ref("");
+  const { generateYaml } = useConfig({
+    form,
+    nodes: ref(sampleNodes),
+    status,
+    yamlText,
+    previousYaml,
+  });
+
+  generateYaml();
+
+  assert.equal(status.type, "success");
+  assert.match(status.message, /Shadowrocket/);
+  assert.match(yamlText.value, /dialer-proxy: 🔀 前置跳板组/);
+  assert.match(yamlText.value, /name: 🔀 前置跳板组/);
 });
 
 test("中转模式有来源节点时会生成来源组并把前置跳板组指向来源组", () => {

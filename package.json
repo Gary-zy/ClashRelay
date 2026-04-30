@@ -13,6 +13,7 @@
     "review:heartbeat": "node scripts/review-heartbeat.mjs",
     "verify:clash": "node scripts/verify-mihomo.mjs",
     "verify:all": "npm test && npm run build && npm run verify:clash",
+    "docker:build": "docker build -t relaybox .",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

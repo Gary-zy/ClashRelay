@@ -56,6 +56,7 @@
               type="button"
               class="mode-pill"
               :class="{ 'is-active': currentWorkbenchMode === mode.key }"
+              :aria-pressed="currentWorkbenchMode === mode.key"
               @click="setWorkbenchMode(mode.key)"
             >
               <span class="mode-pill-stamp">{{ mode.stamp }}</span>
@@ -67,14 +68,16 @@
         <!-- 全宽主工作区 -->
         <main class="layout-main">
           <section class="step-section workspace-tabs-shell">
-          <div class="workspace-tab-strip">
+          <div class="workspace-tab-strip" role="tablist" aria-label="配置工作区">
             <button
               v-for="tab in workspaceTabs"
               :key="tab.key"
               type="button"
+              role="tab"
               class="workspace-tab-button"
               :class="{ 'is-active': activeWorkspaceTab === tab.key }"
-              @click="activeWorkspaceTab = tab.key"
+              :aria-selected="activeWorkspaceTab === tab.key"
+              @click="goToWorkspaceTab(tab.key)"
             >
               <span class="workspace-tab-index">{{ tab.index }}</span>
               <span class="workspace-tab-label">{{ tab.title }}</span>
@@ -84,7 +87,15 @@
         </section>
 
         <section v-show="activeWorkspaceTab === 'fetch'" :class="['step-section', 'fetch-stage', `state-${getStepState('fetch')}`]">
-          <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('fetch')">
+          <div
+            class="step-header"
+            :class="{ 'is-collapsible': isCompactViewport }"
+            :role="getStepHeaderRole('fetch')"
+            :tabindex="getStepHeaderTabIndex('fetch')"
+            @click="toggleStepPanel('fetch')"
+            @keydown.enter.prevent="toggleStepPanel('fetch')"
+            @keydown.space.prevent="toggleStepPanel('fetch')"
+          >
             <span class="step-number">1</span>
             <div class="step-heading">
               <div class="step-heading-top">
@@ -99,29 +110,20 @@
           <div v-show="isStepExpanded('fetch')" class="step-body">
             <el-form label-position="top">
               <el-form-item label="机场订阅地址">
-                <el-autocomplete
+                <el-input
                   v-model="form.subscriptionUrl"
-                  :fetch-suggestions="querySubscriptionHistory"
-                  :trigger-on-focus="true"
                   placeholder="https://example.com/subscription"
-                  style="width: 100%;"
+                  autocomplete="off"
                   clearable
-                >
-                  <template #default="{ item }">
-                    <div class="history-item">
-                      <span class="history-url">{{ item.value }}</span>
-                      <el-button type="danger" link size="small" @click.stop="removeHistoryItem(item.value)">删除</el-button>
-                    </div>
-                  </template>
-                </el-autocomplete>
-                <div class="helper-text">点击输入框可查看历史记录；如果订阅站不放 CORS，或者别人只给你 Clash Verge 里的完整配置，也别在这一步硬杠。</div>
+                />
+                <div class="helper-text">如果订阅站不放 CORS，或者别人只给你 Clash Verge 里的完整配置，也别在这一步硬杠。</div>
               </el-form-item>
 
               <div class="fetch-grid">
                 <div class="fetch-support-stack">
-                  <el-form-item v-if="!isDesktopShell" label="本地订阅代理地址（可选）">
-                    <el-input v-model="form.proxyUrl" placeholder="http://localhost:8787" />
-                    <div class="helper-text">仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。</div>
+                  <el-form-item v-if="!isDesktopShell" label="订阅代理地址（可选）">
+                    <el-input v-model="form.proxyUrl" :placeholder="defaultProxyUrl || 'http://localhost:8787'" />
+                    <div class="helper-text">公网部署默认走当前站点代理抓订阅，避免浏览器直连订阅源被 CORS 拦住。</div>
                   </el-form-item>
                   <div v-else class="desktop-native-note">
                     <strong>桌面端已内建订阅抓取与测速能力</strong>
@@ -192,15 +194,50 @@
                       placeholder="把这一份 Clash Verge 完整配置粘贴到这里"
                     />
 
+                    <div v-if="mergeImportPreview" class="merge-preview-panel">
+                      <div class="merge-preview-header">
+                        <strong>导入预览</strong>
+                        <span>{{ mergeImportPreview.summary.sourceName }} / {{ mergeImportPreview.summary.sourcePrefix }}</span>
+                      </div>
+                      <div class="merge-preview-stats">
+                        <span>新增 {{ mergeImportPreview.summary.importCount }} 个节点</span>
+                        <span>自动选入 {{ mergeImportPreview.autoSelectNames.length }} 个跳板</span>
+                      </div>
+                      <div class="merge-preview-list">
+                        <span
+                          v-for="node in mergeImportPreview.nodes.slice(0, 6)"
+                          :key="node.name"
+                        >
+                          {{ node.name }}
+                        </span>
+                      </div>
+                    </div>
+
                     <div class="clash-import-actions">
                       <span class="helper-text">例：来源填“美国”、前缀填“US”，节点会变成 US - 原节点名。</span>
                       <el-button
+                        v-if="mergeImportPreview"
+                        plain
+                        @click="cancelMergedClashConfigImport"
+                      >
+                        取消预览
+                      </el-button>
+                      <el-button
+                        v-if="mergeImportPreview"
+                        type="primary"
+                        plain
+                        @click="confirmMergedClashConfigImport"
+                      >
+                        确认导入
+                      </el-button>
+                      <el-button
+                        v-else
                         type="primary"
                         plain
                         @click="handleMergedClashConfigImport"
                         :disabled="!mergeImportText.trim() || !mergeImportSourceName.trim()"
                       >
-                        追加融合导入
+                        生成导入预览
                       </el-button>
                     </div>
                   </div>
@@ -250,7 +287,15 @@
         </section>
 
         <section v-show="activeWorkspaceTab === 'nodes'" :class="['step-section', 'nodes-stage', `state-${getStepState('nodes')}`]">
-          <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('nodes')">
+          <div
+            class="step-header"
+            :class="{ 'is-collapsible': isCompactViewport }"
+            :role="getStepHeaderRole('nodes')"
+            :tabindex="getStepHeaderTabIndex('nodes')"
+            @click="toggleStepPanel('nodes')"
+            @keydown.enter.prevent="toggleStepPanel('nodes')"
+            @keydown.space.prevent="toggleStepPanel('nodes')"
+          >
             <span class="step-number">2</span>
             <div class="step-heading">
               <div class="step-heading-top">
@@ -314,7 +359,7 @@
                   <el-option label="类型" value="type" />
                 </el-select>
                 <el-button size="small" @click="testAllNodesLatency" :loading="isTesting" :disabled="nodes.length === 0">
-                  测速
+                  TCP 探活
                 </el-button>
               </div>
 
@@ -344,17 +389,25 @@
               <el-table
                 :data="displayNodes"
                 size="small"
-                height="400"
                 empty-text="暂无节点，请先获取订阅"
                 style="width: 100%"
-                @row-click="currentWorkbenchMode === 'relay' ? handleNodeRowClick($event) : undefined"
-                highlight-current-row
+                :highlight-current-row="!isNodeSelectionDisabled"
                 :row-class-name="getRowClassName"
               >
+                <el-table-column v-if="currentWorkbenchMode === 'relay'" label="选择" width="72" align="center">
+                  <template #default="{ row }">
+                    <el-checkbox
+                      class="node-selection-checkbox"
+                      :model-value="form.dialerProxyGroup.includes(row.name)"
+                      :aria-label="`选择 ${row.name} 作为跳板`"
+                      @change="toggleNodeSelection(row)"
+                      @click.stop
+                    />
+                  </template>
+                </el-table-column>
                 <el-table-column label="节点名称" min-width="260" show-overflow-tooltip>
                   <template #default="{ row }">
                     <span class="node-name">
-                      <span v-if="currentWorkbenchMode === 'relay'" class="node-marker" :class="{ active: form.dialerProxyGroup.includes(row.name) }"></span>
                       {{ row.name }}
                     </span>
                   </template>
@@ -367,12 +420,12 @@
                 <el-table-column prop="type" label="类型" width="90" />
                 <el-table-column label="延迟" width="90">
                   <template #default="{ row }">
-                    <span v-if="row.latency === -1" style="color: #999;">—</span>
-                    <span v-else-if="row.latency === -2" style="color: #f56c6c;">失败</span>
+                    <span v-if="row.latency === -1" class="latency-muted">—</span>
+                    <span v-else-if="row.latency === -2" class="latency-failed">失败</span>
                     <span v-else-if="row.latency" :style="{ color: getLatencyColor(row.latency) }">
                       {{ row.latency }}ms
                     </span>
-                    <el-icon v-else class="is-loading" style="color: #409eff;"><Loading /></el-icon>
+                    <el-icon v-else class="is-loading latency-loading"><Loading /></el-icon>
                   </template>
                 </el-table-column>
                 <el-table-column prop="server" label="服务器" min-width="160" show-overflow-tooltip />
@@ -388,9 +441,9 @@
                 <span class="strategy-count-tag">{{ selectedNodes.length }} 个跳板</span>
               </div>
               <el-radio-group v-model="form.dialerProxyType" size="small">
-                <el-radio-button value="url-test">自动选择</el-radio-button>
-                <el-radio-button value="select">手动选择</el-radio-button>
-                <el-radio-button value="fallback">故障转移</el-radio-button>
+                <el-radio-button :value="'url-test'">自动选择</el-radio-button>
+                <el-radio-button :value="'select'">手动选择</el-radio-button>
+                <el-radio-button :value="'fallback'">故障转移</el-radio-button>
               </el-radio-group>
 
               <div
@@ -420,7 +473,15 @@
         </section>
 
         <section v-if="form.generateMode !== 'subscription' && activeWorkspaceTab === 'landing'" :class="['step-section', 'landing-stage', `state-${getStepState('landing')}`]">
-          <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('landing')">
+          <div
+            class="step-header"
+            :class="{ 'is-collapsible': isCompactViewport }"
+            :role="getStepHeaderRole('landing')"
+            :tabindex="getStepHeaderTabIndex('landing')"
+            @click="toggleStepPanel('landing')"
+            @keydown.enter.prevent="toggleStepPanel('landing')"
+            @keydown.space.prevent="toggleStepPanel('landing')"
+          >
             <span class="step-number">3</span>
             <div class="step-heading">
               <div class="step-heading-top">
@@ -493,7 +554,15 @@
         </section>
 
         <section v-if="form.generateMode === 'subscription' && activeWorkspaceTab === 'landing'" :class="['step-section', 'subscription-info-card', 'landing-stage', `state-${getStepState('landing')}`]">
-          <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('landing')">
+          <div
+            class="step-header"
+            :class="{ 'is-collapsible': isCompactViewport }"
+            :role="getStepHeaderRole('landing')"
+            :tabindex="getStepHeaderTabIndex('landing')"
+            @click="toggleStepPanel('landing')"
+            @keydown.enter.prevent="toggleStepPanel('landing')"
+            @keydown.space.prevent="toggleStepPanel('landing')"
+          >
             <span class="step-number">3</span>
             <div class="step-heading">
               <div class="step-heading-top">
@@ -516,7 +585,15 @@
         </section>
 
         <section v-show="activeWorkspaceTab === 'rules'" :class="['step-section', 'rules-stage', `state-${getStepState('rules')}`]">
-          <div class="step-header" :class="{ 'is-collapsible': isCompactViewport }" @click="toggleStepPanel('rules')">
+          <div
+            class="step-header"
+            :class="{ 'is-collapsible': isCompactViewport }"
+            :role="getStepHeaderRole('rules')"
+            :tabindex="getStepHeaderTabIndex('rules')"
+            @click="toggleStepPanel('rules')"
+            @keydown.enter.prevent="toggleStepPanel('rules')"
+            @keydown.space.prevent="toggleStepPanel('rules')"
+          >
             <span class="step-number">4</span>
             <div class="step-heading">
               <div class="step-heading-top">
@@ -536,6 +613,13 @@
                 <span class="desktop-output-note">{{ stickyActionSummary.note }}</span>
               </div>
               <div class="desktop-output-actions">
+                <div class="output-target-group" aria-label="导出客户端">
+                  <span>导出客户端</span>
+                  <el-radio-group v-model="form.outputTarget" size="small">
+                    <el-radio-button :value="OUTPUT_TARGETS.CLASH">Clash Verge / mihomo</el-radio-button>
+                    <el-radio-button :value="OUTPUT_TARGETS.SHADOWROCKET">Shadowrocket 小火箭</el-radio-button>
+                  </el-radio-group>
+                </div>
                 <span class="sticky-state-pill" :class="{ 'is-ready': readyToGenerate, 'is-blocked': !readyToGenerate }">
                   {{ readyToGenerate ? "可以生成" : "还有前置条件" }}
                 </span>
@@ -548,28 +632,129 @@
                   @click="handleGenerate"
                   :disabled="!readyToGenerate"
                 >
-                  {{ form.generateMode === 'subscription' ? '生成订阅配置' : '生成 Clash 配置' }}
+                  {{ generateButtonLabel }}
                 </el-button>
               </div>
             </div>
 
-            <div class="output-tab-strip">
+            <div class="output-tab-strip" role="tablist" aria-label="规则和预览">
               <button
                 type="button"
+                role="tab"
                 class="output-tab-button"
                 :class="{ 'is-active': activeOutputTab === 'rules' }"
+                :aria-selected="activeOutputTab === 'rules'"
                 @click="activeOutputTab = 'rules'"
               >
                 规则
               </button>
               <button
                 type="button"
+                role="tab"
                 class="output-tab-button"
                 :class="{ 'is-active': activeOutputTab === 'preview' }"
+                :aria-selected="activeOutputTab === 'preview'"
                 @click="activeOutputTab = 'preview'"
               >
                 预览
               </button>
+            </div>
+
+            <div v-if="activeOutputTab === 'preview' && yamlText" class="yaml-section">
+              <div class="yaml-header">
+                <div class="yaml-heading">
+                  <span class="yaml-title">{{ previewTitle }}</span>
+                  <span class="yaml-note">{{ previewNote }}</span>
+                </div>
+                <div class="yaml-actions">
+                  <el-button size="small" @click="copyYaml">复制</el-button>
+                  <el-button size="small" type="primary" @click="downloadYaml">{{ saveActionLabel }}</el-button>
+                </div>
+              </div>
+              <pre class="config-preview" v-html="highlightedYaml"></pre>
+            </div>
+
+            <div v-else-if="activeOutputTab === 'preview'" class="empty-preview-card">
+              <strong>还没有可预览的 {{ outputClientLabel }} YAML</strong>
+              <span>先把订阅、链路和规则准备好，再点一次生成。生成后我会把你自动切到这里。</span>
+            </div>
+
+            <div v-show="activeOutputTab === 'preview'" class="output-checks-panel">
+              <ConfigHealthPanel :report="configHealthReport" />
+
+              <div class="mihomo-panel">
+                <div class="mihomo-panel-main">
+                  <div>
+                    <div class="config-label">mihomo 配置校验 + 策略组精准测速</div>
+                    <div class="helper-text">服务端会临时启动 mihomo，测的是最终策略组真实请求延迟，不是单纯 TCP 端口探活。</div>
+                  </div>
+                  <div class="mihomo-controls">
+                    <el-input
+                      v-model="mihomoToken"
+                      type="password"
+                      show-password
+                      placeholder="服务令牌 RELAYBOX_TOKEN"
+                      class="mihomo-token-input"
+                    />
+                    <el-switch
+                      v-model="mihomoIncludeExitIp"
+                      active-text="查出口 IP"
+                      inactive-text="只测延迟"
+                    />
+                    <el-button
+                      plain
+                      @click="handleMihomoCheck"
+                      :loading="isMihomoChecking"
+                      :disabled="!yamlText || !mihomoToken.trim()"
+                    >
+                      mihomo 校验
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      plain
+                      @click="handleMihomoBenchmark"
+                      :loading="isMihomoBenchmarking"
+                      :disabled="!yamlText || !mihomoToken.trim() || benchmarkPolicies.length === 0"
+                    >
+                      策略组精准测速
+                    </el-button>
+                  </div>
+                </div>
+
+                <div v-if="benchmarkPolicies.length > 0" class="mihomo-policy-line">
+                  待测策略组：{{ benchmarkPolicies.join(" / ") }}
+                </div>
+
+                <el-alert
+                  v-if="mihomoCheckResult"
+                  :title="mihomoCheckResult.message"
+                  :type="mihomoCheckResult.ok ? 'success' : 'error'"
+                  show-icon
+                  :closable="false"
+                />
+
+                <div v-if="mihomoBenchmarkResults.length > 0" class="mihomo-result-grid">
+                  <div
+                    v-for="result in mihomoBenchmarkResults"
+                    :key="result.name"
+                    class="mihomo-result-card"
+                    :class="{ 'is-failed': result.status !== 'ok' }"
+                  >
+                    <div class="mihomo-result-top">
+                      <strong>{{ result.name }}</strong>
+                      <span>{{ result.status === 'ok' ? `${result.delayMs}ms` : '失败' }}</span>
+                    </div>
+                    <div class="mihomo-result-meta">
+                      <span>真实延迟：{{ result.delayMs ?? '不可用' }}ms</span>
+                      <span>样本：{{ (result.attempts || []).map((item) => item ?? '失败').join(' / ') }}</span>
+                      <span v-if="getMihomoHistory(result.name)">上次：{{ getMihomoHistory(result.name).delayMs ?? '失败' }}ms · {{ getMihomoHistory(result.name).testedAt }}</span>
+                      <span v-if="result.exitIp">出口：{{ result.exitIp }} {{ result.country || '' }} {{ result.colo || '' }}</span>
+                      <span v-else-if="result.exitError">出口检测：{{ formatMihomoError(result.exitError) }}</span>
+                      <span v-if="result.error">{{ formatMihomoError(result.error) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div v-show="activeOutputTab === 'rules'" class="rule-card">
@@ -676,6 +861,7 @@
                               :key="site.domain"
                               type="button"
                               class="rule-snippet-chip"
+                              :aria-label="`添加 ${site.label} 规则片段`"
                               @click="applyRuleHelperSite(site)"
                             >
                               {{ site.label }}
@@ -756,6 +942,7 @@
                           :key="snippet.label"
                           type="button"
                           class="rule-snippet-chip"
+                          :aria-label="`添加 ${snippet.label} 规则片段`"
                           @click="appendRuleSnippet(snippet)"
                         >
                           {{ snippet.label }}
@@ -814,27 +1001,9 @@
 
             <div v-show="activeOutputTab === 'rules'" class="format-tip">
               <el-icon><InfoFilled /></el-icon>
-              <span>当前只生成 Clash YAML，支持 Clash Verge、OpenClash、Shadowrocket 等客户端导入。</span>
+              <span>{{ outputFormatTip }}</span>
             </div>
 
-            <div v-if="activeOutputTab === 'preview' && yamlText" class="yaml-section">
-              <div class="yaml-header">
-                <div class="yaml-heading">
-                  <span class="yaml-title">Clash 配置预览</span>
-                  <span class="yaml-note">先预览，再复制或下载，省得把半成品扔给客户端。</span>
-                </div>
-                <div class="yaml-actions">
-                  <el-button size="small" @click="copyYaml">复制</el-button>
-                  <el-button size="small" type="primary" @click="downloadYaml">{{ saveActionLabel }}</el-button>
-                </div>
-              </div>
-              <pre class="config-preview" v-html="highlightedYaml"></pre>
-            </div>
-
-            <div v-else-if="activeOutputTab === 'preview'" class="empty-preview-card">
-              <strong>还没有可预览的 Clash YAML</strong>
-              <span>先把订阅、链路和规则准备好，再点一次生成。生成后我会把你自动切到这里。</span>
-            </div>
           </div>
         </section>
         </main>
@@ -851,20 +1020,25 @@
 <script setup>
 import { computed, defineAsyncComponent, reactive, ref, watch, onBeforeUnmount, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import yaml from "js-yaml";
 import { QuestionFilled, Search, Loading, InfoFilled, ArrowDown, DocumentCopy } from "@element-plus/icons-vue";
 import SelectionTray from "./components/SelectionTray.vue";
+import ConfigHealthPanel from "./components/ConfigHealthPanel.vue";
 import InkSeal from "./components/decorations/InkSeal.vue";
 import InkBamboo from "./components/decorations/InkBamboo.vue";
 import InkLoading from "./components/InkLoading.vue";
 import { useNodes } from "./composables/useNodes.js";
 import { useSubscription } from "./composables/useSubscription.js";
-import { useConfig, MANUAL_LANDING_TYPES } from "./composables/useConfig.js";
+import { useConfig, MANUAL_LANDING_TYPES, OUTPUT_TARGETS } from "./composables/useConfig.js";
 import { defaultRules, subscriptionDefaultRules } from "./config/defaultConfig.js";
 import { highlightYaml } from "./utils/helpers.js";
 import { desktopApi, isDesktopApp } from "./utils/desktop.js";
 import { countInformationalNodes } from "./utils/nodeMetadata.js";
 import { dedupeProxyNames } from "./utils/proxySanitizer.js";
 import { getNodeSourceGroup } from "./utils/nodeSources.js";
+import { buildConfigHealthReport } from "./utils/configHealth.js";
+import { createMihomoClient, getMihomoFriendlyErrorMessage } from "./utils/mihomoClient.js";
+import { getBenchmarkPoliciesFromConfig } from "./utils/mihomoPolicies.js";
 import {
   analyzeRuleCandidate,
   buildRulePolicyOptions,
@@ -879,6 +1053,8 @@ const OnboardingWizard = defineAsyncComponent(() => import("./components/Onboard
 
 const STORAGE_KEY = "clashrelay_config";
 const RULE_HELPER_RECENT_KEY = "relaybox_rule_helper_recent";
+const MIHOMO_TOKEN_KEY = "relaybox_mihomo_token";
+const MIHOMO_BENCHMARK_HISTORY_KEY = "relaybox_mihomo_benchmark_history";
 const DESKTOP_STATE_VERSION = 1;
 const LEGACY_STORAGE_KEYS = ["clashrelay_favorites", "clashrelay_health", "clashrelay_template", "clashrelay_rules"];
 const landingTypeOptions = [
@@ -902,7 +1078,6 @@ const ruleTypeOptions = [
   { label: "进程名", value: "PROCESS-NAME" },
 ];
 const persistedKeys = [
-  "subscriptionUrl",
   "proxyUrl",
   "landingNodeUrl",
   "landingNodeType",
@@ -919,9 +1094,16 @@ const persistedKeys = [
   "customRulesText",
   "isDirect",
   "generateMode",
+  "outputTarget",
 ];
 const desktopPersistedKeys = persistedKeys.filter((key) => key !== "proxyUrl");
 const isDesktopShell = isDesktopApp();
+const getDefaultProxyUrl = () => {
+  if (isDesktopShell) return "";
+  if (import.meta.env.DEV) return "http://localhost:8787";
+  return typeof window !== "undefined" ? window.location?.origin || "" : "";
+};
+const defaultProxyUrl = getDefaultProxyUrl();
 
 const globalLoading = ref(false);
 const isCompactViewport = ref(false);
@@ -959,6 +1141,9 @@ const loadSavedConfig = () => {
     // 生产环境下清除残留的 localhost 代理地址
     if (!import.meta.env.DEV && result.proxyUrl && /localhost|127\.0\.0\.1/i.test(result.proxyUrl)) {
       result.proxyUrl = "";
+    }
+    if (!result.proxyUrl && defaultProxyUrl) {
+      result.proxyUrl = defaultProxyUrl;
     }
     return result;
   } catch {
@@ -1008,6 +1193,7 @@ const saveRecentRuleHelperEntries = () => {
 const assignFormSafely = (target, source) => {
   const allowedKeys = new Set(Object.keys(formDefaults));
   for (const key of Object.keys(source)) {
+    if (key === "subscriptionUrl") continue;
     if (allowedKeys.has(key) && Object.prototype.hasOwnProperty.call(source, key)) {
       target[key] = source[key];
     }
@@ -1016,7 +1202,7 @@ const assignFormSafely = (target, source) => {
 
 const formDefaults = {
   subscriptionUrl: "",
-  proxyUrl: import.meta.env.DEV ? "http://localhost:8787" : "",
+  proxyUrl: defaultProxyUrl,
   landingNodeUrl: "",
   landingNodeType: "socks5",
   socksServer: "",
@@ -1032,6 +1218,7 @@ const formDefaults = {
   customRulesText: "",
   isDirect: false,
   generateMode: "relay",
+  outputTarget: "clash",
 };
 
 const form = reactive({ ...formDefaults });
@@ -1039,6 +1226,33 @@ const status = reactive({ message: "", type: "info" });
 const yamlText = ref("");
 const previousYaml = ref("");
 const saveActionLabel = computed(() => (isDesktopShell ? "保存" : "下载"));
+const isShadowrocketTarget = computed(() => form.outputTarget === OUTPUT_TARGETS.SHADOWROCKET);
+const outputClientLabel = computed(() => (isShadowrocketTarget.value ? "Shadowrocket" : "Clash"));
+const outputFilename = computed(() => (isShadowrocketTarget.value ? "shadowrocket.yaml" : "config.yaml"));
+const generateButtonLabel = computed(() => {
+  if (isShadowrocketTarget.value) return "生成 Shadowrocket 配置";
+  return form.generateMode === "subscription" ? "生成订阅配置" : "生成 Clash 配置";
+});
+const previewTitle = computed(() =>
+  isShadowrocketTarget.value ? "Shadowrocket 兼容 YAML 预览" : "Clash 配置预览"
+);
+const previewNote = computed(() =>
+  isShadowrocketTarget.value
+    ? "小火箭导入后链路是：客户端 -> 前置跳板组 -> 落地节点 -> 目标网站。"
+    : "先预览，再复制或下载，省得把半成品扔给客户端。"
+);
+const outputFormatTip = computed(() =>
+  isShadowrocketTarget.value
+    ? "当前生成 Shadowrocket 可导入的 YAML，不是 .conf；多个前置节点由 select、url-test 或 fallback 策略组决定实际走哪个。"
+    : "当前生成 Clash YAML，支持 Clash Verge、OpenClash、mihomo 等客户端导入。"
+);
+const mihomoToken = ref("");
+const mihomoIncludeExitIp = ref(true);
+const isMihomoChecking = ref(false);
+const isMihomoBenchmarking = ref(false);
+const mihomoCheckResult = ref(null);
+const mihomoBenchmarkResults = ref([]);
+const mihomoBenchmarkHistory = ref({});
 
 const {
   nodes,
@@ -1054,7 +1268,7 @@ const {
   informationalNodeCount,
   visibleNodes,
   getLatencyColor,
-  handleNodeRowClick,
+  toggleNodeSelection,
   selectAllNodes,
   invertSelection,
   clearSelection,
@@ -1089,12 +1303,11 @@ const saveConfig = () => {
 
 const {
   isFetching,
-  querySubscriptionHistory,
-  removeHistoryItem,
   handleFetch,
   parseSubscription,
   importClashConfigText,
-  importMergedClashConfigText,
+  previewMergedClashConfigText,
+  commitMergedClashConfigPreview,
 } = useSubscription({
   form,
   nodes,
@@ -1108,6 +1321,7 @@ const clashConfigImportText = ref("");
 const mergeImportText = ref("");
 const mergeImportSourceName = ref("");
 const mergeImportSourcePrefix = ref("");
+const mergeImportPreview = ref(null);
 const handleManualPaste = () => {
   const text = manualSubscriptionText.value.trim();
   if (!text) return;
@@ -1126,6 +1340,7 @@ const handleManualPaste = () => {
   manualSubscriptionText.value = "";
   status.message = `成功从粘贴内容解析 ${parsed.length} 个节点。`;
   status.type = "success";
+  goToWorkspaceTab("nodes");
 };
 const handleClashConfigImport = () => {
   const result = importClashConfigText(clashConfigImportText.value);
@@ -1135,19 +1350,35 @@ const handleClashConfigImport = () => {
   if (informationalCount > 0) {
     status.message = `${status.message} 已识别 ${informationalCount} 个提示项，节点台默认先帮你藏起来了。`;
   }
+  goToWorkspaceTab("nodes");
 };
 const handleMergedClashConfigImport = () => {
-  const result = importMergedClashConfigText({
+  const result = previewMergedClashConfigText({
     text: mergeImportText.value,
     sourceName: mergeImportSourceName.value,
     sourcePrefix: mergeImportSourcePrefix.value,
   });
   if (!result.ok) return;
+  mergeImportPreview.value = result;
+  status.message = `已生成导入预览：将新增 ${result.summary.importCount} 个${result.summary.sourceName || ""}节点。确认后才会写入节点台。`;
+  status.type = "info";
+};
+const confirmMergedClashConfigImport = () => {
+  if (!mergeImportPreview.value) return;
+  const result = commitMergedClashConfigPreview(mergeImportPreview.value);
+  if (!result.ok) return;
   const informationalCount = countInformationalNodes(result.nodes);
+  mergeImportPreview.value = null;
   mergeImportText.value = "";
   if (informationalCount > 0) {
     status.message = `${status.message} 已识别 ${informationalCount} 个提示项，节点台默认先帮你藏起来了。`;
   }
+  goToWorkspaceTab("nodes");
+};
+const cancelMergedClashConfigImport = () => {
+  mergeImportPreview.value = null;
+  status.message = "已取消这次融合导入预览，节点台没动。";
+  status.type = "info";
 };
 const getNodeSourceLabel = (node) => getNodeSourceGroup(node)?.label || "—";
 const clearInformationalNodes = () => {
@@ -1176,6 +1407,36 @@ const {
 });
 
 const highlightedYaml = computed(() => highlightYaml(yamlText.value));
+const configHealthReport = computed(() => {
+  if (!yamlText.value) return buildConfigHealthReport(null);
+  try {
+    return buildConfigHealthReport(yaml.load(yamlText.value));
+  } catch {
+    return {
+      summary: {
+        proxyCount: 0,
+        proxyGroupCount: 0,
+        ruleCount: 0,
+        mode: "unknown",
+        status: "blocked",
+      },
+      routeChain: [],
+      issues: [{ severity: "error", message: "YAML 解析失败，先检查缩进、冒号和引号。" }],
+      warnings: [],
+    };
+  }
+});
+const benchmarkPolicies = computed(() => {
+  if (!yamlText.value) return [];
+  try {
+    return getBenchmarkPoliciesFromConfig(yaml.load(yamlText.value));
+  } catch {
+    return [];
+  }
+});
+const mihomoServerBaseUrl = computed(() =>
+  isDesktopShell ? "" : (form.proxyUrl || "").trim().replace(/\/+$/, "")
+);
 const currentWorkbenchMode = computed(() => {
   if (form.generateMode === "subscription") return "subscription";
   return form.isDirect ? "direct" : "relay";
@@ -1241,7 +1502,10 @@ const modeSummary = computed(() => {
       output: "订阅整理 YAML",
     },
   };
-  return summaryMap[currentWorkbenchMode.value];
+  const summary = summaryMap[currentWorkbenchMode.value];
+  return isShadowrocketTarget.value
+    ? { ...summary, output: "Shadowrocket YAML" }
+    : summary;
 });
 const rulePolicyGroups = computed(() =>
   buildRulePolicyOptions({
@@ -1647,6 +1911,19 @@ const toggleStepPanel = (key) => {
   if (!isCompactViewport.value) return;
   expandedSteps[key] = !expandedSteps[key];
 };
+const getStepHeaderRole = (key) => (isCompactViewport.value ? "button" : undefined);
+const getStepHeaderTabIndex = (key) => (isCompactViewport.value ? 0 : undefined);
+const goToWorkspaceTab = (tabKey) => {
+  if (!workspaceTabs.value.some((tab) => tab.key === tabKey)) return;
+  activeWorkspaceTab.value = tabKey;
+  if (isCompactViewport.value) {
+    expandedSteps[tabKey] = true;
+  }
+};
+const ensureActiveWorkspaceTabExists = () => {
+  if (workspaceTabs.value.some((tab) => tab.key === activeWorkspaceTab.value)) return;
+  activeWorkspaceTab.value = workspaceTabs.value[0]?.key || "fetch";
+};
 
 const handleGenerate = () => {
   if (!ruleValidationState.value.valid) {
@@ -1656,6 +1933,106 @@ const handleGenerate = () => {
   generateYaml();
   activeWorkspaceTab.value = "rules";
   activeOutputTab.value = "preview";
+};
+
+const getMihomoClient = () => {
+  const token = mihomoToken.value.trim();
+  if (token) {
+    try {
+      localStorage.setItem(MIHOMO_TOKEN_KEY, token);
+    } catch {}
+  }
+  return createMihomoClient({
+    baseUrl: mihomoServerBaseUrl.value,
+    token,
+  });
+};
+
+const formatMihomoError = (message) => getMihomoFriendlyErrorMessage(message);
+const formatBenchmarkTime = (date = new Date()) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+const loadMihomoBenchmarkHistory = () => {
+  try {
+    const saved = localStorage.getItem(MIHOMO_BENCHMARK_HISTORY_KEY);
+    mihomoBenchmarkHistory.value = saved ? JSON.parse(saved) : {};
+  } catch {
+    mihomoBenchmarkHistory.value = {};
+  }
+};
+const saveMihomoBenchmarkHistory = () => {
+  try {
+    localStorage.setItem(MIHOMO_BENCHMARK_HISTORY_KEY, JSON.stringify(mihomoBenchmarkHistory.value));
+  } catch {}
+};
+const rememberMihomoBenchmarkResults = (results) => {
+  const testedAt = formatBenchmarkTime();
+  const nextHistory = { ...mihomoBenchmarkHistory.value };
+  results.forEach((result) => {
+    nextHistory[result.name] = {
+      delayMs: result.delayMs,
+      status: result.status,
+      testedAt,
+    };
+  });
+  mihomoBenchmarkHistory.value = nextHistory;
+  saveMihomoBenchmarkHistory();
+};
+const getMihomoHistory = (name) => mihomoBenchmarkHistory.value[name] || null;
+
+const handleMihomoCheck = async () => {
+  if (!yamlText.value) {
+    ElMessage.warning("先生成 YAML，再让 mihomo 校验。");
+    return;
+  }
+  if (!mihomoToken.value.trim()) {
+    ElMessage.warning("先填服务令牌，不然公网服务端不会放行。");
+    return;
+  }
+
+  isMihomoChecking.value = true;
+  mihomoCheckResult.value = null;
+  try {
+    mihomoCheckResult.value = await getMihomoClient().checkConfig(yamlText.value);
+    ElMessage[mihomoCheckResult.value.ok ? "success" : "error"](mihomoCheckResult.value.message || "mihomo 校验完成");
+  } catch (error) {
+    const message = formatMihomoError(error.message);
+    mihomoCheckResult.value = { ok: false, message, errors: [message] };
+    ElMessage.error(message || "mihomo 校验失败");
+  } finally {
+    isMihomoChecking.value = false;
+  }
+};
+
+const handleMihomoBenchmark = async () => {
+  if (!yamlText.value) {
+    ElMessage.warning("先生成 YAML，再跑精准测速。");
+    return;
+  }
+  if (!mihomoToken.value.trim()) {
+    ElMessage.warning("先填服务令牌，不然公网服务端不会放行。");
+    return;
+  }
+  if (benchmarkPolicies.value.length === 0) {
+    ElMessage.warning("当前 YAML 没提取到可测速的策略组。");
+    return;
+  }
+
+  isMihomoBenchmarking.value = true;
+  mihomoBenchmarkResults.value = [];
+  try {
+    const result = await getMihomoClient().benchmarkPolicies({
+      yamlText: yamlText.value,
+      policies: benchmarkPolicies.value,
+      includeExitIp: mihomoIncludeExitIp.value,
+    });
+    mihomoBenchmarkResults.value = result.results || [];
+    rememberMihomoBenchmarkResults(mihomoBenchmarkResults.value);
+    ElMessage.success(`mihomo 精准测速完成：${mihomoBenchmarkResults.value.length} 个策略组`);
+  } catch (error) {
+    ElMessage.error(formatMihomoError(error.message) || "mihomo 精准测速失败");
+  } finally {
+    isMihomoBenchmarking.value = false;
+  }
 };
 
 const appendLinesToCustomRules = (lines) => {
@@ -1790,20 +2167,27 @@ const syncViewportState = () => {
 const handleFetchWithLoading = async () => {
   globalLoading.value = true;
   const minTime = new Promise((resolve) => setTimeout(resolve, 800));
+  let result;
 
   try {
-    await handleFetch();
+    result = await handleFetch();
   } finally {
     await minTime;
     globalLoading.value = false;
   }
+
+  if (result?.ok) {
+    goToWorkspaceTab("nodes");
+  }
+
+  return result;
 };
 
 const copyYaml = async () => {
   if (!yamlText.value) return;
   try {
     await desktopApi.copyText(yamlText.value);
-    ElMessage.success("Clash 配置已复制到剪贴板");
+    ElMessage.success(`${outputClientLabel.value} 配置已复制到剪贴板`);
   } catch {
     ElMessage.error("复制失败，请手动复制");
   }
@@ -1812,15 +2196,15 @@ const copyYaml = async () => {
 const downloadYaml = async () => {
   if (!yamlText.value) return;
   try {
-    const result = await desktopApi.saveYaml("config.yaml", yamlText.value);
+    const result = await desktopApi.saveYaml(outputFilename.value, yamlText.value);
     if (result?.canceled) return;
     if (result?.path) {
       lastSavedPath.value = result.path;
       saveConfig();
-      ElMessage.success("Clash 配置已保存");
+      ElMessage.success(`${outputClientLabel.value} 配置已保存`);
       return;
     }
-    ElMessage.success("Clash 配置已下载");
+    ElMessage.success(`${outputClientLabel.value} 配置已下载`);
   } catch {
     ElMessage.error("保存失败，请重试");
   }
@@ -1873,6 +2257,10 @@ onMounted(async () => {
   window.addEventListener("resize", syncViewportState);
   clearLegacyStorage();
   recentRuleHelperEntries.value = loadRecentRuleHelperEntries();
+  loadMihomoBenchmarkHistory();
+  try {
+    mihomoToken.value = localStorage.getItem(MIHOMO_TOKEN_KEY) || "";
+  } catch {}
 
   if (isDesktopShell) {
     try {
@@ -1955,19 +2343,21 @@ watch(nodes, () => {
   }
 });
 
-watch(activeStep, (step) => {
-  if (workspaceTabs.value.some((tab) => tab.key === step)) {
-    activeWorkspaceTab.value = step;
+watch(
+  () => [mergeImportText.value, mergeImportSourceName.value, mergeImportSourcePrefix.value],
+  () => {
+    mergeImportPreview.value = null;
   }
+);
+
+watch(activeStep, (step) => {
   if (isCompactViewport.value) {
     expandedSteps[step] = true;
   }
 });
 
 watch(currentWorkbenchMode, (mode) => {
-  if (mode === "subscription" && activeWorkspaceTab.value === "landing") {
-    activeWorkspaceTab.value = "nodes";
-  }
+  ensureActiveWorkspaceTabExists();
   ruleDraft.policy = mode === "direct" ? landingPolicyName.value : "🌐 代理出口";
   ruleHelperPolicy.value = RULE_ASSISTANT_DEFAULT_POLICY;
 }, { immediate: true });
@@ -1993,9 +2383,9 @@ watch(yamlText, (value) => {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 /* ── 顶部信息条 ── */
@@ -2028,30 +2418,31 @@ watch(yamlText, (value) => {
 .dashboard-center {
   display: flex;
   gap: 8px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   justify-content: center;
+  opacity: 0.68;
 }
 
 .dashboard-stat-chip {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid rgba(31, 42, 68, 0.06);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.48);
   white-space: nowrap;
 }
 
 .dashboard-stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--ink-600);
 }
 
 .dashboard-stat-value {
   font-family: var(--font-serif);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1;
   color: var(--accent-600);
 }
@@ -2059,7 +2450,10 @@ watch(yamlText, (value) => {
 .dashboard-right {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .mode-pill {
@@ -2087,6 +2481,14 @@ watch(yamlText, (value) => {
   box-shadow: 0 4px 12px rgba(31, 42, 68, 0.06);
 }
 
+.mode-pill:focus-visible,
+.workspace-tab-button:focus-visible,
+.output-tab-button:focus-visible,
+.rule-snippet-chip:focus-visible {
+  outline: 2px solid rgba(185, 43, 39, 0.48);
+  outline-offset: 2px;
+}
+
 .mode-pill.is-active {
   border-color: rgba(185, 43, 39, 0.3);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
@@ -2111,12 +2513,12 @@ watch(yamlText, (value) => {
 
 /* ── 全宽主区域 ── */
 .layout-main {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
-  min-height: 0;
+  min-height: auto;
 }
 
 /* Main contents flex behavior */
@@ -2128,11 +2530,11 @@ watch(yamlText, (value) => {
 .nodes-stage,
 .landing-stage,
 .rules-stage {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
 }
 
 .desktop-native-note {
@@ -2151,6 +2553,9 @@ watch(yamlText, (value) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
   margin-bottom: 16px;
   padding: 14px 16px;
   border-radius: 18px;
@@ -2182,6 +2587,144 @@ watch(yamlText, (value) => {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  min-width: 0;
+}
+
+.output-target-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 12px;
+  background: rgba(31, 42, 68, 0.05);
+  color: var(--ink-600);
+  font-size: 12px;
+  max-width: 100%;
+}
+
+.output-target-group :deep(.el-radio-group) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.output-target-group :deep(.el-radio-button__inner) {
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.mihomo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 12px 26px rgba(26, 26, 26, 0.05);
+}
+
+.mihomo-panel-main,
+.mihomo-controls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.mihomo-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mihomo-token-input {
+  width: 220px;
+}
+
+.mihomo-policy-line {
+  color: var(--ink-600);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.mihomo-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.mihomo-result-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(88, 112, 103, 0.18);
+  background: rgba(88, 112, 103, 0.08);
+}
+
+.mihomo-result-card.is-failed {
+  border-color: rgba(185, 43, 39, 0.18);
+  background: rgba(185, 43, 39, 0.06);
+}
+
+.mihomo-result-top,
+.mihomo-result-meta {
+  display: flex;
+  gap: 6px;
+}
+
+.mihomo-result-top {
+  justify-content: space-between;
+  color: var(--ink-800);
+  overflow-wrap: anywhere;
+}
+
+.mihomo-result-meta {
+  margin-top: 8px;
+  flex-direction: column;
+  color: var(--ink-600);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.merge-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(88, 112, 103, 0.18);
+  border-radius: 14px;
+  background: rgba(88, 112, 103, 0.08);
+}
+
+.merge-preview-header,
+.merge-preview-stats,
+.merge-preview-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.merge-preview-header {
+  justify-content: space-between;
+  color: var(--ink-800);
+}
+
+.merge-preview-header span,
+.merge-preview-stats {
+  color: var(--ink-600);
+  font-size: 12px;
+}
+
+.merge-preview-list span {
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: var(--ink-700);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
 }
 
 .step-section {
@@ -2242,173 +2785,6 @@ watch(yamlText, (value) => {
 }
 
 /* (旧版 workflow-ribbon-stats / workflow-stat-card 已移至 dashboard-stat-*) */
-
-/* (mode-workbench 已废弃，合并到 dashboard-modes) */
-
-.mode-card-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.mode-card {
-  appearance: none;
-  position: relative;
-  overflow: hidden;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 12px 13px 13px;
-  border-radius: 15px;
-  border: 1px solid rgba(31, 42, 68, 0.1);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 246, 241, 0.9));
-  cursor: pointer;
-  isolation: isolate;
-  transition:
-    transform 0.22s ease,
-    border-color 0.28s ease,
-    box-shadow 0.28s ease,
-    background 0.28s ease;
-}
-
-.mode-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 14% 16%, rgba(185, 43, 39, 0.09), transparent 32%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0));
-  opacity: 0.46;
-  transform: translateY(10px) scale(1.02);
-  transition:
-    opacity 0.28s ease,
-    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.mode-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.34) 48%, transparent 74%);
-  opacity: 0;
-  transform: translateX(-38%);
-  transition:
-    opacity 0.22s ease,
-    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.mode-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.mode-card:hover {
-  border-color: rgba(185, 43, 39, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 246, 239, 0.94));
-  box-shadow: 0 10px 20px rgba(31, 42, 68, 0.05);
-}
-
-.mode-card:hover::before {
-  opacity: 0.95;
-  transform: translateY(0) scale(1);
-}
-
-.mode-card:hover::after {
-  opacity: 0.9;
-  transform: translateX(30%);
-}
-
-.mode-card:hover .mode-card-stamp {
-  background: rgba(185, 43, 39, 0.14);
-  color: var(--vermillion-500);
-}
-
-.mode-card:hover .mode-card-title {
-  color: #181615;
-}
-
-.mode-card:hover .mode-card-tag {
-  background: rgba(88, 112, 103, 0.15);
-  color: #445a52;
-}
-
-.mode-card:hover .mode-card-desc,
-.mode-card:hover .mode-card-foot {
-  color: #556274;
-}
-
-.mode-card.is-active {
-  border-color: rgba(185, 43, 39, 0.3);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 236, 0.96));
-  box-shadow: 0 0 0 2px rgba(185, 43, 39, 0.15);
-}
-
-.mode-card-stamp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  min-width: 58px;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(31, 42, 68, 0.08);
-  color: var(--accent-600);
-  font-family: var(--font-serif);
-  font-size: 12px;
-  transition:
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    background 0.28s ease,
-    color 0.28s ease,
-    box-shadow 0.28s ease;
-}
-
-.mode-card.is-active .mode-card-stamp {
-  background: rgba(185, 43, 39, 0.1);
-  color: var(--vermillion-500);
-}
-
-.mode-card-title-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.mode-card-title {
-  font-family: var(--font-serif);
-  font-size: 15px;
-  line-height: 1.25;
-  color: var(--ink-800);
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), color 0.28s ease;
-}
-
-.mode-card-tag {
-  font-size: 11px;
-  color: var(--bamboo-500);
-  border-radius: 999px;
-  background: rgba(88, 112, 103, 0.08);
-  padding: 4px 10px;
-  transition: background 0.28s ease, color 0.28s ease;
-}
-
-.mode-card-desc,
-.mode-card-foot {
-  color: var(--ink-600);
-  line-height: 1.5;
-  font-size: 12px;
-  transition: color 0.28s ease;
-}
-
-.mode-card-foot {
-  display: none;
-}
 
 .workspace-tab-strip,
 .output-tab-strip {
@@ -2549,7 +2925,7 @@ watch(yamlText, (value) => {
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .step-section.state-active {
@@ -2686,9 +3062,9 @@ watch(yamlText, (value) => {
 
 .step-body {
   padding-top: 16px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .title-wrapper {
@@ -3040,6 +3416,8 @@ watch(yamlText, (value) => {
 .node-table-shell {
   position: relative;
   min-height: 0;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .node-table-shell.is-readonly {
@@ -3078,12 +3456,32 @@ watch(yamlText, (value) => {
   font-size: 12px;
 }
 
+.node-selection-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.latency-muted {
+  color: var(--ink-400);
+}
+
+.latency-failed {
+  color: var(--status-danger);
+}
+
+.latency-loading {
+  color: var(--accent-600);
+}
+
 .node-marker {
   width: 8px;
   height: 8px;
   border-radius: 999px;
   background: rgba(31, 42, 68, 0.18);
-  transition: all 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .node-marker.active {
@@ -3105,7 +3503,7 @@ watch(yamlText, (value) => {
 }
 
 .el-table .disabled-row td {
-  color: #7f8998;
+  color: var(--ink-400);
 }
 
 .strategy-config {
@@ -3397,7 +3795,11 @@ watch(yamlText, (value) => {
   padding: 7px 12px;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .rule-snippet-chip:hover {
@@ -3471,7 +3873,7 @@ watch(yamlText, (value) => {
 .rule-line-code {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #334155;
+  color: var(--ink-700);
   word-break: break-all;
 }
 
@@ -3510,6 +3912,12 @@ watch(yamlText, (value) => {
   background: rgba(31, 42, 68, 0.06);
   color: var(--ink-700);
   font-size: 13px;
+}
+
+.output-checks-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .yaml-section {
@@ -3558,53 +3966,6 @@ watch(yamlText, (value) => {
   box-shadow: 0 10px 16px rgba(31, 42, 68, 0.08);
 }
 
-.sticky-action-bar {
-  position: fixed;
-  left: max(18px, env(safe-area-inset-left));
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(14px, env(safe-area-inset-bottom));
-  z-index: 40;
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) auto auto;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: rgba(27, 27, 30, 0.92);
-  color: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 22px 38px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16px);
-}
-
-.sticky-action-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.sticky-action-copy .sticky-action-kicker {
-  width: fit-content;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.75);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.sticky-action-title {
-  font-family: var(--font-serif);
-  font-size: 18px;
-}
-
-.sticky-action-note {
-  font-size: 12px;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.sticky-action-indicator {
-  justify-self: center;
-}
-
 .sticky-state-pill {
   display: inline-flex;
   align-items: center;
@@ -3624,57 +3985,6 @@ watch(yamlText, (value) => {
   color: #ffd9d4;
 }
 
-.sticky-action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-self: end;
-}
-
-.sticky-action-buttons .el-button:not(.el-button--primary) {
-  --el-button-text-color: rgba(255, 255, 255, 0.88);
-  --el-button-bg-color: rgba(255, 255, 255, 0.08);
-  --el-button-border-color: rgba(255, 255, 255, 0.14);
-  --el-button-hover-text-color: #ffffff;
-  --el-button-hover-bg-color: rgba(255, 255, 255, 0.18);
-  --el-button-hover-border-color: rgba(255, 255, 255, 0.26);
-  --el-button-active-text-color: #ffffff;
-  --el-button-active-bg-color: rgba(255, 255, 255, 0.22);
-  --el-button-active-border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.sticky-action-buttons .el-button:not(.el-button--primary):hover {
-  transform: translateY(-1px);
-}
-
-.sticky-action-buttons .el-button.is-disabled:not(.el-button--primary),
-.sticky-action-buttons .el-button.is-disabled:not(.el-button--primary):hover {
-  --el-button-text-color: rgba(255, 255, 255, 0.36);
-  --el-button-bg-color: rgba(255, 255, 255, 0.05);
-  --el-button-border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: none;
-  transform: none;
-}
-
-.sticky-action-buttons .el-button--primary {
-  box-shadow:
-    0 14px 28px rgba(24, 50, 112, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    filter 0.22s ease;
-}
-
-.sticky-action-buttons .el-button--primary:hover {
-  transform: translateY(-1px);
-  filter: saturate(1.08);
-  box-shadow:
-    0 18px 30px rgba(24, 50, 112, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
 @media (max-width: 1100px) {
   .dashboard-strip {
     flex-wrap: wrap;
@@ -3685,7 +3995,7 @@ watch(yamlText, (value) => {
   }
 
   .layout-flow {
-    overflow-y: auto;
+    overflow: visible;
   }
 
   .fetch-grid,
@@ -3695,6 +4005,32 @@ watch(yamlText, (value) => {
 }
 
 @media (max-width: 900px) {
+  .layout-flow,
+  .layout-main,
+  .fetch-stage,
+  .nodes-stage,
+  .landing-stage,
+  .rules-stage,
+  .step-section,
+  .step-body {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .layout-flow,
+  .layout-main {
+    flex: 0 0 auto;
+  }
+
+  .layout-flow {
+    overflow: visible;
+  }
+
+  .step-body {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
   .step-section {
     padding: 16px;
   }
@@ -3721,6 +4057,8 @@ watch(yamlText, (value) => {
   .rule-helper-recent-header,
   .rule-card-header,
   .rule-card-actions,
+  .mihomo-panel-main,
+  .mihomo-controls,
   .yaml-header,
   .rule-helper-candidate,
   .rule-helper-recent-item,
@@ -3744,6 +4082,10 @@ watch(yamlText, (value) => {
     grid-template-columns: 1fr;
   }
 
+  .mihomo-token-input {
+    width: 100%;
+  }
+
   .history-url {
     max-width: 220px;
   }
@@ -3758,32 +4100,14 @@ watch(yamlText, (value) => {
     justify-self: start;
   }
 
-  .sticky-action-bar {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .sticky-action-indicator,
-  .sticky-action-buttons {
-    justify-self: stretch;
-  }
-
-  .sticky-action-buttons {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .sticky-action-buttons .el-button:last-child {
-    grid-column: 1 / -1;
+  .desktop-output-actions,
+  .output-target-group,
+  .output-target-group :deep(.el-radio-group) {
+    width: 100%;
   }
 }
 
 @media (max-width: 640px) {
-  .workflow-title-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .step-title {
     font-size: 18px;
   }

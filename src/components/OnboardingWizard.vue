@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title=""
-    width="680px"
+    width="min(680px, calc(100vw - 24px))"
     :close-on-click-modal="false"
     :show-close="false"
     class="onboarding-dialog"
@@ -10,8 +10,8 @@
     <template #header>
         <div class="onboarding-header">
           <div class="onboarding-logo">
-            <span class="logo-icon">🔗</span>
-          <span class="logo-text">Clash 配置生成器</span>
+            <el-icon class="logo-icon"><Connection /></el-icon>
+            <span class="logo-text">Clash 配置生成器</span>
           </div>
         <el-button text @click="skipOnboarding" class="skip-btn">
           跳过引导
@@ -136,21 +136,21 @@
 
         <!-- Step 4: 完成 -->
         <div v-if="currentStep === 4" class="step-panel complete-panel">
-          <div class="complete-icon">🎉</div>
+          <el-icon class="complete-icon"><Check /></el-icon>
           <h2>准备就绪！</h2>
           <p class="complete-desc">
             现在流程已经捋顺了。<br>
             点击下方按钮开始生成你的 Clash 配置。
           </p>
           <div class="quick-actions">
-            <div class="action-item" @click="startWithDemo">
+            <button type="button" class="action-item" @click="startWithDemo">
               <el-icon size="24"><DocumentCopy /></el-icon>
               <span>使用示例配置</span>
-            </div>
-            <div class="action-item" @click="startFresh">
+            </button>
+            <button type="button" class="action-item" @click="startFresh">
               <el-icon size="24"><Edit /></el-icon>
               <span>从零开始配置</span>
-            </div>
+            </button>
           </div>
         </div>
       </div>
@@ -286,7 +286,7 @@ onMounted(() => {
 <style scoped>
 .onboarding-dialog :deep(.el-dialog__header) {
   padding: 16px 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line-200);
   margin-right: 0;
 }
 
@@ -296,7 +296,21 @@ onMounted(() => {
 
 .onboarding-dialog :deep(.el-dialog__footer) {
   padding: 16px 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--line-200);
+}
+
+.onboarding-dialog :deep(.el-dialog) {
+  background: rgba(253, 251, 247, 0.98);
+  border: 1px solid var(--line-200);
+  border-radius: 12px;
+  box-shadow: var(--shadow-ink);
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+}
+
+.onboarding-dialog :deep(.el-dialog__body) {
+  overflow: auto;
 }
 
 .onboarding-header {
@@ -320,11 +334,11 @@ onMounted(() => {
   font-family: "Noto Serif SC", serif;
   font-size: 20px;
   font-weight: 600;
-  color: #1f2a44;
+  color: var(--accent-600);
 }
 
 .skip-btn {
-  color: #6b7280;
+  color: var(--ink-500);
 }
 
 .onboarding-content {
@@ -340,7 +354,7 @@ onMounted(() => {
 }
 
 .step-panel {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.24s ease;
 }
 
 @keyframes fadeIn {
@@ -366,12 +380,12 @@ onMounted(() => {
 .welcome-panel h2 {
   font-family: "Noto Serif SC", serif;
   font-size: 24px;
-  color: #1f2a44;
+  color: var(--accent-600);
   margin: 0 0 12px;
 }
 
 .welcome-desc {
-  color: #4b5563;
+  color: var(--ink-700);
   font-size: 15px;
   line-height: 1.6;
   margin-bottom: 24px;
@@ -390,9 +404,9 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  background: rgba(253, 251, 247, 0.82);
+  border-radius: 10px;
+  border: 1px solid var(--line-200);
 }
 
 .feature-icon {
@@ -401,7 +415,7 @@ onMounted(() => {
 
 .feature-text {
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-700);
   font-weight: 500;
 }
 
@@ -414,13 +428,13 @@ onMounted(() => {
 .step-panel h3 {
   font-family: "Noto Serif SC", serif;
   font-size: 18px;
-  color: #1f2a44;
+  color: var(--accent-600);
   margin: 0 0 12px;
   text-align: center;
 }
 
 .step-panel > p {
-  color: #4b5563;
+  color: var(--ink-700);
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
@@ -431,47 +445,47 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   padding: 14px 16px;
-  background: #eff6ff;
+  background: rgba(31, 42, 68, 0.06);
   border-radius: 10px;
-  border: 1px solid #bfdbfe;
+  border: 1px dashed rgba(31, 42, 68, 0.18);
   margin-bottom: 20px;
 }
 
 .tip-box.info {
-  background: #f0f9ff;
-  border-color: #7dd3fc;
+  background: rgba(31, 42, 68, 0.05);
+  border-color: rgba(31, 42, 68, 0.18);
 }
 
 .tip-box.success {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: rgba(88, 112, 103, 0.08);
+  border-color: rgba(88, 112, 103, 0.22);
 }
 
 .tip-box :deep(.el-icon) {
-  color: #3b82f6;
+  color: var(--accent-600);
   font-size: 20px;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .tip-box.success :deep(.el-icon) {
-  color: #22c55e;
+  color: var(--status-ok);
 }
 
 .tip-box strong {
   display: block;
-  color: #1e40af;
+  color: var(--accent-600);
   margin-bottom: 4px;
 }
 
 .tip-box.success strong {
-  color: #166534;
+  color: var(--status-ok);
 }
 
 .tip-box ul {
   margin: 4px 0 0;
   padding-left: 18px;
-  color: #374151;
+  color: var(--ink-700);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -501,10 +515,10 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   height: 100px;
-  background: #f8fafc;
-  border: 2px dashed #d1d5db;
+  background: rgba(253, 251, 247, 0.76);
+  border: 2px dashed var(--line-200);
   border-radius: 10px;
-  color: #9ca3af;
+  color: var(--ink-400);
   font-size: 13px;
 }
 
@@ -515,18 +529,19 @@ onMounted(() => {
 
 .complete-icon {
   font-size: 56px;
+  color: var(--vermillion-500);
   margin-bottom: 16px;
 }
 
 .complete-panel h2 {
   font-family: "Noto Serif SC", serif;
   font-size: 24px;
-  color: #1f2a44;
+  color: var(--accent-600);
   margin: 0 0 12px;
 }
 
 .complete-desc {
-  color: #4b5563;
+  color: var(--ink-700);
   font-size: 15px;
   line-height: 1.8;
   margin-bottom: 28px;
@@ -539,6 +554,7 @@ onMounted(() => {
 }
 
 .action-item {
+  appearance: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -548,8 +564,8 @@ onMounted(() => {
   border: 1px solid rgba(31, 42, 68, 0.1);
   border-radius: 16px;
   cursor: pointer;
+  font: inherit;
   transition:
-    transform 0.24s ease,
     border-color 0.24s ease,
     background 0.24s ease,
     box-shadow 0.24s ease;
@@ -558,21 +574,22 @@ onMounted(() => {
 .action-item:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 241, 234, 0.98));
   border-color: rgba(185, 43, 39, 0.24);
-  transform: translateY(-3px);
   box-shadow:
-    0 16px 26px rgba(31, 42, 68, 0.08),
-    0 6px 12px rgba(185, 43, 39, 0.08);
+    inset 0 0 0 1px rgba(185, 43, 39, 0.06),
+    0 8px 16px rgba(31, 42, 68, 0.05);
+}
+
+.action-item:focus-visible {
+  outline: 2px solid rgba(185, 43, 39, 0.45);
+  outline-offset: 2px;
 }
 
 .action-item :deep(.el-icon) {
   color: var(--accent-600);
-  transition:
-    transform 0.24s ease,
-    color 0.24s ease;
+  transition: color 0.24s ease;
 }
 
 .action-item:hover :deep(.el-icon) {
-  transform: translateY(-1px) scale(1.06);
   color: var(--vermillion-500);
 }
 

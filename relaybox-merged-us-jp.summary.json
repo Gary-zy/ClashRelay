@@ -1,0 +1,74 @@
+{
+  "output": "relaybox-merged-us-jp.yaml",
+  "importedNodes": [
+    {
+      "name": "US - US-VPS",
+      "type": "vless"
+    },
+    {
+      "name": "JP - 日本-HY2-64.83.46.69",
+      "type": "hysteria2"
+    }
+  ],
+  "mainProxyOrder": [
+    "🇯🇵 日本",
+    "🇺🇸 美国",
+    "♻️ 自动选择",
+    "🛡️ 故障转移",
+    "⚖️ 负载均衡",
+    "US - US-VPS",
+    "JP - 日本-HY2-64.83.46.69",
+    "DIRECT"
+  ],
+  "groupNames": [
+    "🌐 代理出口",
+    "🇺🇸 美国",
+    "🇯🇵 日本",
+    "♻️ 自动选择",
+    "🛡️ 故障转移",
+    "⚖️ 负载均衡"
+  ],
+  "rules": 117,
+  "proxyRuntimeFieldsLeaked": false,
+  "benchmark": [
+    {
+      "name": "🌐 代理出口",
+      "status": "ok",
+      "delayMs": 283,
+      "attempts": [
+        399,
+        193,
+        283
+      ],
+      "country": "JP",
+      "colo": "NRT",
+      "exitIp": "64.83.46.69"
+    },
+    {
+      "name": "🇺🇸 美国",
+      "status": "ok",
+      "delayMs": 740,
+      "attempts": [
+        null,
+        740,
+        674
+      ],
+      "country": "US",
+      "colo": "SJC",
+      "exitIp": "154.217.235.32"
+    },
+    {
+      "name": "🇯🇵 日本",
+      "status": "ok",
+      "delayMs": 419,
+      "attempts": [
+        419,
+        195,
+        489
+      ],
+      "country": "JP",
+      "colo": "NRT",
+      "exitIp": "64.83.46.69"
+    }
+  ]
+}

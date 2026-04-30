@@ -9,6 +9,10 @@ import { splitRuleByTopLevelCommas } from "../utils/ruleParser.js";
 import { buildSourceProxyGroups, compressPoliciesByCompleteSourceGroups } from "../utils/nodeSources.js";
 
 export const MANUAL_LANDING_TYPES = new Set(["socks5", "http"]);
+export const OUTPUT_TARGETS = Object.freeze({
+  CLASH: "clash",
+  SHADOWROCKET: "shadowrocket",
+});
 
 // 共享配置壳层：DNS、mixed-port、基础设置
 const buildBaseConfig = ({ proxies, proxyGroups, rules }) => ({
@@ -485,6 +489,9 @@ export const useConfig = ({
     status.type = type;
   };
 
+  const outputClientName = () =>
+    form.outputTarget === OUTPUT_TARGETS.SHADOWROCKET ? "Shadowrocket" : "Clash";
+
   const selectedNodes = computed(() =>
     nodes.value.filter((node) => form.dialerProxyGroup.includes(node.name))
   );
@@ -612,10 +619,12 @@ export const useConfig = ({
     });
 
     if (isSubscriptionMode) {
-      setStatus("订阅整理配置已生成，可复制或下载。", "success");
+      setStatus(`${outputClientName()} 订阅整理配置已生成，可复制或下载。`, "success");
     } else {
       setStatus(
-        form.isDirect ? "直连 Clash 配置已生成。" : "Clash 配置已生成，可复制或下载。",
+        form.isDirect
+          ? `${outputClientName()} 直连配置已生成。`
+          : `${outputClientName()} 配置已生成，可复制或下载。`,
         "success"
       );
     }

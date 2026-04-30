@@ -10,6 +10,7 @@ import https from "node:https";
 import yaml from "js-yaml";
 import { buildClashConfig, buildSubscriptionOnlyConfig } from "../src/composables/useConfig.js";
 import { useNodeParams } from "../src/composables/useNodeParams.js";
+import { selectMihomoAsset } from "./select-mihomo-asset.mjs";
 
 const repo = "MetaCubeX/mihomo";
 const builtInBin = process.env.MIHOMO_BIN;
@@ -155,10 +156,11 @@ const findMihomo = async () => {
   } catch {}
 
   const release = await requestJson(`https://api.github.com/repos/${repo}/releases/latest`);
-  const pattern = assetPattern();
-  const asset = release.assets.find((item) => pattern.test(item.name));
+  const asset = process.platform === "linux"
+    ? selectMihomoAsset(release, arch)
+    : release.assets.find((item) => assetPattern().test(item.name));
   if (!asset) {
-    throw new Error(`No mihomo release asset matched ${pattern}`);
+    throw new Error(`No mihomo release asset matched ${assetPattern()}`);
   }
 
   const workDir = await mkdtemp(join(tmpdir(), "relaybox-mihomo-"));
