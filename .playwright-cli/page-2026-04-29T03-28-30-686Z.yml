@@ -1,0 +1,312 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - link "Terms and Pravicy" [ref=e5] [cursor=pointer]:
+        - /url: /terms
+    - link "NodeQuality" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - button "NodeQuality" [ref=e7]:
+        - heading "NodeQuality" [level=1] [ref=e8]
+        - generic [ref=e9]: NodeQuality
+    - generic [ref=e35]:
+      - button "复制文本" [active] [ref=e36]
+      - button "复制为NodeSeek格式" [ref=e37]
+      - button "复制为通用Markdown" [ref=e38]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e14] [cursor=pointer]: 全部
+        - generic [ref=e16] [cursor=pointer]: 基本信息
+        - generic [ref=e18] [cursor=pointer]: IP质量
+        - generic [ref=e20] [cursor=pointer]: 网络质量
+        - generic [ref=e22] [cursor=pointer]: 回程路由
+      - generic [ref=e42]:
+        - textbox "Terminal input" [ref=e43]
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic: "########################################################################"
+          - generic [ref=e46]:
+            - generic: bash <(curl -sL https://run.NodeQuality.com)
+          - generic [ref=e47]:
+            - generic: https://github.com/LloydAsp/NodeQuality
+          - generic [ref=e48]:
+            - generic: 报告时间
+            - generic: ：
+            - generic: 2026-03-26 07:48:25 CST
+            - generic: 脚本版本
+            - generic: ：
+            - generic: v0.0.1
+          - generic [ref=e49]:
+            - generic: 频道
+            - generic: ": https://t.me/nodeselect"
+            - generic: 网站
+            - generic: ：
+            - generic: https://NodeQuality.com
+          - generic [ref=e50]:
+            - generic: "########################################################################"
+          - generic [ref=e53]:
+            - generic: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          - generic [ref=e54]:
+            - generic: 硬件质量体检报告
+            - generic: ：
+            - generic: 64.83.*.*
+          - generic [ref=e55]:
+            - generic: https://github.com/xykt/HardwareQuality
+          - generic [ref=e56]:
+            - generic: bash <(curl -sL https://Check.Place) -H
+          - generic [ref=e57]:
+            - generic: 报告时间
+            - generic: ：
+            - generic: 2026-03-26 07:48:37 CST
+            - generic: 脚本版本
+            - generic: ：
+            - generic: v2026-03-05
+          - generic [ref=e58]:
+            - generic: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          - generic [ref=e59]:
+            - generic: 一
+            - generic: 、
+            - generic: 操作系统信息
+          - generic [ref=e60]:
+            - generic: 容器
+            - generic: /
+            - generic: 虚拟化
+            - generic: ：
+            - generic: KVM
+            - generic: 虚拟机
+          - generic [ref=e61]:
+            - generic: 架构
+            - generic: ：
+            - generic: x86_64
+          - generic [ref=e62]:
+            - generic: 操作系统
+            - generic: /
+            - generic: 内核
+            - generic: ：
+            - generic: Debian GNU/Linux 12 (bookworm) 6.8.0-48-generic
+          - generic [ref=e63]:
+            - generic: 运行时间
+            - generic: ：
+            - generic: "0"
+            - generic: 天
+            - generic: "0"
+            - generic: 小时
+            - generic: "15"
+            - generic: 分钟
+          - generic [ref=e64]:
+            - generic: 负载
+            - generic: ：
+            - generic: 0.39, 0.55, 0.42
+          - generic [ref=e65]:
+            - generic: 进程
+            - generic: ：
+            - generic: "3"
+            - generic: 用户
+            - generic: ，
+            - generic: "278"
+            - generic: 进程
+            - generic: ，
+            - generic: 23/240
+            - generic: 活跃
+            - generic: /
+            - generic: 总服务
+          - generic [ref=e66]:
+            - generic: 区域设置
+            - generic: ：
+            - generic: C, UTF-8, Etc/UTC UTC +0000
+          - generic [ref=e67]:
+            - generic: 二
+            - generic: 、
+            - generic: 主板信息
+          - generic [ref=e68]:
+            - generic: BIOS
+            - generic: ：
+            - generic: SeaBIOS,
+            - generic: 版本
+            - generic: 1.16.0-1.module_el8.7.0+1140+ff0772f9
+          - generic [ref=e69]:
+            - generic: 芯片组
+            - generic: ：
+            - generic: Intel 82371SB PIIX3 ISA [Natoma/Triton II]
+          - generic [ref=e70]:
+            - generic: Intel 440FX - 82441FX PMC [Natoma]
+          - generic [ref=e71]:
+            - generic: 网卡
+            - generic: ：
+            - generic: Red Hat, Inc. Virtio network device
+          - generic [ref=e72]:
+            - generic: 三
+            - generic: 、
+            - generic: CPU
+            - generic: 测评
+          - generic [ref=e73]:
+            - generic: CPU
+            - generic: ：
+            - generic: Intel Xeon Gold 6240 @ 2.60GHz
+            - generic: 步进
+            - generic: 7 (6
+            - generic: 代
+            - generic: ) 32/64-bit
+          - generic [ref=e74]:
+            - generic: ╚═ 16
+            - generic: 核心
+            - generic: ", 16"
+            - generic: 线程
+            - generic: ", 2593.906MHz,"
+            - generic: 利用率
+            - generic: 1%
+          - generic [ref=e75]:
+            - generic: 缓存
+            - generic: ：
+            - generic: L1d 256 KiB, L1i 256 KiB, L2 8 MiB, L3 24.8 MiB
+          - generic [ref=e76]:
+            - generic: 指令集
+            - generic: ：
+            - generic: ✔
+            - generic: VT-x/AMD-V
+            - generic: ✔
+            - generic: AES-NI
+            - generic: ✔
+            - generic: AVX2
+            - generic: ✔
+            - generic: BMI1/2
+            - generic: ✔
+            - generic: EPT/NPT
+          - generic [ref=e77]:
+            - generic: Sysbench
+            - generic: ：
+            - generic: 单线程
+            - generic: "843.29"
+            - generic: 多线程
+            - generic: "13430.66"
+          - generic [ref=e78]:
+            - generic: GB5
+            - generic: 基准
+            - generic: ：
+            - generic: J1900 N5105 N100 670
+            - generic: 0K 9900K 5900X 12900
+            - generic: K 14900K 7713 7995WX
+          - generic [ref=e79]:
+            - generic: GB5
+            - generic: 单核
+            - generic: ：
+            - generic: "|"
+            - generic: "690"
+          - generic [ref=e80]:
+            - generic: GB5
+            - generic: 多核
+            - generic: ：
+            - generic: "|"
+            - generic: "7295"
+          - generic [ref=e81]:
+            - generic: 详细结果
+            - generic: ：
+            - generic: https://browser.geekbench.com/v5/cpu/24201007
+          - generic [ref=e82]:
+            - generic: 四
+            - generic: 、
+            - generic: 显卡测评
+          - generic [ref=e83]:
+            - generic: 显卡
+            - generic: ：
+            - generic: "["
+            - generic: 集显
+            - generic: "]"
+            - generic: Intel Cirrus Logic GD 5446
+          - generic [ref=e84]:
+            - generic: 五
+            - generic: 、
+            - generic: 内存测评
+          - generic [ref=e85]:
+            - generic: 内存
+            - generic: ：
+            - generic: 总容量
+            - generic: 15.6 GB,
+            - generic: 已用
+            - generic: 1.2 GB(8%),
+            - generic: 可用
+            - generic: 14.4 GB(92%)
+          - generic [ref=e86]:
+            - generic: 超开指标
+            - generic: ：
+            - generic: ✘
+            - generic: 气球回收
+            - generic: ✘
+            - generic: KSM
+            - generic: 复用
+          - generic [ref=e87]:
+            - generic: Sysbench
+            - generic: ：
+            - generic: 读取
+            - generic: 19082.2 MB/s
+            - generic: 写入
+            - generic: 15649.2 MB/s
+            - generic: 延迟
+            - generic: 210 ns
+          - generic [ref=e88]:
+            - generic: 六
+            - generic: 、
+            - generic: 硬盘测评
+          - generic [ref=e89]:
+            - generic: 硬盘
+            - generic: ：
+            - generic: 数量
+            - generic: 1,
+            - generic: 总容量
+            - generic: 49G,
+            - generic: 已用容量
+            - generic: 6.4G(13%),
+            - generic: 可用容量
+            - generic: 42G(87%)
+          - generic [ref=e90]:
+            - generic: 测试设备
+            - generic: ：
+            - generic: vda1(/r**t) -> DISK
+          - generic [ref=e91]:
+            - generic: Fio
+            - generic: 测试
+            - generic: ：
+            - generic: RND4K/Q1 IOPS||RND4K/Q32 IOPS||SEQ1M/Q1 IOPS||SEQ1M/Q8 IOPS
+          - generic [ref=e92]:
+            - generic: 读取
+            - generic: ：
+            - generic: 48.1MB/
+            - generic: s 12k
+            - generic: "||"
+            - generic: 417MB/s
+            - generic: 107k
+            - generic: "||"
+            - generic: 1921MB/s 1
+            - generic: .9k
+            - generic: "||"
+            - generic: 10775MB/s 11k
+          - generic [ref=e93]:
+            - generic: 写入
+            - generic: ：
+            - generic: 45.8MB/
+            - generic: s 12k
+            - generic: "||"
+            - generic: 570MB/s
+            - generic: 146k
+            - generic: "||"
+            - generic: 1378MB/s 1
+            - generic: .4k
+            - generic: "||"
+            - generic: 2278MB/s 2
+            - generic: .3k
+          - generic [ref=e94]:
+            - generic: 七
+            - generic: 、
+            - generic: HQ
+            - generic: 硬件加权评分
+    - generic [ref=e96]:
+      - button "复制文本" [ref=e97]
+      - button "复制为NodeSeek格式" [ref=e98]
+      - button "复制为通用Markdown" [ref=e99]
+    - contentinfo [ref=e31]:
+      - link "Powered By NodeSeek" [ref=e32] [cursor=pointer]:
+        - /url: https://www.nodeseek.com
+      - text: © 2025 - now, all rights Reserved.
+  - generic [ref=e33]: 荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏荏动动动动动动动动动动动动动动动动动动动动动动动动动动动动动动动动ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+  - generic [ref=e101]:
+    - generic [ref=e102]: 复制成功
+    - button "dismiss" [ref=e103] [cursor=pointer]

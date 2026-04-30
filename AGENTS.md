@@ -17,8 +17,6 @@ graph TD
     B --> B2["src/main.js"]
     B --> B3["src/styles.css"]
     B --> B4["src/config/"]
-    B --> B5["src/composables/"]
-    B --> B6["src/utils/"]
 
     C --> C1["proxy-server.js"]
 ```
@@ -28,16 +26,14 @@ graph TD
 | 前端主应用 | `/src/App.vue` | UI 界面、节点解析、配置生成逻辑 |
 | 入口文件 | `/src/main.js` | Vue 应用初始化、Element Plus 集成 |
 | 样式 | `/src/styles.css` | 全局样式、主题定制 |
-| 配置模块 | `/src/config/` | 默认规则 |
-| Composables | `/src/composables/` | 业务逻辑钩子（useConfig, useNodes, useSubscription, useNodeParams） |
-| 工具函数 | `/src/utils/` | 解析器、验证器、规则助手等 |
+| 配置模块 | `/src/config/` | 默认规则、规则模板 |
 | 代理服务器 | `/proxy-server.js` | CORS 代理、配置托管、节点测速 |
 
 ## 运行与开发
 
 ### 环境要求
 
-- Node.js >= 20（Vite 7 要求 `^20.19.0 || >=22.12.0`）
+- Node.js >= 18
 - npm
 
 ### 安装依赖
@@ -77,14 +73,16 @@ npm run preview
 2. **多协议节点支持** - VMess、VLess、Trojan、Shadowsocks、SSR、Hysteria、Hysteria2、TUIC
 3. **链式代理配置** - 自动为落地节点注入 `dialer-proxy` 配置
 4. **策略组生成** - AI/Google 专线组、其他外网组、内网直连组
-5. **规则助手** - 智能规则建议与去重检测
+5. **规则模板** - 流媒体优化、游戏加速、办公直连、开发者加速、社交媒体
 
 ### 高级功能
 
-- **节点延迟测试** - 通过 TCP 连接测试节点可达性（并发限制 10）
-- **配置导入** - 支持从 Clash Verge 粘贴导入配置
-- **信息节点过滤** - 自动识别并过滤流量/到期/公告提示节点
-- **中转代理出口三子组** - 落地节点组、代理出口组、前置跳板组
+- **节点延迟测试** - 通过 TCP 连接测试节点可达性
+- **配置导入** - 支持导入现有 Clash YAML 配置
+- **配置托管** - 本地服务器托管配置（10分钟有效期）
+- **一键导入** - 生成 `clash://` 协议链接唤起客户端
+- **订阅自动刷新** - 定时自动更新节点列表
+- **节点健康监控** - 后台定期检测节点状态
 
 ## 技术栈
 
@@ -94,69 +92,50 @@ npm run preview
 | UI 组件库 | Element Plus |
 | 构建工具 | Vite |
 | YAML 处理 | js-yaml |
-| 桌面端 | Tauri |
+| 二维码生成 | qrcode |
+| 差异对比 | diff |
 | 代理服务器 | Node.js http 模块 |
 
 ## 测试策略
 
-项目使用 Node.js 内置测试运行器，覆盖核心纯函数：
-
-```bash
-npm test
-```
-
-当前测试覆盖：
-- Clash 配置生成（buildClashConfig）
-- 订阅解析与导入
-- 节点解析器（VMess, VLess, Trojan, SS, SSR, Hysteria 等）
-- 规则助手（去重、建议、分析）
-- 配置验证器
-- 代理服务器端点
-
-端到端验证：
-
-```bash
-npm run verify:clash  # 使用 mihomo 验证生成的配置合法性
-```
+本项目暂无自动化测试用例。
 
 ## 编码规范
 
 - 使用 Vue 3 Composition API (`<script setup>`)
 - 组件使用单一文件组件 (SFC) 格式
 - 样式使用 CSS 自定义属性实现主题
-- 工具函数提取到 `src/utils/` 目录
-- 业务逻辑使用 Composables 模式
+- 遵循 ESLint 基础规范
 
 ## AI 使用指引
 
 ### 常见任务
 
 1. **添加新代理协议支持**
-   - 修改 `/src/utils/parsers.js` 中添加解析函数
-   - 更新 `/src/App.vue` 中的 `parseProxyLine` 调用
-   - 更新 `/src/composables/useConfig.js` 中的落地节点构建逻辑
+   - 修改 `/src/App.vue` 中的 `parseProxyLine` 函数
+   - 添加对应的解析函数（如 `parseSnell`）
+   - 更新 `generateYaml` 中的落地节点构建逻辑
 
-2. **修改默认规则**
+2. **添加新规则模板**
+   - 编辑 `/src/config/ruleTemplates.js`
+   - 添加模板对象，包含 name、icon、description 和 rules 数组
+
+3. **修改默认规则**
    - 编辑 `/src/config/defaultConfig.js`
    - 修改 `defaultRules` 数组
 
-3. **代理服务器功能扩展**
+4. **代理服务器功能扩展**
    - 编辑 `/proxy-server.js`
-   - 添加新的路由处理
+   - 添加新的 `/path` 路由处理
 
-### 环境变量
+### 注意事项
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | 8787 | 代理服务器端口 |
-| `TAURI_ENV_PLATFORM` | - | Tauri 平台标识 |
-| `MIHOMO_BIN` | - | mihomo 二进制路径（用于 verify:clash） |
+- 代理服务器端口通过环境变量 `PORT` 配置，默认为 8787
+- 配置托管有效期为 10 分钟，过期自动清除
+- 节点健康状态存储在 localStorage 中
 
 ## 变更记录 (Changelog)
 
 | 时间 | 操作 | 说明 |
 |------|------|------|
-| 2026-01-26 | 文档初始化 | 生成根级 CLAUDE.md 文档 |
-| 2026-04-28 | 安全加固 | SSRF 防护、CORS 白名单、请求体限制、CSP 启用 |
-| 2026-04-28 | 代码质量 | 提取 splitRuleByTopLevelCommas 共享模块、延迟测试并发限制 |
-| 2026-04-28 | 文档更新 | 同步实际功能状态，移除已删除功能描述 |
+| 2026-01-26 | 文档初始化 | 生成根级 AGENTS.md 文档 |

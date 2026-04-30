@@ -37,6 +37,11 @@ const sampleNodes = [
   { name: "JP-B", type: "vmess", server: "jp.example.com", port: 443, uuid: "uuid-1", tls: true, status: "ok" },
 ];
 
+const sourcedNodes = [
+  { name: "US - A", type: "ss", server: "us.example.com", port: 443, cipher: "aes-128-gcm", password: "pw", sourceName: "美国", sourcePrefix: "US" },
+  { name: "JP - B", type: "ss", server: "jp.example.com", port: 443, cipher: "aes-128-gcm", password: "pw", sourceName: "日本", sourcePrefix: "JP" },
+];
+
 test("中转模式单跳板会给落地节点注入 dialer-proxy", () => {
   const result = buildClashConfig({
     form: createForm({ dialerProxyGroup: ["HK-A"] }),
@@ -84,6 +89,39 @@ test("中转模式多跳板会生成前置跳板组", () => {
   assert.ok(proxyGroup.proxies.includes("♻️ 自动选择"));
   assert.ok(proxyGroup.proxies.includes("🛡️ 故障转移"));
   assert.ok(proxyGroup.proxies.includes("⚖️ 负载均衡"));
+});
+
+test("中转模式有来源节点时会生成来源组并把前置跳板组指向来源组", () => {
+  const result = buildClashConfig({
+    form: createForm({
+      dialerProxyGroup: ["US - A", "JP - B"],
+      dialerProxyType: "select",
+    }),
+    nodes: sourcedNodes,
+    landingNode: null,
+    completeNode: identity,
+    completeNodes: identityList,
+  });
+
+  assert.equal(result.ok, true);
+  const groupNames = result.config["proxy-groups"].map((group) => group.name);
+  assert.ok(groupNames.includes("🇺🇸 美国"));
+  assert.ok(groupNames.includes("🇯🇵 日本"));
+
+  const usGroup = result.config["proxy-groups"].find((group) => group.name === "🇺🇸 美国");
+  const jpGroup = result.config["proxy-groups"].find((group) => group.name === "🇯🇵 日本");
+  assert.deepEqual(usGroup.proxies, ["US - A"]);
+  assert.deepEqual(jpGroup.proxies, ["JP - B"]);
+
+  const relayGroup = result.config["proxy-groups"].find((group) => group.name === "🔀 前置跳板组");
+  assert.deepEqual(relayGroup.proxies, ["🇺🇸 美国", "🇯🇵 日本"]);
+
+  const landingProxy = result.config.proxies.at(-1);
+  assert.equal(landingProxy["dialer-proxy"], "🔀 前置跳板组");
+  result.config.proxies.forEach((proxy) => {
+    assert.equal("sourceName" in proxy, false);
+    assert.equal("sourcePrefix" in proxy, false);
+  });
 });
 
 test("中转模式会过滤当前订阅里不存在的悬空跳板名", () => {
@@ -313,6 +351,29 @@ test("subscription 模式默认导出全部订阅节点", () => {
   const proxyNames = result.config.proxies.map((p) => p.name);
   assert.ok(proxyNames.includes("HK-A"));
   assert.ok(proxyNames.includes("JP-B"));
+});
+
+test("subscription 模式有来源节点时会生成来源组且不导出来源元数据", () => {
+  const result = buildSubscriptionOnlyConfig({
+    form: createSubscriptionForm(),
+    nodes: sourcedNodes,
+    completeNodes: identityList,
+  });
+
+  assert.equal(result.ok, true);
+  const proxyGroup = result.config["proxy-groups"].find((group) => group.name === "🌐 代理出口");
+  assert.ok(proxyGroup.proxies.includes("🇺🇸 美国"));
+  assert.ok(proxyGroup.proxies.includes("🇯🇵 日本"));
+
+  const usGroup = result.config["proxy-groups"].find((group) => group.name === "🇺🇸 美国");
+  const jpGroup = result.config["proxy-groups"].find((group) => group.name === "🇯🇵 日本");
+  assert.deepEqual(usGroup.proxies, ["US - A"]);
+  assert.deepEqual(jpGroup.proxies, ["JP - B"]);
+
+  result.config.proxies.forEach((proxy) => {
+    assert.equal("sourceName" in proxy, false);
+    assert.equal("sourcePrefix" in proxy, false);
+  });
 });
 
 test("subscription 模式不含落地节点组和 dialer-proxy", () => {

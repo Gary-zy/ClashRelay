@@ -162,6 +162,49 @@
                     </div>
                   </div>
 
+                  <div class="clash-import-card merge-import-card">
+                    <div class="clash-import-header">
+                      <div class="clash-import-copy">
+                        <span class="clash-import-kicker">融合路线</span>
+                        <div class="clash-import-title-row">
+                          <el-icon class="clash-import-icon"><DocumentCopy /></el-icon>
+                          <strong class="clash-import-title">追加融合 Clash 配置</strong>
+                        </div>
+                        <span class="clash-import-desc">美国、日本这些自建节点分批贴进来，不覆盖旧节点，自动按来源做分组。</span>
+                      </div>
+                      <span class="clash-import-note">只追加 proxies，默认选为跳板</span>
+                    </div>
+
+                    <div class="merge-import-fields">
+                      <el-form-item label="来源名称">
+                        <el-input v-model="mergeImportSourceName" placeholder="美国 / 日本" clearable />
+                      </el-form-item>
+                      <el-form-item label="节点前缀（可选）">
+                        <el-input v-model="mergeImportSourcePrefix" placeholder="US / JP，不填则用来源名称" clearable />
+                      </el-form-item>
+                    </div>
+
+                    <el-input
+                      v-model="mergeImportText"
+                      type="textarea"
+                      :rows="5"
+                      resize="none"
+                      placeholder="把这一份 Clash Verge 完整配置粘贴到这里"
+                    />
+
+                    <div class="clash-import-actions">
+                      <span class="helper-text">例：来源填“美国”、前缀填“US”，节点会变成 US - 原节点名。</span>
+                      <el-button
+                        type="primary"
+                        plain
+                        @click="handleMergedClashConfigImport"
+                        :disabled="!mergeImportText.trim() || !mergeImportSourceName.trim()"
+                      >
+                        追加融合导入
+                      </el-button>
+                    </div>
+                  </div>
+
                   <el-collapse class="paste-collapse">
                     <el-collapse-item name="paste">
                       <template #title>
@@ -314,6 +357,11 @@
                       <span v-if="currentWorkbenchMode === 'relay'" class="node-marker" :class="{ active: form.dialerProxyGroup.includes(row.name) }"></span>
                       {{ row.name }}
                     </span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="来源" width="110" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="node-source-label">{{ getNodeSourceLabel(row) }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="type" label="类型" width="90" />
@@ -816,6 +864,7 @@ import { highlightYaml } from "./utils/helpers.js";
 import { desktopApi, isDesktopApp } from "./utils/desktop.js";
 import { countInformationalNodes } from "./utils/nodeMetadata.js";
 import { dedupeProxyNames } from "./utils/proxySanitizer.js";
+import { getNodeSourceGroup } from "./utils/nodeSources.js";
 import {
   analyzeRuleCandidate,
   buildRulePolicyOptions,
@@ -1045,6 +1094,7 @@ const {
   handleFetch,
   parseSubscription,
   importClashConfigText,
+  importMergedClashConfigText,
 } = useSubscription({
   form,
   nodes,
@@ -1055,6 +1105,9 @@ const {
 // 手动粘贴订阅内容（CORS 失败时的回退方案）
 const manualSubscriptionText = ref("");
 const clashConfigImportText = ref("");
+const mergeImportText = ref("");
+const mergeImportSourceName = ref("");
+const mergeImportSourcePrefix = ref("");
 const handleManualPaste = () => {
   const text = manualSubscriptionText.value.trim();
   if (!text) return;
@@ -1083,6 +1136,20 @@ const handleClashConfigImport = () => {
     status.message = `${status.message} 已识别 ${informationalCount} 个提示项，节点台默认先帮你藏起来了。`;
   }
 };
+const handleMergedClashConfigImport = () => {
+  const result = importMergedClashConfigText({
+    text: mergeImportText.value,
+    sourceName: mergeImportSourceName.value,
+    sourcePrefix: mergeImportSourcePrefix.value,
+  });
+  if (!result.ok) return;
+  const informationalCount = countInformationalNodes(result.nodes);
+  mergeImportText.value = "";
+  if (informationalCount > 0) {
+    status.message = `${status.message} 已识别 ${informationalCount} 个提示项，节点台默认先帮你藏起来了。`;
+  }
+};
+const getNodeSourceLabel = (node) => getNodeSourceGroup(node)?.label || "—";
 const clearInformationalNodes = () => {
   if (informationalNodes.value.length === 0) return;
   const informationalNames = new Set(informationalNodes.value.map((node) => node.name));
@@ -2776,6 +2843,16 @@ watch(yamlText, (value) => {
   max-width: 520px;
 }
 
+.merge-import-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.merge-import-fields .el-form-item {
+  margin-bottom: 0;
+}
+
 .fetch-action-title {
   font-family: var(--font-serif);
   font-size: 18px;
@@ -2994,6 +3071,11 @@ watch(yamlText, (value) => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.node-source-label {
+  color: var(--ink-600);
+  font-size: 12px;
 }
 
 .node-marker {
@@ -3655,6 +3737,10 @@ watch(yamlText, (value) => {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merge-import-fields {
     grid-template-columns: 1fr;
   }
 

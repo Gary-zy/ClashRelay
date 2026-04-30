@@ -1,0 +1,406 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - link "Terms and Pravicy" [ref=e5] [cursor=pointer]:
+        - /url: /terms
+    - link "NodeQuality" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - button "NodeQuality" [ref=e7]:
+        - heading "NodeQuality" [level=1] [ref=e8]
+        - generic [ref=e9]: NodeQuality
+    - generic [ref=e35]:
+      - button "复制文本" [ref=e36]
+      - button "复制为NodeSeek格式" [ref=e37]
+      - button "复制为通用Markdown" [ref=e38]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e14] [cursor=pointer]: 全部
+        - generic [ref=e16] [cursor=pointer]: 基本信息
+        - generic [ref=e18] [cursor=pointer]: IP质量
+        - generic [ref=e20] [cursor=pointer]: 网络质量
+        - generic [ref=e22] [cursor=pointer]: 回程路由
+      - generic [ref=e42]:
+        - textbox "Terminal input" [ref=e43]
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic: "********************************************************************************"
+          - generic [ref=e46]:
+            - generic: 网络质量体检报告
+            - generic: ：
+            - generic: 64.83.*.*
+          - generic [ref=e47]:
+            - generic: https://github.com/xykt/NetQuality
+          - generic [ref=e48]:
+            - generic: bash <(curl -sL https://Check.Place) -N
+          - generic [ref=e49]:
+            - generic: 报告时间
+            - generic: ：
+            - generic: 2026-03-26 08:01:29 CST
+            - generic: 脚本版本
+            - generic: ：
+            - generic: v2026-01-25
+          - generic [ref=e50]:
+            - generic: "********************************************************************************"
+          - generic [ref=e51]:
+            - generic: 五
+            - generic: 、
+            - generic: 三网回程路由
+            - generic: （
+            - generic: 线路可能随网络负载动态变化
+            - generic: ）
+          - generic [ref=e52]:
+            - generic: 北京
+            - generic: 电信
+            - generic: AS979 -> 163
+          - generic [ref=e53]:
+            - generic: 地理路径
+            - generic: ：
+            - generic: 日本
+            - generic: "->"
+            - generic: 北京
+            - generic: 自治系统路径
+            - generic: ：
+            - generic: AS979 -> AS4134 -> AS4847
+          - generic [ref=e54]:
+            - generic: "1"
+            - generic: 0.17ms
+            - generic: 10.0.*.*
+            - generic: "* RFC1918"
+          - generic [ref=e55]:
+            - generic: "2"
+            - generic: 1.09ms
+            - generic: 64.83.*.*
+            - generic: AS979
+            - generic: 日本
+            - generic: 荏原
+            - generic: as979.net
+          - generic [ref=e56]:
+            - generic: "5"
+            - generic: 225.28ms
+            - generic: 183.91.*.*
+            - generic: AS4134 [APNIC-AP]
+            - generic: 中国
+            - generic: 香港
+            - generic: chinatelecom.com.cn
+            - generic: 电信
+          - generic [ref=e57]:
+            - generic: 6-7
+            - generic: 228.36ms
+            - generic: 203.215.*.*
+            - generic: "[CHINANET-FJ]"
+            - generic: "*"
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: 中国电信
+            - generic: （
+            - generic: 香港
+            - generic: ）
+          - generic [ref=e58]:
+            - generic: "8"
+            - generic: 226.12ms
+            - generic: 202.97.*.*
+            - generic: AS4134 [CHINANET-BB]
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: chinatelecom.com.cn
+            - generic: 电信
+          - generic [ref=e59]:
+            - generic: 9-10
+            - generic: 54.89ms
+            - generic: 202.97.*.*
+            - generic: AS4134 [CHINANET-BB]
+            - generic: 中国
+            - generic: 北京
+            - generic: chinatelecom.com.cn
+            - generic: 电信
+          - generic [ref=e60]:
+            - generic: 13-15
+            - generic: 56.33ms
+            - generic: 219.141.*.*
+            - generic: AS4847 [CHINATELECOM-BJ]
+            - generic: 中国
+            - generic: 北京
+            - generic: bj.189.cn
+          - generic [ref=e61]:
+            - generic: "16"
+            - generic: 58.42ms
+            - generic: 106.37.*.*
+            - generic: AS4847 [CHINANET-HN]
+            - generic: 中国
+            - generic: 北京
+            - generic: bj.189.cn
+          - generic [ref=e62]:
+            - generic: 北京
+            - generic: 联通
+            - generic: AS979 -> 10099
+          - generic [ref=e63]:
+            - generic: 地理路径
+            - generic: ：
+            - generic: 日本
+            - generic: "->"
+            - generic: 上海
+            - generic: "->"
+            - generic: 北京
+            - generic: 自治系统路径
+            - generic: ：
+            - generic: AS979 -> AS10099 -> AS4837 -> AS4808
+          - generic [ref=e64]:
+            - generic: "1"
+            - generic: 0.23ms
+            - generic: 10.0.*.*
+            - generic: "* RFC1918"
+          - generic [ref=e65]:
+            - generic: "2"
+            - generic: 1.00ms
+            - generic: 64.83.*.*
+            - generic: AS979
+            - generic: 日本
+            - generic: 荏原
+            - generic: as979.net
+          - generic [ref=e66]:
+            - generic: 6-9
+            - generic: 1.06ms
+            - generic: 203.160.*.*
+            - generic: AS10099 [CUG-BACKBONE]
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: chinaunicomglobal.com
+          - generic [ref=e67]:
+            - generic: 10-12
+            - generic: 59.64ms
+            - generic: 219.158.*.*
+            - generic: AS4837 [CU169-BACKBONE]
+            - generic: 中国
+            - generic: 上海
+            - generic: X-I chinaunicom.cn
+            - generic: 联通
+          - generic [ref=e68]:
+            - generic: 14-15
+            - generic: 62.45ms
+            - generic: 125.33.*.*
+            - generic: AS4808 [UNICOM-BJ]
+            - generic: 中国
+            - generic: 北京
+            - generic: www.bbn.com.cn
+            - generic: 联通
+          - generic [ref=e69]:
+            - generic: "18"
+            - generic: 63.80ms
+            - generic: 221.222.*.*
+            - generic: AS4808 [UNICOM-BJ]
+            - generic: 中国
+            - generic: 北京
+            - generic: 海淀
+            - generic: www.bbn.com.cn
+          - generic [ref=e70]:
+            - generic: 北京
+            - generic: 移动
+            - generic: AS979 -> CMI
+          - generic [ref=e71]:
+            - generic: 地理路径
+            - generic: ：
+            - generic: 日本
+            - generic: "->"
+            - generic: 北京
+            - generic: 自治系统路径
+            - generic: ：
+            - generic: AS979 -> AS58453 -> AS9808 -> AS56048
+          - generic [ref=e72]:
+            - generic: "1"
+            - generic: 0.12ms
+            - generic: 10.0.*.*
+            - generic: "* RFC1918"
+          - generic [ref=e73]:
+            - generic: "2"
+            - generic: 1.18ms
+            - generic: 64.83.*.*
+            - generic: AS979
+            - generic: 日本
+            - generic: 荏原
+            - generic: as979.net
+          - generic [ref=e74]:
+            - generic: "5"
+            - generic: 0.99ms
+            - generic: 223.118.*.*
+            - generic: AS58453 [CMI-INT]
+            - generic: 中国
+            - generic: 香港
+            - generic: cmi.chinamobile.com
+            - generic: 移动
+          - generic [ref=e75]:
+            - generic: 6-7
+            - generic: 3.32ms
+            - generic: 223.119.*.*
+            - generic: AS58453 [CMI-INT]
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: cmi.chinamobile.com
+            - generic: 移动
+          - generic [ref=e76]:
+            - generic: "8"
+            - generic: 52.73ms
+            - generic: 223.120.*.*
+            - generic: AS58453 [CMI-INT]
+            - generic: 中国
+            - generic: 北京
+            - generic: cmi.chinamobile.com
+            - generic: 移动
+          - generic [ref=e77]:
+            - generic: 9-10
+            - generic: 52.88ms
+            - generic: 221.183.*.*
+            - generic: AS9808 [CMNET]
+            - generic: 中国
+            - generic: 北京
+            - generic: X-I chinamobileltd.com
+            - generic: 移动
+          - generic [ref=e78]:
+            - generic: 13-16
+            - generic: 57.21ms
+            - generic: 211.136.*.*
+            - generic: AS56048 [CMNET]
+            - generic: 中国
+            - generic: 北京
+            - generic: bj.10086.cn
+            - generic: 移动
+          - generic [ref=e79]:
+            - generic: "18"
+            - generic: 74.97ms
+            - generic: 211.136.*.*
+            - generic: AS56048 [CMNET]
+            - generic: 中国
+            - generic: 北京
+            - generic: bj.10086.cn
+            - generic: 移动
+          - generic [ref=e80]:
+            - generic: 上海
+            - generic: 电信
+            - generic: AS979 -> 163
+          - generic [ref=e81]:
+            - generic: 地理路径
+            - generic: ：
+            - generic: 日本
+            - generic: "->"
+            - generic: 上海
+            - generic: 自治系统路径
+            - generic: ：
+            - generic: AS979 -> AS4134 -> AS4812
+          - generic [ref=e82]:
+            - generic: "1"
+            - generic: 0.35ms
+            - generic: 10.0.*.*
+            - generic: "* RFC1918"
+          - generic [ref=e83]:
+            - generic: "2"
+            - generic: 1.13ms
+            - generic: 64.83.*.*
+            - generic: AS979
+            - generic: 日本
+            - generic: 荏原
+            - generic: as979.net
+          - generic [ref=e84]:
+            - generic: "5"
+            - generic: 225.25ms
+            - generic: 183.91.*.*
+            - generic: AS4134 [APNIC-AP]
+            - generic: 中国
+            - generic: 香港
+            - generic: chinatelecom.com.cn
+            - generic: 电信
+          - generic [ref=e85]:
+            - generic: 6-7
+            - generic: 228.08ms
+            - generic: 203.215.*.*
+            - generic: "[CHINANET-FJ]"
+            - generic: "*"
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: 中国电信
+            - generic: （
+            - generic: 香港
+            - generic: ）
+          - generic [ref=e86]:
+            - generic: 8-10
+            - generic: 31.84ms
+            - generic: 202.97.*.*
+            - generic: AS4134 [CHINANET-BB]
+            - generic: 中国
+            - generic: 上海
+            - generic: chinatelecom.com.cn
+            - generic: 电信
+          - generic [ref=e87]:
+            - generic: "11"
+            - generic: 37.61ms
+            - generic: 101.95.*.*
+            - generic: AS4812 [CHINANET-SH]
+            - generic: 中国
+            - generic: 上海
+            - generic: chinatelecom.cn
+            - generic: 电信
+          - generic [ref=e88]:
+            - generic: "17"
+            - generic: 30.40ms
+            - generic: 101.226.*.*
+            - generic: AS4812 [CHINANET-SH]
+            - generic: 中国
+            - generic: 上海市
+            - generic: chinatelecom.cn
+            - generic: 电信
+          - generic [ref=e89]:
+            - generic: 上海
+            - generic: 联通
+            - generic: AS979 -> 10099
+          - generic [ref=e90]:
+            - generic: 地理路径
+            - generic: ：
+            - generic: 日本
+            - generic: "->"
+            - generic: 上海
+            - generic: 自治系统路径
+            - generic: ：
+            - generic: AS979 -> AS10099 -> AS4837 -> AS140979
+          - generic [ref=e91]:
+            - generic: "1"
+            - generic: 2.45ms
+            - generic: 10.0.*.*
+            - generic: "* RFC1918"
+          - generic [ref=e92]:
+            - generic: "2"
+            - generic: 1.01ms
+            - generic: 64.83.*.*
+            - generic: AS979
+            - generic: 日本
+            - generic: 荏原
+            - generic: as979.net
+          - generic [ref=e93]:
+            - generic: 6-9
+            - generic: 1.03ms
+            - generic: 203.160.*.*
+            - generic: AS10099 [CUG-BACKBONE]
+            - generic: 日本
+            - generic: 东京都
+            - generic: 东京
+            - generic: chinaunicomglobal.com
+          - generic [ref=e94]:
+            - generic: 10-12
+            - generic: 62.05ms
+            - generic: 219.158.*.*
+            - generic: AS4837 [CU169-BACKBONE]
+            - generic: 中国
+            - generic: 上海
+            - generic: X-I chinaunicom.cn
+            - generic: 联通
+    - generic [ref=e96]:
+      - button "复制文本" [ref=e97]
+      - button "复制为NodeSeek格式" [ref=e98]
+      - button "复制为通用Markdown" [ref=e99]
+    - contentinfo [ref=e31]:
+      - link "Powered By NodeSeek" [ref=e32] [cursor=pointer]:
+        - /url: https://www.nodeseek.com
+      - text: © 2025 - now, all rights Reserved.
+  - generic [ref=e33]: 淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀淀海海海海海海海海海海海海海海海海海海海海海海海海海海海海海海海海ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ

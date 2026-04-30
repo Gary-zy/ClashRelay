@@ -1,0 +1,120 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]:
+        - generic [ref=e8]:
+          - generic:
+            - generic: 张
+            - generic: 扬
+            - generic: 出
+            - generic: 品
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: RelayBox for macOS
+          - generic [ref=e18]: 朱印 · 链路
+        - heading "Clash 配置生成器" [level=1] [ref=e19]
+    - generic [ref=e20]:
+      - generic [ref=e21]: Clash YAML
+      - button "使用指南" [ref=e22] [cursor=pointer]:
+        - generic [ref=e23]:
+          - img [ref=e25]
+          - text: 使用指南
+  - generic [ref=e27]: 订阅、节点、落地和导出都拆进独立工作区，主流程在桌面端横着走，不再纵向修仙。
+  - img
+  - generic [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - generic [ref=e131]: 朱印 · 链路
+        - strong [ref=e132]: 落地节点模式
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - generic [ref=e135]: 进度
+          - strong [ref=e136]: 2 / 4
+        - generic [ref=e137]:
+          - generic [ref=e138]: 下一步
+          - strong [ref=e139]: 配置落地
+        - generic [ref=e140]:
+          - generic [ref=e141]: 输出
+          - strong [ref=e142]: Clash YAML
+      - generic [ref=e143]:
+        - button "链路 落地节点模式" [ref=e144] [cursor=pointer]:
+          - generic [ref=e145]: 链路
+          - generic [ref=e146]: 落地节点模式
+        - button "直出 直连模式" [ref=e147] [cursor=pointer]:
+          - generic [ref=e148]: 直出
+          - generic [ref=e149]: 直连模式
+        - button "整理 订阅整理模式" [ref=e150] [cursor=pointer]:
+          - generic [ref=e151]: 整理
+          - generic [ref=e152]: 订阅整理模式
+    - main [ref=e153]:
+      - generic [ref=e155]:
+        - button "01 订阅 已就绪" [ref=e353] [cursor=pointer]:
+          - generic [ref=e157]: "01"
+          - generic [ref=e158]: 订阅
+          - generic [ref=e159]: 已就绪
+        - button "02 节点 已就绪" [ref=e354] [cursor=pointer]:
+          - generic [ref=e161]: "02"
+          - generic [ref=e162]: 节点
+          - generic [ref=e163]: 已就绪
+        - button "03 落地 进行中" [ref=e355] [cursor=pointer]:
+          - generic [ref=e165]: "03"
+          - generic [ref=e166]: 落地
+          - generic [ref=e167]: 进行中
+        - button "04 导出 待处理" [ref=e168] [cursor=pointer]:
+          - generic [ref=e169]: "04"
+          - generic [ref=e170]: 导出
+          - generic [ref=e171]: 待处理
+      - generic [ref=e356]:
+        - generic [ref=e357]:
+          - generic [ref=e358]: "3"
+          - generic [ref=e359]:
+            - generic [ref=e360]:
+              - generic [ref=e361]: 配置落地节点
+              - generic [ref=e362]: 进行中
+            - generic [ref=e363]: 补齐落地节点别名、地址和端口，复杂协议记得先走链接解析。
+        - generic [ref=e365]:
+          - generic [ref=e366]:
+            - generic [ref=e367]: 快速解析节点链接
+            - generic [ref=e368]:
+              - generic [ref=e369]:
+                - textbox "快速解析节点链接" [ref=e372]:
+                  - /placeholder: socks5:// ss:// vmess:// vless:// trojan:// hysteria2:// tuic://
+                - button "解析" [ref=e373] [cursor=pointer]:
+                  - generic [ref=e374]: 解析
+              - generic [ref=e375]: 复杂协议只认这条入口，别硬拿半截参数手搓，搓出来也是残废配置。
+          - generic [ref=e376]:
+            - generic [ref=e377]:
+              - generic [ref=e378]: 节点类型
+              - generic [ref=e381] [cursor=pointer]:
+                - generic:
+                  - combobox "节点类型" [ref=e383]
+                  - generic [ref=e384]: SOCKS5
+                - img [ref=e387]
+            - generic [ref=e389]:
+              - generic [ref=e390]: 别名
+              - textbox "别名" [ref=e394]:
+                - /placeholder: 落地节点
+                - text: 落地节点
+            - generic [ref=e395]:
+              - generic [ref=e396]: 服务器地址
+              - textbox "服务器地址" [ref=e400]:
+                - /placeholder: 1.2.3.4
+            - generic [ref=e401]:
+              - generic [ref=e402]: 端口
+              - textbox "端口" [ref=e406]:
+                - /placeholder: "1080"
+            - generic [ref=e407]:
+              - generic [ref=e408]: 用户名（可选）
+              - textbox "用户名（可选）" [ref=e412]:
+                - /placeholder: ""
+            - generic [ref=e413]:
+              - generic [ref=e414]: 密码（可选）
+              - textbox "密码（可选）" [ref=e418]:
+                - /placeholder: ""
+          - alert [ref=e419]:
+            - img [ref=e421]
+            - generic [ref=e424]: 已融合导入 1 个美国节点，并自动选为前置跳板。
+  - generic [ref=e263]:
+    - text: Clash 配置生成器 ·
+    - link "GitHub" [ref=e264] [cursor=pointer]:
+      - /url: https://github.com/Gary-zy/ClashRelay

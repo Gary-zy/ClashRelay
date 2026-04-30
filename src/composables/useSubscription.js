@@ -4,6 +4,7 @@ import { parseProxyLine, tryDecodeBase64 } from "../utils/parsers.js";
 import { getFetchErrorMessage } from "./useConfig.js";
 import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 import { dedupeProxyNames, sanitizeImportedProxy } from "../utils/proxySanitizer.js";
+import { applySourceToNodes } from "../utils/nodeSources.js";
 
 const HISTORY_KEY = "clashrelay_history";
 
@@ -241,6 +242,62 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
     );
   };
 
+  const importMergedClashConfigText = ({ text, sourceName, sourcePrefix }) => {
+    setStatus("", "info");
+
+    const sourced = applySourceToNodes([], { sourceName, sourcePrefix });
+    if (!sourced.ok) {
+      setStatus("请先填写来源名称，比如 美国 或 日本。", "warning");
+      return sourced;
+    }
+
+    const trimmed = String(text || "").trim();
+    if (!trimmed) {
+      setStatus("请先粘贴要融合的 Clash 配置内容。", "warning");
+      return { ok: false, reason: "empty" };
+    }
+
+    const parsed = parseClashConfigNodes(trimmed);
+    if (!parsed.ok) {
+      const messageMap = {
+        invalid_yaml: "这段文本不是合法的 Clash YAML，先确认你复制的是完整配置。",
+        missing_proxies: "配置内容拿到了，但没看到 proxies 段，没法提取节点。",
+        empty_proxies: "配置里有 proxies，但没有可导入的有效节点。",
+        empty: "请先粘贴要融合的 Clash 配置内容。",
+      };
+      setStatus(messageMap[parsed.reason] || "Clash 配置解析失败。", "error");
+      return parsed;
+    }
+
+    const sourceResult = applySourceToNodes(parsed.nodes, { sourceName, sourcePrefix });
+    if (!sourceResult.ok) {
+      setStatus("请先填写来源名称，比如 美国 或 日本。", "warning");
+      return sourceResult;
+    }
+
+    const existingCount = nodes.value.length;
+    const finalNodes = dedupeProxyNames([
+      ...nodes.value,
+      ...sourceResult.nodes.map((node) => ({
+        ...node,
+        latency: -1,
+      })),
+    ]);
+    const importedNodes = finalNodes.slice(existingCount);
+
+    nodes.value = finalNodes;
+    importedNodes.forEach((node) => {
+      if (!form.dialerProxyGroup.includes(node.name)) {
+        form.dialerProxyGroup.push(node.name);
+      }
+    });
+
+    if (saveConfig) saveConfig();
+    setStatus(`已融合导入 ${importedNodes.length} 个${sourceResult.nodes[0]?.sourceName || ""}节点，并自动选为前置跳板。`, "success");
+
+    return { ok: true, nodes: importedNodes };
+  };
+
   return {
     isFetching,
     subscriptionHistory,
@@ -250,5 +307,6 @@ export const useSubscription = ({ form, nodes, status, saveConfig }) => {
     handleFetch,
     parseSubscription,
     importClashConfigText,
+    importMergedClashConfigText,
   };
 };

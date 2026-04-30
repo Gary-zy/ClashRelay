@@ -1,0 +1,145 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]:
+        - generic [ref=e8]:
+          - generic:
+            - generic: 张
+            - generic: 扬
+            - generic: 出
+            - generic: 品
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: RelayBox for macOS
+          - generic [ref=e18]: 朱印 · 链路
+        - heading "Clash 配置生成器" [level=1] [ref=e19]
+    - generic [ref=e20]:
+      - generic [ref=e21]: Clash YAML
+      - button "使用指南" [ref=e22] [cursor=pointer]:
+        - generic [ref=e23]:
+          - img [ref=e25]
+          - text: 使用指南
+  - generic [ref=e27]: 订阅、节点、落地和导出都拆进独立工作区，主流程在桌面端横着走，不再纵向修仙。
+  - img
+  - generic [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - generic [ref=e131]: 朱印 · 链路
+        - strong [ref=e132]: 落地节点模式
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - generic [ref=e135]: 进度
+          - strong [ref=e136]: 0 / 4
+        - generic [ref=e137]:
+          - generic [ref=e138]: 下一步
+          - strong [ref=e139]: 拉取订阅
+        - generic [ref=e140]:
+          - generic [ref=e141]: 输出
+          - strong [ref=e142]: Clash YAML
+      - generic [ref=e143]:
+        - button "链路 落地节点模式" [ref=e144] [cursor=pointer]:
+          - generic [ref=e145]: 链路
+          - generic [ref=e146]: 落地节点模式
+        - button "直出 直连模式" [ref=e147] [cursor=pointer]:
+          - generic [ref=e148]: 直出
+          - generic [ref=e149]: 直连模式
+        - button "整理 订阅整理模式" [ref=e150] [cursor=pointer]:
+          - generic [ref=e151]: 整理
+          - generic [ref=e152]: 订阅整理模式
+    - main [ref=e153]:
+      - generic [ref=e155]:
+        - button "01 订阅 进行中" [ref=e156] [cursor=pointer]:
+          - generic [ref=e157]: "01"
+          - generic [ref=e158]: 订阅
+          - generic [ref=e159]: 进行中
+        - button "02 节点 待处理" [ref=e160] [cursor=pointer]:
+          - generic [ref=e161]: "02"
+          - generic [ref=e162]: 节点
+          - generic [ref=e163]: 待处理
+        - button "03 落地 待处理" [ref=e164] [cursor=pointer]:
+          - generic [ref=e165]: "03"
+          - generic [ref=e166]: 落地
+          - generic [ref=e167]: 待处理
+        - button "04 导出 待处理" [ref=e168] [cursor=pointer]:
+          - generic [ref=e169]: "04"
+          - generic [ref=e170]: 导出
+          - generic [ref=e171]: 待处理
+      - generic [ref=e172]:
+        - generic [ref=e173]:
+          - generic [ref=e174]: "1"
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - generic [ref=e177]: 获取订阅节点
+              - generic [ref=e178]: 进行中
+            - generic [ref=e179]: 先把订阅节点拉进来，后面的筛选、跳板和导出才有东西可用。
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e183]: 机场订阅地址
+            - generic [ref=e184]:
+              - combobox [ref=e185]:
+                - textbox "机场订阅地址" [ref=e188]:
+                  - /placeholder: https://example.com/subscription
+              - generic [ref=e189]: 点击输入框可查看历史记录；如果订阅站不放 CORS，或者别人只给你 Clash Verge 里的完整配置，也别在这一步硬杠。
+          - generic [ref=e190]:
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - generic [ref=e193]: 本地订阅代理地址（可选）
+                - generic [ref=e194]:
+                  - textbox "本地订阅代理地址（可选）" [ref=e197]:
+                    - /placeholder: http://localhost:8787
+                    - text: http://localhost:8787
+                  - generic [ref=e198]: 仅用于抓订阅时绕过 CORS，不参与最终 Clash 配置生成。
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: 替代路线
+                    - generic [ref=e203]:
+                      - img [ref=e205]
+                      - strong [ref=e207]: 从 Clash Verge 粘贴配置
+                    - generic [ref=e208]: 网页直拉订阅跨域时，就让别人先导进 Clash Verge，再把完整配置全选复制回来。
+                  - generic [ref=e209]: 只提取节点，不继承原分组和规则
+                - textbox "把 Clash Verge 里的完整配置文本粘贴到这里" [ref=e211]
+                - generic [ref=e212]:
+                  - generic [ref=e213]: 适合已经在客户端里导入成功，但网页这边因为跨域拉不到订阅的场景。
+                  - button "导入 Clash 配置节点" [disabled] [ref=e214]:
+                    - generic [ref=e215]: 导入 Clash 配置节点
+              - generic [ref=e216]:
+                - generic [ref=e217]:
+                  - generic [ref=e218]:
+                    - generic [ref=e219]: 融合路线
+                    - generic [ref=e220]:
+                      - img [ref=e222]
+                      - strong [ref=e224]: 追加融合 Clash 配置
+                    - generic [ref=e225]: 美国、日本这些自建节点分批贴进来，不覆盖旧节点，自动按来源做分组。
+                  - generic [ref=e226]: 只追加 proxies，默认选为跳板
+                - generic [ref=e227]:
+                  - generic [ref=e228]:
+                    - generic [ref=e229]: 来源名称
+                    - textbox "来源名称" [ref=e233]:
+                      - /placeholder: 美国 / 日本
+                      - text: 美国
+                  - generic [ref=e234]:
+                    - generic [ref=e235]: 节点前缀（可选）
+                    - textbox "节点前缀（可选）" [ref=e239]:
+                      - /placeholder: US / JP，不填则用来源名称
+                      - text: US
+                - textbox "把这一份 Clash Verge 完整配置粘贴到这里" [ref=e241]: "proxies:\\n - name: Test\\n type: ss\\n server: us.example.com\\n port: 443\\n cipher: aes-128-gcm\\n password: pw"
+                - generic [ref=e242]:
+                  - generic [ref=e243]: 例：来源填“美国”、前缀填“US”，节点会变成 US - 原节点名。
+                  - button "追加融合导入" [ref=e244] [cursor=pointer]:
+                    - generic [ref=e245]: 追加融合导入
+              - button "手动粘贴订阅内容（CORS 失败时用这个）" [ref=e248] [cursor=pointer]:
+                - generic [ref=e250]:
+                  - img [ref=e252]
+                  - text: 手动粘贴订阅内容（CORS 失败时用这个）
+                - img [ref=e255]
+            - generic [ref=e257]:
+              - generic [ref=e258]: 下一步
+              - strong [ref=e259]: 先把订阅节点拉进来
+              - generic [ref=e260]: 后面的模式切换、节点筛选和规则导出都得靠这一步开张。
+              - button "获取节点" [ref=e261] [cursor=pointer]:
+                - generic [ref=e262]: 获取节点
+  - generic [ref=e263]:
+    - text: Clash 配置生成器 ·
+    - link "GitHub" [ref=e264] [cursor=pointer]:
+      - /url: https://github.com/Gary-zy/ClashRelay

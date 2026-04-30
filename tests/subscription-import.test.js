@@ -97,6 +97,88 @@ proxies:
   assert.match(status.message, /已从 Clash 配置中导入 2 个节点/);
 });
 
+test("融合导入 Clash 配置会追加节点、加来源前缀并自动选入跳板", () => {
+  const nodes = ref([]);
+  const status = { message: "", type: "" };
+  let saved = 0;
+  const form = createForm({ dialerProxyGroup: [] });
+  const { importMergedClashConfigText } = useSubscription({
+    form,
+    nodes,
+    status,
+    saveConfig: () => {
+      saved += 1;
+    },
+  });
+
+  const usResult = importMergedClashConfigText({
+    text: `
+proxies:
+  - name: Node
+    type: ss
+    server: us.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+`,
+    sourceName: "美国",
+    sourcePrefix: "US",
+  });
+
+  const jpResult = importMergedClashConfigText({
+    text: `
+proxies:
+  - name: Node
+    type: ss
+    server: jp.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: pw
+`,
+    sourceName: "日本",
+    sourcePrefix: "JP",
+  });
+
+  assert.equal(usResult.ok, true);
+  assert.equal(jpResult.ok, true);
+  assert.equal(saved, 2);
+  assert.deepEqual(
+    nodes.value.map((node) => ({
+      name: node.name,
+      sourceName: node.sourceName,
+      sourcePrefix: node.sourcePrefix,
+      latency: node.latency,
+    })),
+    [
+      { name: "US - Node", sourceName: "美国", sourcePrefix: "US", latency: -1 },
+      { name: "JP - Node", sourceName: "日本", sourcePrefix: "JP", latency: -1 },
+    ]
+  );
+  assert.deepEqual(form.dialerProxyGroup, ["US - Node", "JP - Node"]);
+  assert.match(status.message, /已融合导入 1 个日本节点/);
+});
+
+test("融合导入空来源名称会明确拦截", () => {
+  const nodes = ref([]);
+  const status = { message: "", type: "" };
+  const form = createForm();
+  const { importMergedClashConfigText } = useSubscription({
+    form,
+    nodes,
+    status,
+  });
+
+  const result = importMergedClashConfigText({
+    text: "proxies: []",
+    sourceName: "",
+    sourcePrefix: "",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "missing_source");
+  assert.match(status.message, /来源名称/);
+});
+
 test("手动粘贴支持 Base64 编码的 Clash YAML", () => {
   const nodes = ref([]);
   const status = { message: "", type: "" };

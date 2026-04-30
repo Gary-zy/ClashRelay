@@ -6,6 +6,7 @@ import { useNodeParams } from "./useNodeParams.js";
 import { validateClashConfig } from "../utils/clashConfigValidator.js";
 import { cleanProxyForExport } from "../utils/proxySanitizer.js";
 import { splitRuleByTopLevelCommas } from "../utils/ruleParser.js";
+import { buildSourceProxyGroups, compressPoliciesByCompleteSourceGroups } from "../utils/nodeSources.js";
 
 export const MANUAL_LANDING_TYPES = new Set(["socks5", "http"]);
 
@@ -264,13 +265,18 @@ export const buildClashConfig = ({
   // 核心兜底：用实际节点名过滤跳板选择，杜绝悬空代理引用
   const validNodeNames = new Set(proxyNames);
   const validDialerGroup = form.isDirect ? [] : form.dialerProxyGroup.filter((name) => validNodeNames.has(name));
+  const sourceGroups = buildSourceProxyGroups(nodes, proxyNames);
+  const sourceGroupNames = sourceGroups.map((group) => group.name);
+  const dialerPolicies = form.isDirect
+    ? []
+    : compressPoliciesByCompleteSourceGroups(validDialerGroup, sourceGroups);
 
   if (!form.isDirect && validDialerGroup.length === 0) {
     return { ok: false, message: "选择的跳板节点在当前订阅中均不存在，请重新选择。", type: "warning" };
   }
 
-  const isSingleNode = validDialerGroup.length === 1;
-  const dialerProxyName = isSingleNode ? validDialerGroup[0] : "🔀 前置跳板组";
+  const isSingleDialerPolicy = dialerPolicies.length === 1;
+  const dialerProxyName = isSingleDialerPolicy ? dialerPolicies[0] : "🔀 前置跳板组";
   const landingProxy = {
     ...landingResult.landingProxy,
     ...(form.isDirect ? {} : { "dialer-proxy": dialerProxyName }),
@@ -295,11 +301,11 @@ export const buildClashConfig = ({
 
   const proxyGroups = [];
 
-  if (!form.isDirect && !isSingleNode && validDialerGroup.length > 0) {
+  if (!form.isDirect && !isSingleDialerPolicy && dialerPolicies.length > 0) {
     const dialerGroup = {
       name: "🔀 前置跳板组",
       type: form.dialerProxyType,
-      proxies: [...validDialerGroup],
+      proxies: [...dialerPolicies],
     };
 
     if (form.dialerProxyType === "url-test" || form.dialerProxyType === "fallback") {
@@ -321,6 +327,7 @@ export const buildClashConfig = ({
         type: "select",
         proxies: [landingProxyName],
       },
+      ...sourceGroups,
       {
         name: relayAutoSelectGroupName,
         type: "url-test",
@@ -352,6 +359,7 @@ export const buildClashConfig = ({
           relayAutoSelectGroupName,
           relayFallbackGroupName,
           relayLoadBalanceGroupName,
+          ...sourceGroupNames,
           ...proxyNames,
           "DIRECT",
         ],
@@ -399,6 +407,8 @@ export const buildSubscriptionOnlyConfig = ({
   const completedNodes = completeNodes(nodes);
   const proxies = completedNodes.map((node) => cleanProxyForExport(node, { preserveDialerProxy: false }));
   const proxyNames = completedNodes.map((node) => node.name);
+  const sourceGroups = buildSourceProxyGroups(nodes, proxyNames);
+  const sourceGroupNames = sourceGroups.map((group) => group.name);
   const customRulesFromText = parseRules(form.customRulesText || "").map((rule) =>
     sanitizeRuleForSubscription(rule, proxyGroupName)
   );
@@ -410,8 +420,16 @@ export const buildSubscriptionOnlyConfig = ({
     {
       name: proxyGroupName,
       type: "select",
-      proxies: ["♻️ 自动选择", "🛡️ 故障转移", "⚖️ 负载均衡", ...proxyNames, "DIRECT"],
+      proxies: [
+        "♻️ 自动选择",
+        "🛡️ 故障转移",
+        "⚖️ 负载均衡",
+        ...sourceGroupNames,
+        ...proxyNames,
+        "DIRECT",
+      ],
     },
+    ...sourceGroups,
     {
       name: "♻️ 自动选择",
       type: "url-test",

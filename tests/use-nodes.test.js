@@ -30,3 +30,33 @@ test("隐藏提示项时可见节点会同步排除提示节点", () => {
   hideInformationalNodes.value = false;
   assert.equal(visibleNodes.value.length, 3);
 });
+
+test("节点分组优先使用融合导入来源，未标记节点继续按地区归类", () => {
+  const form = reactive({
+    isDirect: false,
+    proxyUrl: "",
+    dialerProxyGroup: [],
+  });
+  const status = { message: "", type: "" };
+
+  const {
+    nodes,
+    nodeGroups,
+    activeNodeGroup,
+    displayNodes,
+  } = useNodes({ form, status });
+
+  nodes.value = [
+    { name: "US - A", type: "ss", server: "a.example.com", port: 443, latency: -1, sourceName: "美国", sourcePrefix: "US" },
+    { name: "JP - B", type: "ss", server: "b.example.com", port: 443, latency: -1, sourceName: "日本", sourcePrefix: "JP" },
+    { name: "香港 C", type: "ss", server: "c.example.com", port: 443, latency: -1 },
+  ];
+
+  assert.deepEqual(
+    nodeGroups.value.map((group) => group.label),
+    ["🇺🇸 美国", "🇯🇵 日本", "香港"]
+  );
+
+  activeNodeGroup.value = "source:美国";
+  assert.deepEqual(displayNodes.value.map((node) => node.name), ["US - A"]);
+});

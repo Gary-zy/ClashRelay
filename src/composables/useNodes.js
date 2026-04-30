@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { formatTime } from "../utils/helpers.js";
 import { desktopApi, isDesktopApp } from "../utils/desktop.js";
 import { isInformationalNode } from "../utils/nodeMetadata.js";
+import { getNodeSourceGroup } from "../utils/nodeSources.js";
 
 const regionMap = {
   "香港": ["香港", "HK", "Hong Kong", "HongKong", "🇭🇰"],
@@ -39,6 +40,13 @@ export const useNodes = ({ form, status }) => {
     return "其他";
   };
 
+  const getNodeGroup = (node) => {
+    const sourceGroup = getNodeSourceGroup(node);
+    if (sourceGroup) return sourceGroup;
+    const region = getNodeRegion(node.name);
+    return { key: region, label: region };
+  };
+
   const informationalNodes = computed(() => nodes.value.filter((node) => isInformationalNode(node)));
   const informationalNodeCount = computed(() => informationalNodes.value.length);
 
@@ -51,11 +59,11 @@ export const useNodes = ({ form, status }) => {
   const nodeGroups = computed(() => {
     const groups = {};
     visibleNodes.value.forEach((node) => {
-      const region = getNodeRegion(node.name);
-      if (!groups[region]) {
-        groups[region] = { key: region, label: region, count: 0 };
+      const group = getNodeGroup(node);
+      if (!groups[group.key]) {
+        groups[group.key] = { key: group.key, label: group.label, count: 0 };
       }
-      groups[region].count++;
+      groups[group.key].count++;
     });
     return Object.values(groups).sort((a, b) => b.count - a.count);
   });
@@ -92,7 +100,7 @@ export const useNodes = ({ form, status }) => {
     if (activeNodeGroup.value === "all") {
       return filteredNodes.value;
     }
-    return filteredNodes.value.filter((node) => getNodeRegion(node.name) === activeNodeGroup.value);
+    return filteredNodes.value.filter((node) => getNodeGroup(node).key === activeNodeGroup.value);
   });
 
   const handleNodeRowClick = (row) => {
@@ -233,6 +241,7 @@ export const useNodes = ({ form, status }) => {
     isTesting,
     hideInformationalNodes,
     getNodeRegion,
+    getNodeGroup,
     informationalNodes,
     informationalNodeCount,
     visibleNodes,

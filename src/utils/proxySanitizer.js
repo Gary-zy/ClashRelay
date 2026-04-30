@@ -2,6 +2,8 @@ export const RUNTIME_PROXY_FIELDS = new Set([
   "latency",
   "lastCheck",
   "status",
+  "sourceName",
+  "sourcePrefix",
 ]);
 
 export const normalizeProxyHost = (value) => {
